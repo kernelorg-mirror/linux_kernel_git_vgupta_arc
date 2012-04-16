@@ -532,7 +532,7 @@ static inline int __attribute__ ((const))__fls(unsigned long x)
 
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/le.h>
-#include <asm-generic/bitops/ext2-atomic.h>
+#include <asm-generic/bitops/ext2-atomic-setbit.h>
 
 #endif /* __KERNEL__ */
 
