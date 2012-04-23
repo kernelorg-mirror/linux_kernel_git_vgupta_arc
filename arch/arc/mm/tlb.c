@@ -519,19 +519,13 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf)
 	int num = 0;
 	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[0].mmu;
 
-	num += sprintf(buf + num, "ARC700 MMU Ver [%x]", p_mmu->ver);
-#if (CONFIG_ARC_MMU_VER > 2)
-	num += sprintf(buf + num, " SASID [%s]",
-		       __CONFIG_ARC_MMU_SASID_VAL ? "enabled" : "disabled");
-#endif
+	num += sprintf(buf+num, "ARC700 MMU [v%x]: %dk PAGE, ",
+			p_mmu->ver, TO_KB(p_mmu->pg_sz));
 
-	num += sprintf(buf + num, "\n   PAGE SIZE %dk\n", TO_KB(p_mmu->pg_sz));
-	num += sprintf(buf + num, "   JTLB %d x %d = %d entries\n",
-		       p_mmu->sets, p_mmu->ways, p_mmu->num_tlb);
-	num += sprintf(buf + num, "   uDTLB %d entr, uITLB %d entr\n",
-		       p_mmu->u_dtlb, p_mmu->u_itlb);
-	num += sprintf(buf + num, "TLB Refill \"will %s\" Flush uTLBs\n",
-		       p_mmu->ver >= 2 ? "NOT" : "");
+	num += sprintf(buf+num, "J-TLB %d (%dx%d), uDTLB %d, uITLB %d, %s\n",
+			p_mmu->num_tlb, p_mmu->sets, p_mmu->ways,
+			p_mmu->u_dtlb, p_mmu->u_itlb,
+			(__CONFIG_ARC_MMU_SASID_VAL ? "SASID" : ""));
 	return buf;
 }
 

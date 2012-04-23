@@ -212,51 +212,49 @@ char *arc_cpu_mumbojumbo(int cpu_id, char *buf)
 }
 
 static const struct id_to_str mul_type_nm[] = {
-	{0x0, "Not Present"},
-	{0x1, "32x32 with SPECIAL Result Reg"},
-	{0x2, "32x32 with ANY Result Reg"}
+	{ 0x0, "N/A"},
+	{ 0x1, "32x32 (spl Result Reg)" },
+	{ 0x2, "32x32 (ANY Result Reg)" }
 };
 
 static const struct id_to_str mac_mul_nm[] = {
-	{0x0, "Not Present"},
-	{0x1, "Not Present"},
+	{0x0, "N/A"},
+	{0x1, "N/A"},
 	{0x2, "Dual 16 x 16"},
-	{0x3, "Not Present"},
-	{0x4, "32 x 16"},
-	{0x5, "Not Present"},
-	{0x6, "Dual 16 x 16 and 32 x 16"}
+	{0x3, "N/A"},
+	{0x4, "32x16"},
+	{0x5, "N/A"},
+	{0x6, "Dual 16x16 and 32x16"}
 };
 
 char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 {
 	int num = 0;
 	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[cpu_id];
+
 	FIX_PTR(p_cpu);
-
-#define IS_AVAIL1(var)   ((var) ? "Present" : "N/A")
+#define IS_AVAIL1(var, str)	((var) ? str : "")
+#define IS_AVAIL2(var, str)	((var == 0x2) ? str : "")
 #define IS_AVAIL3(var)   ((var) ? "" : "N/A")
-
-	num += sprintf(buf + num, "Extensions:\n");
 
 	if (p_cpu->core.family == 0x34) {
 		const char *inuse = "(in-use)";
 		const char *notinuse = "(not used)";
 
 		num += sprintf(buf + num,
-			       "   Insns: LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
-			       __CONFIG_ARC_HAS_LLSC_VAL ? inuse : notinuse,
-			       __CONFIG_ARC_HAS_SWAPE_VAL ? inuse : notinuse,
-			       __CONFIG_ARC_HAS_RTSC_VAL ? inuse : notinuse);
-
+			"Extn [700-4.10]: LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
+			__CONFIG_ARC_HAS_LLSC_VAL ? inuse : notinuse,
+			__CONFIG_ARC_HAS_SWAPE_VAL ? inuse : notinuse,
+			__CONFIG_ARC_HAS_RTSC_VAL ? inuse : notinuse);
 	}
 
-	num += sprintf(buf + num, "   MPY: %s",
+	num += sprintf(buf + num, "MPY: %s",
 		       mul_type_nm[p_cpu->extn.mul].str);
 
 	num += sprintf(buf + num, "   MAC MPY: %s\n",
 		       mac_mul_nm[p_cpu->extn_mac_mul.type].str);
 
-	num += sprintf(buf + num, "   DCCM: %s", IS_AVAIL3(p_cpu->dccm.sz));
+	num += sprintf(buf + num, "DCCM: %s", IS_AVAIL3(p_cpu->dccm.sz));
 	if (p_cpu->dccm.sz)
 		num += sprintf(buf + num, "@ %x, %d KB ",
 			       p_cpu->dccm.base_addr, TO_KB(p_cpu->dccm.sz));
@@ -266,33 +264,26 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 		num += sprintf(buf + num, "@ %x, %d KB",
 			       p_cpu->iccm.base_addr, TO_KB(p_cpu->iccm.sz));
 
-	num += sprintf(buf + num, "\n   CRC: %s,", IS_AVAIL1(p_cpu->extn.crc));
-	num += sprintf(buf + num, "   SWAP: %s", IS_AVAIL1(p_cpu->extn.swap));
+	num += sprintf(buf+num, "\nExtn [700-Basic]: %s %s %s %s %s %s\n",
+			IS_AVAIL2(p_cpu->extn.norm, "norm,"),
+			IS_AVAIL2(p_cpu->extn.barrel, "barrel-shift,"),
+			IS_AVAIL1(p_cpu->extn.swap, "swap,"),
+			IS_AVAIL2(p_cpu->extn.minmax, "minmax,"),
+			IS_AVAIL1(p_cpu->extn.crc, "crc,"),
+			IS_AVAIL2(p_cpu->extn.ext_arith, "ext-arith"));
 
-#define IS_AVAIL2(var)   ((var == 0x2) ? "Present" : "N/A")
-
-	num += sprintf(buf + num, "   NORM: %s\n", IS_AVAIL2(p_cpu->extn.norm));
-	num +=
-	    sprintf(buf + num, "   Min-Max: %s,",
-		    IS_AVAIL2(p_cpu->extn.minmax));
-	num +=
-	    sprintf(buf + num, "   Barrel Shifter: %s\n",
-		    IS_AVAIL2(p_cpu->extn.barrel));
-
-	num += sprintf(buf + num, "   Ext Arith Insn: %s\n",
-		       IS_AVAIL2(p_cpu->extn.ext_arith));
-
-	num += sprintf(buf + num, "Floating Point Extension: %s",
-		       (p_cpu->fp.ver || p_cpu->dpfp.ver) ? "\n" : "N/A\n");
+	num += sprintf(buf + num, "Extn [Floating Point]: %s",
+			!(p_cpu->fp.ver || p_cpu->dpfp.ver) ? "N/A" : "");
 
 	if (p_cpu->fp.ver) {
-		num += sprintf(buf + num, "   Single Prec v[%d] %s\n",
-			       (p_cpu->fp.ver), p_cpu->fp.fast ? "(fast)" : "");
+		num += sprintf(buf + num, "SP [v%d] %s",
+		       (p_cpu->fp.ver), p_cpu->fp.fast ? "(fast)" : "");
 	}
 	if (p_cpu->dpfp.ver) {
-		num += sprintf(buf + num, "   Dbl Prec v[%d] %s\n",
-			       (p_cpu->fp.ver), p_cpu->fp.fast ? "(fast)" : "");
+		num += sprintf(buf + num, "DP [v%d] %s",
+		       (p_cpu->fp.ver), p_cpu->fp.fast ? "(fast)" : "");
 	}
+	num += sprintf(buf + num, "\n");
 
 	return buf;
 }

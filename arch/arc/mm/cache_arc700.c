@@ -98,32 +98,31 @@ static void (*___flush_icache_rtn) (unsigned long, int);
 char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 {
 	int num = 0;
-	struct cpuinfo_arc_cache *p_cache = &cpuinfo_arc700[0].icache;
+	struct cpuinfo_arc_cache *p_cache;
 
-	num += sprintf(buf + num, "Detected I-cache :\n");
-	num +=
-	    sprintf(buf + num,
-		    "  Type=%d way set-assoc, Line length=%u, Size=%uK",
-		    p_cache->assoc, p_cache->line_len, TO_KB(p_cache->sz));
-
-#ifdef CONFIG_ARC_HAS_ICACHE
-	num += sprintf(buf + num, " (enabled)\n");
+#ifdef CONFIG_ARC700_USE_ICACHE
+	const int ic_enb = 1;
 #else
-	num += sprintf(buf + num, " (disabled)\n");
+	const int ic_enb = 0;
 #endif
+
+#ifdef CONFIG_ARC700_USE_DCACHE
+	const int dc_enb = 1;
+#else
+	const int dc_enb = 0;
+#endif
+
+	p_cache = &cpuinfo_arc700[0].icache;
+	num += sprintf(buf + num,
+		       "I-cache: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
+		       TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
+			ic_enb ? "" : " (DISABLED)");
 
 	p_cache = &cpuinfo_arc700[0].dcache;
-	num += sprintf(buf + num, "Detected D-cache :\n");
-	num +=
-	    sprintf(buf + num,
-		    "  Type=%d way set-assoc, Line length=%u, Size=%uK",
-		    p_cache->assoc, p_cache->line_len, TO_KB(p_cache->sz));
-
-#ifdef CONFIG_ARC_HAS_DCACHE
-	num += sprintf(buf + num, " (enabled)\n");
-#else
-	num += sprintf(buf + num, " (disabled)\n");
-#endif
+	num += sprintf(buf + num,
+			"D-cache: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
+			TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
+			dc_enb ? "" : " (DISABLED)");
 
 	return buf;
 }
@@ -135,39 +134,26 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
  */
 void __init read_decode_cache_bcr(void)
 {
+	struct bcr_cache ibcr, dbcr;
+	struct cpuinfo_arc_cache *p_ic, *p_dc;
 
-#ifdef CONFIG_ARC_HAS_ICACHE
-	{
-		struct bcr_cache ibcr;
+	p_ic = &cpuinfo_arc700[0].icache;
+	READ_BCR(ARC_REG_IC_BCR, ibcr);
 
-		struct cpuinfo_arc_cache *p_ic = &cpuinfo_arc700[0].icache;
-		READ_BCR(ARC_REG_IC_BCR, ibcr);
+	if (ibcr.config == 0x3)
+		p_ic->assoc = 2;
+	p_ic->line_len = 8 << ibcr.line_len;
+	p_ic->sz = 0x200 << ibcr.sz;
+	p_ic->ver = ibcr.ver;
 
-		if (ibcr.config == 0x3)
-			p_ic->assoc = 2;
+	p_dc = &cpuinfo_arc700[0].dcache;
+	READ_BCR(ARC_REG_DC_BCR, dbcr);
 
-		p_ic->line_len = 8 << ibcr.line_len;
-		p_ic->sz = 0x200 << ibcr.sz;
-		p_ic->ver = ibcr.ver;
-	}
-#endif
-
-#ifdef CONFIG_ARC_HAS_DCACHE
-	{
-		struct bcr_cache dbcr;
-
-		struct cpuinfo_arc_cache *p_dc = &cpuinfo_arc700[0].dcache;
-		READ_BCR(ARC_REG_DC_BCR, dbcr);
-
-		if (dbcr.config == 0x2)
-			p_dc->assoc = 4;
-
-		p_dc->line_len = 16 << dbcr.line_len;
-		p_dc->sz = 0x200 << dbcr.sz;
-		p_dc->ver = dbcr.ver;
-	}
-#endif
-
+	if (dbcr.config == 0x2)
+		p_dc->assoc = 4;
+	p_dc->line_len = 16 << dbcr.line_len;
+	p_dc->sz = 0x200 << dbcr.sz;
+	p_dc->ver = dbcr.ver;
 }
 
 /*
