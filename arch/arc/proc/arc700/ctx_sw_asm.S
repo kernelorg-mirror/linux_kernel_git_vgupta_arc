@@ -40,14 +40,12 @@ ARC_SCHED_FUNC __switch_to
          don't need to do anything special to return it
     */
 
-    ; Ensure all pending memory operations have physically completed before
-    ; switching contexts. This is to make sure that the right process is
-    ; killed in case of a memory error
+	; hardware memory barrier
     sync
 
     /* switch to new task , second parameter to this function , ie r1*/
     // Temp reg r3 is required to get the ptr to store val
-    PUT_CURR_TASK_ON_CPU  r1, r3
+    SET_CURR_TASK_ON_CPU  r1, r3
 
     /* reload SP with saved kernel mode stack pointer in task->thread.ksp */
     ld.as  sp, [r1, (TASK_THREAD + THREAD_KSP)/4]

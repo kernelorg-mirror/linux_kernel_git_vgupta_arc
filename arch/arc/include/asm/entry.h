@@ -602,17 +602,6 @@
  * Get current running task on this CPU
  * 1. Determine curr CPU id.
  * 2. Use it to index into _current_task[ ]
-
-.macro  GET_CURR_TASK_ON_CPU_SLOW    reg
-    GET_CPU_ID  \reg
-    lsl \reg, \reg, 2
-    ld  \reg, [_current_task, \reg]
-.endm
- */
-
-/* Using the Address Scaling mode to avoid extra instrn
- * Note this wont work with GCC 3.4 Assembler
- * REQuires src oper to be Reg
  */
 .macro  GET_CURR_TASK_ON_CPU   reg
     GET_CPU_ID  \reg
@@ -623,20 +612,10 @@
  * Save a new task as the "current" task on this CPU
  * 1. Determine curr CPU id.
  * 2. Use it to index into _current_task[ ]
+ * Note that ST insn doesn't have scaled addressing mode
  */
 
-/* Ideal implementation I wanted, using Address Scaled Indexing
- * so offset in array calculated within st instn
- * GCC 4.2 Assembler doesnt allow this
- * This is because it is not allowed by ABI so no blame on Assmebler
-
-.macro  PUT_CURR_TASK_ON_CPU_IDEAL    out_reg, tmp_reg
-    GET_CPU_ID  \tmp_reg
-    st.as  \out_reg, [_current_task, \tmp_reg]
-.endm
- */
-
-.macro  PUT_CURR_TASK_ON_CPU    out_reg, tmp_reg
+.macro  SET_CURR_TASK_ON_CPU    out_reg, tmp_reg
     GET_CPU_ID  \tmp_reg
     lsl \tmp_reg, \tmp_reg, 2
     add \tmp_reg, \tmp_reg, _current_task
@@ -654,7 +633,7 @@
     ld  \reg, [_current_task]
 .endm
 
-.macro  PUT_CURR_TASK_ON_CPU    out_reg, tmp_reg
+.macro  SET_CURR_TASK_ON_CPU    out_reg, tmp_reg
     st  \out_reg, [_current_task]
 #ifdef CONFIG_ARCH_ARC_CURR_IN_REG
     mov r25, \out_reg

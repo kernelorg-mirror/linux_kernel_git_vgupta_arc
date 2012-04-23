@@ -348,56 +348,6 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
     return 0;
 }
 
-#ifndef CORE_DUMP_USE_REGSET
-
-//#define CORE_DEBUG    1
-/*
- * fill in the user structure for an elf core dump
- * NOTE: Before making any additions to the number of registers dumped,
- * please change the size of the array elf_gregset_t, defined in
- * include/asm/elf.h
- */
-void arc_elf_core_copy_regs(elf_gregset_t *pr_reg, struct pt_regs *regs)
-{
-    void *elfregs = pr_reg;
-    struct callee_regs *calleeregs;
-    struct task_struct *tsk = current;
-
-    printk("Dumping Task %x pid [%d] \n", tsk, tsk->pid);
-
-    // setup by low level asm code as THREAD_CALLEE_REG
-    calleeregs = (struct callee_regs *)tsk->thread.callee_reg;
-
-    /* copy pt_regs */
-    memcpy(elfregs, regs, sizeof(struct pt_regs));
-    elfregs += sizeof(struct pt_regs);
-
-    /* copy callee_regs */
-    memcpy(elfregs, calleeregs, sizeof(struct callee_regs));
-    elfregs += sizeof(struct callee_regs);
-
-    if(in_brkpt_trap(regs)) {
-#ifdef CORE_DEBUG
-        printk("1 Writing stop_pc(efa) %08lx\n", tsk->thread.fault_address);
-#endif
-        memcpy(elfregs, &tsk->thread.fault_address, sizeof(unsigned long));
-    }
-    else {
-#ifdef CORE_DEBUG
-        printk("2 Writing stop_pc(ret) %08lx\n", regs->ret);
-#endif
-        memcpy(elfregs, &regs->ret, sizeof(unsigned long));
-
-    }
-}
-
-int arc_elf_core_copy_tsk_regs(struct task_struct *tsk, elf_gregset_t *pr_regs)
-{
-    arc_elf_core_copy_regs(pr_regs, task_pt_regs(tsk));
-    return 1;
-}
-#endif
-
 /* Sameer: We don't have implementation yet */
 void (*pm_power_off) (void) = NULL;
 

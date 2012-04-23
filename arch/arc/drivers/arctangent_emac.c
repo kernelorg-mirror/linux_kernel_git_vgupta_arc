@@ -94,21 +94,6 @@ volatile struct sk_buff *skb_prealloc[SKB_PREALLOC];
 //pre - allocated SKB 's
 volatile unsigned int skb_count = 0;
 
-//#define EMAC_STATS 1
-#ifdef EMAC_STATS
-//EMAC stats.Turn these on to get more information from the EMAC
-// Turn them off to get better performance.
-// note:If you see UCLO it 's bad.
-
-	unsigned int    emac_drop = 0;
-	unsigned int    emac_defr = 0;
-	unsigned int    emac_ltcl = 0;
-	unsigned int    emac_uflo = 0;
-	unsigned int    skb_not_preallocated = 0;
-#endif
-    unsigned int    emac_txfull = 0;
-
-
 /*
  * Size of RX buffers, min = 0 (pointless) max = 2048 (MAX_RX_BUFFER_LEN) MAC
  * reference manual recommends a value slightly greater than the maximum size
@@ -242,16 +227,6 @@ static inline arc_emac_reg *const EMAC_REG(void * ap)   \
 #define LXT971A_STATUS2_100         0x4000
 
 
-// #define ARCTANGENT_EMAC_DEBUG
-
-#ifdef ARCTANGENT_EMAC_DEBUG
-#define dbg_printk(fmt, args...)	\
-		printk ("ARCTangent emac: "); \
-		printk (fmt, ## args);
-#else
-#define dbg_printk(fmt, args...)
-#endif
-
 #define __mdio_write(priv, phy_reg, val)	\
 {                                                   \
     priv->mdio_complete = 0;				\
@@ -339,14 +314,6 @@ static int arc_emac_clean(struct net_device *dev
 #endif
 );
 
-
-#ifdef EMAC_STATS
-//Stats proc file system
-static int read_proc(char *sysbuf, char **start,
-			    off_t off, int count, int *eof, void *data);
-struct proc_dir_entry *myproc;
-#endif
-
 static void     dump_phy_status(unsigned int status)
 {
 
@@ -407,8 +374,6 @@ static int arc_emac_poll (struct napi_struct *napi, int budget)
 
 #endif
 
-//int debug_emac = 1;
-
 static int arc_emac_clean(struct net_device *dev
 #ifdef CONFIG_EMAC_NAPI
     ,unsigned int work_to_do
@@ -463,12 +428,6 @@ static int arc_emac_clean(struct net_device *dev
 						ap->stats.rx_dropped++;
                         continue;
 					}
-#ifdef EMAC_STATS
-                    else {
-                        // Not fatal, purely for statistical purposes
-						skb_not_preallocated++;
-					}
-#endif
 				}
 
                 /* Actually preparing the BD for next cycle */
@@ -488,21 +447,6 @@ static int arc_emac_clean(struct net_device *dev
 				skb->dev = dev;
 				skb_put(skb, len - 4);	/* Make room for data */
 				skb->protocol = eth_type_trans(skb, dev);
-
-#if 0
-                if (debug_emac) {
-
-extern void print_hex_dump(const char *level, const char *prefix_str,
-    int prefix_type, int rowsize, int groupsize,
-    const void *buf, size_t len, bool ascii);
-extern void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
-   const void *buf, size_t len);
-                            printk("\n--------------\n");
-                            print_hex_dump_bytes("", DUMP_PREFIX_NONE,
-                                skb->data, 64);
-
-                }
-#endif
 
 #ifdef CONFIG_EMAC_NAPI
 		        /* Correct NAPI smenatics: If work quota exceeded return
@@ -632,15 +576,15 @@ static int arc_emac_tx_clean(struct arc_emac_priv *ap)
 		{
 			info = arc_emac_read(&ap->txbd[ap->txbd_dirty].info);
 
-#ifdef EMAC_STATS
-
             if ( info & (DROP|DEFR|LTCL|UFLO)) {
-			    if (info & DROP) emac_drop++;
-			    if (info & DEFR) emac_defr++;
-			    if (info & LTCL) emac_ltcl++;
-			    if (info & UFLO) emac_uflo++;
-            }
+		printk(KERN_ERR" EMAC fixme: add Tx errors to stats\n");
+#if 0
+			    if (info & DROP) ;
+			    if (info & DEFR) ;
+			    if (info & LTCL) ;
+			    if (info & UFLO) ;
 #endif
+            }
 			if ((info & FOR_EMAC) ||
 			    !(arc_emac_read(&ap->txbd[ap->txbd_dirty].data)))
 			{
@@ -829,14 +773,6 @@ arc_emac_open(struct net_device * dev)
 	//ARC Emac helper thread.
     kthread_run(arc_thread, 0, "EMAC helper");
 
-#ifdef EMAC_STATS
-    myproc = create_proc_entry("emac", 0644, NULL);
-	if (myproc)
-	{
-		myproc->read_proc = read_proc;
-	}
-#endif
-
 	return 0;
 }
 
@@ -867,8 +803,7 @@ arc_emac_stop(struct net_device * dev)
 int
 arc_emac_ioctl(struct net_device * dev, struct ifreq * rq, int cmd)
 {
-	dbg_printk("ioctl called\n");
-	/* FIXME :: not ioctls yet :( */
+	printk("ioctl called\n");
 	return (-EOPNOTSUPP);
 }
 
@@ -975,11 +910,6 @@ tx_next_chunk:
 	}
     else
 	{
-        //if (!netif_queue_stopped(dev))
-        //{
-		//    printk(KERN_INFO "Out of TX buffers\n");
-        //}
-        emac_txfull++;
         return NETDEV_TX_BUSY;
     }
 }
@@ -996,7 +926,7 @@ arc_emac_tx_timeout(struct net_device * dev)
 void
 arc_emac_set_multicast_list(struct net_device * dev)
 {
-	dbg_printk("set multicast list called\n");
+	printk("set multicast list called\n");
 	return;
 }
 
@@ -1210,22 +1140,3 @@ static int arc_thread(void *unused) //helps with interrupt mitigation.
     return 0;
 }
 
-#ifdef EMAC_STATS
-static int read_proc(char *sysbuf, char **start,
-			    off_t off, int count, int *eof, void *data)
-{
-	int  len;
-
-	len = sprintf(sysbuf, "\nARC EMAC STATISTICS\n");
-	len += sprintf(sysbuf + len, "-------------------\n");
-	len += sprintf(sysbuf + len, "SKB Pre-allocated available buffers : %u\n", skb_count);
-	len += sprintf(sysbuf + len, "SKB Pre-allocated maximum           : %u\n", SKB_PREALLOC);
-	len += sprintf(sysbuf + len, "Number of intr allocated SKB's used : %u\n", skb_not_preallocated);
-	len += sprintf(sysbuf + len, "EMAC DEFR count : %u\n", emac_defr);
-	len += sprintf(sysbuf + len, "EMAC DROP count : %u\n", emac_drop);
-	len += sprintf(sysbuf + len, "EMAC LTCL count : %u\n", emac_ltcl);
-	len += sprintf(sysbuf + len, "EMAC UFLO count : %u\n", emac_uflo);
-	len += sprintf(sysbuf + len, "EMAC TxFull count : %u\n", emac_txfull);
-	return (len);
-}
-#endif

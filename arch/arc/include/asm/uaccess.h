@@ -1046,7 +1046,6 @@ __strnlen_user_inline(const char *s, long n)
     return (res);
 }
 
-#ifndef NONINLINE_USR_CPY
 /*
   documentation says that copy_from_user should return the number of
   bytes that couldn't be copied, we return 0 indicating that all data
@@ -1148,22 +1147,6 @@ strnlen_user(const char *s, long n)
 
     return __strnlen_user_inline(s, n);
 }
-
-#else
-
-unsigned long copy_from_user(void *to, const void *from, unsigned long n);
-unsigned long __copy_from_user(void *to, const void *from, unsigned long n);
-
-unsigned long copy_to_user(void *to, const void *from, unsigned long n);
-unsigned long __copy_to_user(void *to, const void *from, unsigned long n);
-
-unsigned long clear_user(void *to, unsigned long n);
-unsigned long __clear_user(void *to, unsigned long n);
-
-long strncpy_from_user(char *dst, const char *src, long count);
-long strnlen_user(const char *s, long n);
-
-#endif
 
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user

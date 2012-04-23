@@ -32,7 +32,7 @@ endif
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 # Generic build system already passes -Os
 # Enable some explicitly uninlined routines
-KBUILD_CFLAGS		+= -DNONINLINE_USR_CPY -DNONINLINE_MEMSET
+KBUILD_CFLAGS		+= -DNONINLINE_MEMSET
 # Generic build system uses -O2, we want -O3
 else
 KBUILD_CFLAGS  += -O3

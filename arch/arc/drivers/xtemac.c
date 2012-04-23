@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/inetdevice.h>
 #include <linux/inet.h>
-#include <linux/proc_fs.h>
 
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
@@ -48,12 +47,6 @@ struct net_device_stats * xtemac_stats(struct net_device *);
 int xtemac_stop(struct net_device *);
 int xtemac_set_address(struct net_device *, void *);
 void print_phy_status2(unsigned int );
-void print_packet(unsigned int, unsigned char *);
-
-static int read_proc(char *sysbuf, char **start, off_t off, int count, int *eof, void *data);
-static int write_proc(char *sysbuf, char ** buffer, off_t count, int l_sysbuf, int zero);
-
-struct proc_dir_entry *myproc;
 
 static const struct net_device_ops xtemac_netdev_ops = {
 	.ndo_open 			= xtemac_open,
@@ -545,24 +538,6 @@ static void xtemac_remove(struct net_device *dev)
 
 }
 
-
-
-void print_packet(unsigned int len, unsigned char * packet)
-{
-    unsigned int    n;
-    printk("Printing packet\nLen = %u\n", len);
-
-    for(n=0;n<len;n++)
-    {
-        if(! (n %20))
-            printk("\n");
-        printk("%02x-",*packet++);
-    }
-    printk("\n");
-}
-
-
-
 void print_phy_status2(unsigned int status)
 {
 
@@ -639,124 +614,7 @@ unsigned int XEMAC_mdio_read ( volatile struct xtemac_ptr * dev_ptr,
    }
 
    arc_write_uncached_32(&dev_ptr->bridge.intrClrReg ,  INTR_STATUS_MDIO_BIT_POS);
-//    printk("read MDIO status in %x counts\n", count);
     return 0;
-}
-
-static int read_proc(char *sysbuf, char **start,
-                 off_t off, int count, int *eof, void *data)
-{
-    int  len;
-    unsigned int status;
-    unsigned int perid;
-    unsigned int dma_tx_status_reg;
-    unsigned int dma_rx_status_reg;
-    unsigned int intr_enable_reg;
-
-    status = arc_read_uncached_32(&xtemac->bridge.intrStsReg);
-    perid =  arc_read_uncached_32(&xtemac->bridge.idReg);
-    dma_tx_status_reg = arc_read_uncached_32(&xtemac->bridge.dmaTxStsReg);
-    dma_rx_status_reg = arc_read_uncached_32(&xtemac->bridge.dmaRxStsReg);
-    intr_enable_reg = arc_read_uncached_32(&xtemac->bridgeExtn.intrEnableReg);
-
-
-    len = sprintf(sysbuf, "\nARC AA5 TEMAC STATISTICS\n");
-    len += sprintf(sysbuf + len, "------------------------\n");
-    len += sprintf(sysbuf + len, "Base address of bridge regs %x\n", (unsigned int)&xtemac->bridge);
-    len += sprintf(sysbuf + len, "idReg             %x\n", arc_read_uncached_32(&xtemac->bridge.idReg));
-
-    len += sprintf(sysbuf + len, "dmaTxCmdReg       %x\n", arc_read_uncached_32(&xtemac->bridge.dmaTxCmdReg));
-
-
-    len += sprintf(sysbuf + len, "dmaTxAddrReg      %x\n", arc_read_uncached_32(&xtemac->bridge.dmaTxAddrReg));
-
-    len += sprintf(sysbuf + len, "dmaTxStsReg       %x\n", arc_read_uncached_32(&xtemac->bridge.dmaTxStsReg));
-
-    len += sprintf(sysbuf + len, "dmaTxClrReg       %x\n", arc_read_uncached_32(&xtemac->bridge.dmaTxClrReg));
-
-
-    len += sprintf(sysbuf + len, "macTxFIFOStatusReg %x\n", arc_read_uncached_32(&xtemac->bridge.macTxFIFOStatusReg));
-
-
-    len += sprintf(sysbuf + len, "dmaRxCmdReg        %x\n", arc_read_uncached_32(&xtemac->bridge.dmaRxCmdReg));
-
-    len += sprintf(sysbuf + len, "dmaRxAddrReg        %x\n", arc_read_uncached_32(&xtemac->bridge.dmaRxAddrReg));
-
-    len += sprintf(sysbuf + len, "dmaRxStsReg        %x\n", arc_read_uncached_32(&xtemac->bridge.dmaRxStsReg));
-    len += sprintf(sysbuf + len, "dmaRxClrReg        %x\n", arc_read_uncached_32(&xtemac->bridge.dmaRxClrReg));
-    len += sprintf(sysbuf + len, "txFifoRxFifoRstReg %x\n", arc_read_uncached_32(&xtemac->bridge.txFifoRxFifoRstReg));
-    len += sprintf(sysbuf + len, "intrStsReg         %x\n", arc_read_uncached_32(&xtemac->bridge.intrStsReg));
-//    len += sprintf(sysbuf + len, "intrClrReg         %x\n", arc_read_uncached_32(&xtemac->bridge.intrClrReg));
-    len += sprintf(sysbuf + len, "pioDataCountReg    %x\n", arc_read_uncached_32(&xtemac->bridge.pioDataCountReg));
-    len += sprintf(sysbuf + len, "arbSelReg          %x\n", arc_read_uncached_32(&xtemac->bridge.arbSelReg));
-//    len += sprintf(sysbuf + len, "dataReg            %x\n", arc_read_uncached_32(&xtemac->bridge.dataReg));
-
-
-// Config regs
-
-    len += sprintf(sysbuf + len, "\n\nConfig regs @ %x\n", (unsigned int)&xtemac->config);
-
-    len += sprintf(sysbuf + len, "rxCtrl0Reg         %x\n", arc_read_uncached_32(&xtemac->config.rxCtrl0Reg));
-    len += sprintf(sysbuf + len, "rxCtrl1Reg         %x\n", arc_read_uncached_32(&xtemac->config.rxCtrl1Reg));
-    len += sprintf(sysbuf + len, "txCtrlReg          %x\n", arc_read_uncached_32(&xtemac->config.txCtrlReg));
-    len += sprintf(sysbuf + len, "flowCtrlConfigReg  %x\n", arc_read_uncached_32(&xtemac->config.flowCtrlConfigReg));
-    len += sprintf(sysbuf + len, "macModeConfigReg   %x\n", arc_read_uncached_32(&xtemac->config.macModeConfigReg));
-    len += sprintf(sysbuf + len, "rgmsgmiiConfigReg  %x\n", arc_read_uncached_32(&xtemac->config.rgmsgmiiConfigReg));
-    len += sprintf(sysbuf + len, "mgmtConfigReg      %x\n", arc_read_uncached_32(&xtemac->config.mgmtConfigReg));
-
-// Filter regs
-
-    len += sprintf(sysbuf + len, "\n\naddrFilter regs @ %x\n", (unsigned int)&xtemac->addrFilter);
-    len += sprintf(sysbuf + len, "unicastAddr0Reg    %x\n", arc_read_uncached_32(&xtemac->addrFilter.unicastAddr0Reg));
-    len += sprintf(sysbuf + len, "unicastAddr1Reg    %x\n", arc_read_uncached_32(&xtemac->addrFilter.unicastAddr1Reg));
-    len += sprintf(sysbuf + len, "genAddrTableAccess0Reg %x\n", arc_read_uncached_32(&xtemac->addrFilter.genAddrTableAccess0Reg));
-    len += sprintf(sysbuf + len, "genAddrTableAccess1Reg %x\n", arc_read_uncached_32(&xtemac->addrFilter.genAddrTableAccess1Reg));
-    len += sprintf(sysbuf + len, "addrFilterModeReg  %x\n", arc_read_uncached_32(&xtemac->addrFilter.addrFilterModeReg));
-
-
-//Bridge Extn
-
-    len += sprintf(sysbuf + len, "\n\nBridgeExtn regs @ %x\n", (unsigned int)&xtemac->bridgeExtn);
-
-    len += sprintf(sysbuf + len, "sizeReg            %x\n", arc_read_uncached_32(&xtemac->bridgeExtn.sizeReg));
-    len += sprintf(sysbuf + len, "phyAddrReg         %x\n", arc_read_uncached_32(&xtemac->bridgeExtn.phyAddrReg));
-    len += sprintf(sysbuf + len, "intrEnableReg      %x\n", arc_read_uncached_32(&xtemac->bridgeExtn.intrEnableReg));
-    len += sprintf(sysbuf + len, "IntrRawStsReg      %x\n", arc_read_uncached_32(&xtemac->bridgeExtn.intrRawStsReg));
-//    len += sprintf(sysbuf + len, "macMDIOReg         %x\n", arc_read_uncached_32(&xtemac->bridgeExtn.macMDIOReg));
-    return (len);
-
-}
-
-static int write_proc(char *sysbuf, char ** buffer, off_t count, int l_sysbuf, int zero)
-{
-
-    volatile unsigned int   reg;
-    volatile unsigned int   val;
-    char from_proc[80];     // bad, buffer overflow !
-
-    if(copy_from_user(from_proc, buffer, count))
-        return -EFAULT;
-
-    from_proc[count-1]=0;
-
-     /* First character indicates read or write */
-
-     if(from_proc[0]=='w')
-     {   /* WRITE AUX REG */
-
-         sscanf(from_proc, "w%x=%x", &reg, &val);
-         printk("writing %x to %x\n", val,reg);
-         arc_write_uncached_32(reg, val);
-     }
-    else if (from_proc[0]=='d')
-    {
-        debug = ~debug;  // invert debug status.
-    }
-
-
-
-return count;
-
 }
 
 static struct platform_driver xtemac_driver = {
@@ -789,3 +647,18 @@ xtemac_module_cleanup(void)
 
 module_init(xtemac_module_init);
 module_exit(xtemac_module_cleanup);
+
+static __init add_xtemac(void)
+{
+    struct platform_device *pd;
+    pd = platform_device_register_simple("xilinx_temac",0,NULL,0);
+
+    if (IS_ERR(pd))
+    {
+        printk("Fail\n");
+    }
+
+    return IS_ERR(pd) ? PTR_ERR(pd): 0;
+}
+
+device_initcall(add_xtemac);

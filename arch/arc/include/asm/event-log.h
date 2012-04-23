@@ -103,22 +103,4 @@ void sort_snaps(int halt_after_sort);
 
 #endif /* CONFIG_ARC_DBG_EVENT_TIMELINE */
 
-/*######################################################################
- *
- *    Process fork/exec Logging
- *
- *#####################################################################*/
-
-#ifndef __ASSEMBLY__
-
-//#define CONFIG_DEBUG_ARC_PID 1
-
-#ifndef CONFIG_DEBUG_ARC_PID
-
-#define fork_exec_log(p, c)
-
-#endif /* CONFIG_DEBUG_ARC_PID */
-
-#endif /* __ASSEMBLY__ */
-
 #endif /* __ASM_ARC_EVENT_PROFILE_H */

@@ -105,6 +105,10 @@ config NO_DMA
     bool
     default n
 
+config GENERIC_CLOCKEVENTS
+    bool
+    default y
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -573,12 +577,6 @@ config ARCVSYNC
     depends on ARC_PGU_CONSOLE
     default y
 
-config SOUND_ARC_AC97
-        tristate "Enable AC97 interface"
-        select SOUND
-        select SOUND_PRIME
-        depends on ARCH_ARC_ANGEL4 || ARCH_ARC_ML509
-
 endmenu   #Board config
 
 
@@ -632,10 +630,6 @@ config MMAP_CODE_CMN_VADDR
 config HZ
     int "Timer Frequency"
     default 100
-
-config GENERIC_CLOCKEVENTS
-    bool "Generic clock events"
-    default y
 
 config ARC_STACK_NONEXEC
     bool "Make stack non-executable"

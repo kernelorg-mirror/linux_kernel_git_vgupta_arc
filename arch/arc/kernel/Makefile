@@ -10,24 +10,12 @@ obj-$(CONFIG_MODULES)   += arcksyms.o module.o
 # Pass UTS_MACHINE for user_regset definition
 CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
-obj-y		+= arcksyms.o ptrace.o sys_arc.o setup.o irq.o
+obj-y		+= arcksyms.o ptrace.o sys_arc.o setup.o irq.o time.o
 obj-y		+= troubleshoot.o stacktrace.o event-log.o
 obj-$(CONFIG_ARCH_ARC_HLINK)		+= arc_hostlink.o
-obj-$(CONFIG_XILINX_TEMAC) += platform.o
-obj-$(CONFIG_ISS_MAC) += platform.o
 ifdef CONFIG_SMP
 obj-y		+= atomic_lock.o bitops_lock.o
 endif
-
-ifeq ($(CONFIG_GENERIC_CLOCKEVENTS),y)
-    obj-y += time.o
-else
-    obj-y += time-jiff.o
-endif
-
-obj-m		:=
-obj-n		:=
-obj-		:=
 
 ifdef CONFIG_ARC_STACK_UNWIND
 obj-y		+= unwind.o

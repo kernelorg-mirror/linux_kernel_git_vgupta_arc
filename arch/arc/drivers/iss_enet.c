@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/inetdevice.h>
 #include <linux/inet.h>
-#include <linux/proc_fs.h>
 
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
@@ -47,12 +46,6 @@ void iss_tx_timeout(struct net_device *);
 struct net_device_stats * iss_stats(struct net_device *);
 int iss_stop(struct net_device *);
 int iss_set_address(struct net_device *, void *);
-void print_packet(unsigned int, unsigned char *);
-
-static int read_proc(char *sysbuf, char **start, off_t off, int count, int *eof, void *data);
-static int write_proc(char *sysbuf, char ** buffer, off_t count, int l_sysbuf, int zero);
-
-struct proc_dir_entry *myproc;
 
 static const struct net_device_ops iss_netdev_ops = {
 	.ndo_open 			= iss_open,
@@ -136,11 +129,6 @@ iss_intr(int irq, void *dev_instance)
         skb->ip_summed = CHECKSUM_NONE;
         netif_rx(skb);
         priv->stats.rx_packets++;
-
-//        printk("Packet @ %x\n", ewsim->RX_BUFFER);
-//       printk("priv->rx_buff # %x\n", priv->rx_buff);
-//        print_packet(rxlen,priv->rx_buff);
-
     }
     else
         printk("Unknown reason to interrupt\n");
@@ -236,13 +224,10 @@ iss_tx(struct sk_buff * skb, struct net_device * dev)
     ewsim->CONTROL |= EMWSIM_CONTROL_TRANSMIT;
 
 
-//    print_packet(skb->len, priv->tx_buff);
-//    printk("\n");
     flush_and_inv_dcache_range(priv->tx_buff, priv->tx_buff + skb->len);
     priv->stats.tx_packets++;
     priv->tx_skb = skb;
     dev_kfree_skb(priv->tx_skb);
-//printk("Transmit done\n");
     return(0);
 
 }
@@ -372,71 +357,6 @@ static void iss_remove(struct net_device *dev)
 
 }
 
-
-
-void print_packet(unsigned int len, unsigned char * packet)
-{
-    unsigned int    n;
-    printk("Printing packet\nLen = %u\n", len);
-
-    for(n=0;n<len;n++)
-    {
-        if(! (n %20))
-            printk("\n");
-        printk("%02x-",*packet++);
-    }
-    printk("\n");
-}
-
-
-
-static int read_proc(char *sysbuf, char **start,
-                 off_t off, int count, int *eof, void *data)
-{
-    int  len;
-
-    len = sprintf(sysbuf, "\nARC ISS STATISTICS\n");
-    len += sprintf(sysbuf + len, "==================\n");
-    return(len);
-}
-
-static int write_proc(char *sysbuf, char ** buffer, off_t count, int l_sysbuf, int zero)
-{
-
-    volatile unsigned int   reg;
-    volatile unsigned int   val;
-    char from_proc[80];     // bad, buffer overflow !
-
-    if(copy_from_user(from_proc, buffer, count))
-        return -EFAULT;
-
-    from_proc[count-1]=0;
-
-     /* First character indicates read or write */
-
-     if(from_proc[0]=='w')
-     {   /* WRITE AUX REG */
-
-         sscanf(from_proc, "w%x=%x", &reg, &val);
-         printk("writing %x to %x\n", val,reg);
-         arc_write_uncached_32(reg, val);
-     }
-    else if (from_proc[0]=='d')
-    {
-        debug = ~debug;  // invert debug status.
-    }
-    else if (from_proc[0]='o')
-    {
-//        request_irq((ewsim->INTERRUPT_CONFIGURATION & 0xff), iss_intr,0, dev->name, dev);
-        ewsim->CONTROL |= EMWSIM_CONTROL_INT_ENABLE;
-        ewsim->CONTROL |= EMWSIM_CONTROL_READY_TO_RX;
-    }
-
-
-return count;
-
-}
-
 static struct platform_driver iss_driver = {
      .driver = {
          .name = DRIVER_NAME,
@@ -469,3 +389,18 @@ iss_module_cleanup(void)
 
 module_init(iss_module_init);
 module_exit(iss_module_cleanup);
+
+static __init add_iss(void)
+{
+    struct platform_device *pd;
+    pd = platform_device_register_simple("arc_iss",0,NULL,0);
+
+    if (IS_ERR(pd))
+    {
+        printk("Fail\n");
+    }
+
+    return IS_ERR(pd) ? PTR_ERR(pd): 0;
+}
+
+device_initcall(add_iss);
