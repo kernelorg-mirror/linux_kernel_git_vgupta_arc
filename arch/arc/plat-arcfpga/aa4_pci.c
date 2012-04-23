@@ -55,16 +55,15 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
-
-#include <asm/io.h>
-
 #include <linux/ctype.h>
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/interrupt.h>
-
+#include <asm/io.h>
 #include <asm/uaccess.h>
+#include <plat/memmap.h>
+#include <plat/irq.h>
 
 struct device *tmp_pci_dev = NULL;
 
@@ -74,22 +73,22 @@ struct device *tmp_pci_dev = NULL;
 #define DBG(x...)
 #endif
 
-#define TO_KB(x)    (x * 1024)
-#define TO_MB(x)    (TO_KB(x) * 1024)
+#define __TO_KB(x)    (x * 1024)
+#define __TO_MB(x)    (TO_KB(x) * 1024)
 
 /*********************************************************************
  *  GRPCI Params for mapping Accesses originating on AHB Side,
  *  mapped to PCI [IO | Mem | Cfg ] Transactions
  *********************************************************************/
-#define GRPCI_MEM_WINDOW        TO_MB(256)
-#define GRPCI_IO_WINDOW         TO_KB(64)
+#define GRPCI_MEM_WINDOW        __TO_MB(256)
+#define GRPCI_IO_WINDOW         __TO_KB(64)
 
 #define AHB_TO_PCI_MEM_START    0xD0000000
 #define AHB_TO_PCI_IO_START     (AHB_TO_PCI_MEM_START + GRPCI_MEM_WINDOW)
 #define AHB_TO_PCI_CFG_START    (AHB_TO_PCI_IO_START  + GRPCI_IO_WINDOW)
 
 /* Enable if host controller byte twisting should be disabled */
-#undef BT_ENABLED 1
+#undef BT_ENABLED
 
 typedef struct {
 	volatile unsigned int cfg_stat;
@@ -137,7 +136,10 @@ static int pcic_read_config_dword(unsigned int busno, unsigned int devfn,
 	*value = flip_dword(*value);
 #endif
 
-	DBG("ARC PCI READ : PCI Side=> [%2x:%2x.%d] %x - GRPCI addr: %x - val: %x\n", busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where, AHB_TO_PCI_CFG_START + ((devfn & 0xff) << 8) + (where & ~3), *value);
+	DBG("ARC PCI READ : PCI=> [%2x:%2x.%d] %x - GRPCI: %x - val: %x\n",
+		busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where,
+		AHB_TO_PCI_CFG_START + ((devfn & 0xff) << 8) + (where & ~3),
+		*value);
 
 	return 0;
 }
@@ -189,7 +191,10 @@ static int pcic_write_config_dword(unsigned int busno, unsigned int devfn,
 	val = value;
 #endif
 
-	DBG("ARC PCI WRITE: PCI Side=> [%2x:%2x.%d] %x - GRPCI addr: %x - val: %x\n", busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where, AHB_TO_PCI_CFG_START + ((devfn & 0xff) << 8) + (where & ~3), value);
+	DBG("ARC PCI WRITE: PCI=> [%2x:%2x.%d] %x - GRPCI: %x - val: %x\n",
+		busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where,
+		AHB_TO_PCI_CFG_START + ((devfn & 0xff) << 8) + (where & ~3),
+		value);
 
 	ARC_BYPASS_STORE_PA(AHB_TO_PCI_CFG_START + ((devfn & 0xff) << 8) +
 			    (where & ~3), val);
@@ -251,19 +256,21 @@ static int __init pcic_init(void)
 
 	pcic->mem_resource.name = "ARC PCI Memory space";
 	pcic->mem_resource.start = AHB_TO_PCI_MEM_START;
-	pcic->mem_resource.end = AHB_TO_PCI_MEM_START + GRPCI_MEM_WINDOW - 1;	/* 256 MB */
+	pcic->mem_resource.end = AHB_TO_PCI_MEM_START + GRPCI_MEM_WINDOW - 1;
+	/* 256 MB */
 	pcic->mem_resource.flags = IORESOURCE_MEM;
 
 	pcic->io_resource.name = "ARC PCI IO space";
 	pcic->io_resource.start = AHB_TO_PCI_IO_START;
-	pcic->io_resource.end = AHB_TO_PCI_IO_START + GRPCI_IO_WINDOW - 1;	/* 64 KB */
+	/* 64 KB */
+	pcic->io_resource.end = AHB_TO_PCI_IO_START + GRPCI_IO_WINDOW - 1;
 	pcic->io_resource.flags = IORESOURCE_IO;
 
 	pcic->irq = PCI_IRQ;
 
 	printk("Init AHB-PCI Bridge (GRPCI controller)\n");
 
-    /****************** AHB => PCI reachability *********************/
+	/****************** AHB => PCI reachability *********************/
 
 	/* AHB requests starting at this will be translated to PCI Mem access */
 	ARC_BYPASS_STORE_PA(&pcic->regs->cfg_stat, AHB_TO_PCI_MEM_START);
@@ -274,7 +281,7 @@ static int __init pcic_init(void)
 	 */
 	ARC_BYPASS_STORE_PA(&pcic->regs->iomap, AHB_TO_PCI_IO_START);
 
-    /******************* PCI => AHB reachability *********************/
+	/******************* PCI => AHB reachability *********************/
 
 	/* Setup BAR1: for PCI -> AHB request
 	 * Addresses 0x8000_0000 onwards from PCI side will be honoured
@@ -362,14 +369,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 
-		/*
-		 * Comment from i386 branch:
-		 *     There are buggy BIOSes that forget to enable I/O and memory
-		 *     access to PCI devices. We try to fix this, but we need to
-		 *     be sure that the BIOS didn't forget to assign an address
-		 *     to the device. [mj]
-		 * OBP is a case of such BIOS :-)
-		 */
 		has_io = has_mem = 0;
 		for (i = 0; i < 6; i++) {
 			unsigned long f = dev->resource[i].flags;
@@ -397,10 +396,10 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 					  cmd);
 		}
 
-		/* All slots routed to one irq.
-		 * vineetg: We are only updating pci_dev->irq and not setting PCI_INT_LINE
-		 *           If the driver is using pci_dev->irq to request IRQ then ok
-		 *           if it tries to read the PCI_INT_LINE it's gonna fail
+		/* All slots routed to one irq. vineetg;
+		 * We are only updating pci_dev->irq and not setting PCI_INT_LINE
+		 * If the driver is using pci_dev->irq to request IRQ then ok
+		 * if it tries to read the PCI_INT_LINE it's gonna fail
 		 */
 		dev->irq = pcic->irq;
 	}
@@ -419,8 +418,8 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
  * but we want to try to avoid allocating at 0x2900-0x2bff
  * which might have be mirrored at 0x0100-0x03ff..
  */
-void
-pcibios_align_resource(void *data, struct resource *res,
+resource_size_t
+pcibios_align_resource(void *data, const struct resource *res,
 		       resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
@@ -432,9 +431,7 @@ pcibios_align_resource(void *data, struct resource *res,
 		if (start < PCIBIOS_MIN_IO + pcic->io_resource.start)
 			start = PCIBIOS_MIN_IO + pcic->io_resource.start;
 
-		/*
-		 * Put everything into 0x00-0xff region modulo 0x400
-		 */
+		/* Put everything into 0x00-0xff region modulo 0x400 */
 		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
 	} else if (res->flags & IORESOURCE_MEM) {
@@ -443,7 +440,7 @@ pcibios_align_resource(void *data, struct resource *res,
 			start = PCIBIOS_MIN_MEM + pcic->mem_resource.start;
 	}
 
-	res->start = start;
+	return start;
 }
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
@@ -461,8 +458,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 		r = &dev->resource[idx];
 		if (!r->start && r->end) {
-			printk(KERN_ERR
-			       "PCI: Device %s not available because of resource collisions\n",
+			pr_err("PCI: Device %s resource collision error\n",
 			       pci_name(dev));
 			return -EINVAL;
 		}

@@ -9,3 +9,6 @@
 obj-y += platform.o
 
 obj-$(CONFIG_ARC_CPU_700_SMP_EXTN)	= smp.o
+
+obj-$(CONFIG_ARC_AHB_PCI_BRIDGE) 	= aa4_pci.o
+export CFLAGS_aa4_pci.o = -mlong-calls

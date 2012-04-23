@@ -61,3 +61,25 @@ config ARC_EMAC_LV2
 	bool "High Priority EMAC IRQ"
 	depends on ARCTANGENT_EMAC && ARC_TIMER_LV2
 	select ARC_IRQ5_LV2
+
+config ARC_AHB_PCI_BRIDGE
+    bool "AHB to PCI Bridge"
+    default n
+    select PCI
+    depends on ARC_BOARD_ANGEL4
+    help
+    To Enable a PCI device to work on AA4 Ref Board
+
+menu "Bus options (PCI etc.)"
+
+config PCI
+       bool "PCI support"
+       default n
+       help
+         If you have PCI, say Y, otherwise N.
+
+source "drivers/pci/Kconfig"
+source "drivers/pci/hotplug/Kconfig"
+source "drivers/pcmcia/Kconfig"
+
+endmenu     # Bus options

@@ -1,13 +1,3 @@
-config ARC_AHB_PCI_BRIDGE
-	bool "Host PCI Bridge on AA4 Board"
-	default n
-	depends on PCI
-	depends on ARC_BOARD_ANGEL4
-	help
-	To Enable a PCI device to work on AA4 Ref Board a AHB to PCI Host Bridge
-	is needed.
-
-
 config ARC_IDE
 	tristate "Enable ARC IDE"
 	select HAVE_IDE
