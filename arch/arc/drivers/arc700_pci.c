@@ -68,8 +68,6 @@
 
 struct device *tmp_pci_dev=NULL;
 
-//#define DEBUG 1
-
 #ifdef DEBUG
 #define DBG(x...) printk(x)
 #else
@@ -90,8 +88,8 @@ struct device *tmp_pci_dev=NULL;
 #define AHB_TO_PCI_IO_START     (AHB_TO_PCI_MEM_START + GRPCI_MEM_WINDOW)
 #define AHB_TO_PCI_CFG_START    (AHB_TO_PCI_IO_START  + GRPCI_IO_WINDOW)
 
-/* Uncomment if host controller byte twisting should be disabled */
-//#define BT_ENABLED 1
+/* Enable if host controller byte twisting should be disabled */
+#undef BT_ENABLED 1
 
 
 typedef struct {
@@ -157,7 +155,7 @@ static int pcic_read_config(struct pci_bus *bus, unsigned int devfn,
     unsigned int v;
 
     if (bus->number != 0) return -EINVAL;
-    // For invalid slots return 0 (success) but value itself in invalid 0xff....
+    /* For invalid slots return 0 (success) but value itself in invalid 0xff */
     if (PCI_SLOT(devfn) >= 21 || PCI_SLOT(devfn) == 0) {
         return 0;
     }

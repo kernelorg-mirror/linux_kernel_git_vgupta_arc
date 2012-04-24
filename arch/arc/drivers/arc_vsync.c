@@ -144,7 +144,6 @@ static void refire_timer(void)
 		run_len = 0;
 	}
 	run_len++;
-	//flip_timer.expires = last_frame_timestamp + frame_delay;
 	flip_timer.expires = (unsigned long)(run_start + run_len * exact_frame_delay);
 	if (time_before(flip_timer.expires, jiffies))
 	{
@@ -228,7 +227,7 @@ int arc_vsync_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		kfifo_in(&display_q, &c, sizeof(c));
 		if (timer_pending(&flip_timer) || is_paused)
 			return 0;
-		if (time_before_eq(last_frame_timestamp + (int)frame_delay, jiffies)) // XXX old non exact
+		if (time_before_eq(last_frame_timestamp + (int)frame_delay, jiffies))
 		{
 			/* already time for frame, so just display it */
 			run_len = 0;

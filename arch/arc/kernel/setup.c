@@ -72,7 +72,6 @@ struct sockaddr mac_addr = {0, {0x64,0x66,0x46,0x88,0x63,0x33 } };
 
 #ifdef CONFIG_ROOT_NFS
 
-// Example of NFS root booting.
 char __initdata command_line[COMMAND_LINE_SIZE] = {"root=/dev/nfs nfsroot=10.0.0.2:/home/vineetg/ARC/arc_initramfs_nfs,nolock ip=dhcp console=ttyS0" };
 
 #elif defined(CONFIG_ARC_SERIAL_CONSOLE)
@@ -85,7 +84,6 @@ char __initdata command_line[COMMAND_LINE_SIZE] = {"console=ttyS0"};
 
 #else
 
-// Clean, no kernel command line.
 char __initdata command_line[COMMAND_LINE_SIZE];
 
 #endif
@@ -357,7 +355,7 @@ void arc_chk_ccms(void)
 
 /* BVCI Bus Profiler: Latency Unit */
 
-//#define CONFIG_ARC_BVCI_LAT_UNIT
+#undef CONFIG_ARC_BVCI_LAT_UNIT
 
 #ifdef CONFIG_ARC_BVCI_LAT_UNIT
 
@@ -407,15 +405,15 @@ void __init probe_lat_unit(void)
 
     printk("BVCI Profiler Ver %x\n",id);
 
-    // *LAT_CTRL1 = 0; // Unit #0 : Adds latency to all mem accesses
+    /* *LAT_CTRL1 = 0; Unit #0 : Adds latency to all mem accesses */
 
     /* By default we want to simulate the delays
      * between (I$|D$) and memory
      */
-    *LAT_CTRL1 = 1; // Unit #1 : I$ and system Bus
+    *LAT_CTRL1 = 1; /* Unit #1 : I$ and system Bus */
     *LAT_CTRL2 = mem_lat;
 
-    *LAT_CTRL1 = 2; // Unit #2 : D$ and system Bus
+    *LAT_CTRL1 = 2; /* Unit #2 : D$ and system Bus */
     *LAT_CTRL2 = mem_lat;
 #endif
 }

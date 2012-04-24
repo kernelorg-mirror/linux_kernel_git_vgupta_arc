@@ -51,8 +51,7 @@ static void inline memset_aligned(void *ptr, unsigned int sz)
                   "st.ab     0, [%0, 4]\n"
                   "1:\n"
                   :"+r"(tmp)
-                  :"ir"(sz/4/2) // 4: bytes to word
-                                // 2: instances of st.ab in loop
+                  :"ir"(sz/4/2) /* 4: bytes to word, 2: instances of st.ab in loop */
                   :"lp_count");
 
 }
@@ -172,7 +171,7 @@ pte_alloc_one(struct mm_struct *mm, unsigned long address)
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-    free_pages((unsigned long)pte, PTE_ORDER);  // takes phy addr
+    free_pages((unsigned long)pte, PTE_ORDER);  /* takes phy addr */
 }
 
 static inline void pte_free(struct mm_struct *mm, pgtable_t ptep)

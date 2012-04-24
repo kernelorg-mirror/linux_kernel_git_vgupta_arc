@@ -31,7 +31,7 @@ static inline long arch_local_irq_save(void) {
 
     __asm__ __volatile__ (
         "lr  %1, [status32]\n\t"
-        "bic %0, %1, %2\n\t"    // a BIC b = a AND ~b, (now 4 byte vs. 8)
+        "bic %0, %1, %2\n\t"
         "and.f 0, %1, %2  \n\t"
         "flag.nz %0\n\t"
         :"=r" (temp), "=r" (flags)
@@ -67,7 +67,7 @@ static inline void arch_local_irq_disable(void) {
 
     __asm__ __volatile__ (
         "lr  %0, [status32]\n\t"
-        "and %0, %0, %1\n\t" // {AND a,a,u7} is already (BIC not req)
+        "and %0, %0, %1\n\t"
         "flag %0\n\t"
         :"=&r" (temp)
         :"n" (~(STATUS_E1_MASK | STATUS_E2_MASK))

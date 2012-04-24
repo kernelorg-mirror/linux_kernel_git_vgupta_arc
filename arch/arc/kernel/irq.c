@@ -37,8 +37,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/slab.h>
 
-//#define ARC_IRQ_DBG
-
 /* table for system interrupt handlers */
 
 static struct irqaction *irq_list[NR_IRQS];
@@ -135,7 +133,7 @@ int setup_irq(unsigned int irq, struct irqaction *node)
      * enable vector on CPU side
      */
     if (irq_list[irq] == node) {
-        unmask_interrupt((1<<irq)); // AUX_IEMABLE
+        unmask_interrupt((1<<irq)); /* AUX_IEMABLE */
     }
 
     spin_unlock_irqrestore(&irq_controller_lock, flags);
@@ -227,11 +225,9 @@ void process_interrupt(unsigned int irq, struct pt_regs *fp)
         node = node->next;
     }
 
-#ifdef  ARC_IRQ_DBG
     if (!irq_list[irq])
         printk(KERN_ERR "Spurious interrupt : irq no %u on cpu %u", irq,
                     smp_processor_id());
-#endif
 
     irq_exit();
 
@@ -254,17 +250,16 @@ int probe_irq_off(unsigned long irqs)
 }
 EXPORT_SYMBOL(probe_irq_off);
 
-/* FIXME: implement if necessary */
 void init_irq_proc(void)
 {
-    // for implementing /proc/irq/xxx
+    /* for implementing /proc/irq/xxx */
 }
 
 int show_interrupts(struct seq_file *p, void *v)
 {
    int i = *(loff_t *) v, j;
 
-    if(i == 0)          // First line, first CPU
+    if(i == 0)          /* First line, first CPU */
     {
         seq_printf(p,"\t");
         for_each_online_cpu(j)
@@ -272,10 +267,8 @@ int show_interrupts(struct seq_file *p, void *v)
         seq_putc(p,'\n');
     }
 
-    if (i < NR_IRQS)
+    if (i < NR_IRQS && irq_list[i] != NULL)
     {
-        if(irq_list[i] != NULL)
-        {
             seq_printf(p,"%u:\t",i);
             if(strlen(irq_list[i]->name) < 8)
                 for_each_online_cpu(j)
@@ -284,7 +277,6 @@ int show_interrupts(struct seq_file *p, void *v)
             else
                 for_each_online_cpu(j)
                     seq_printf(p,"%s\t\t%u\n", irq_list[i]->name,kstat_cpu(j).irqs[i]);
-        }
     }
 
 
@@ -311,7 +303,7 @@ void disable_irq(unsigned int irq)
         spin_unlock_irqrestore(&irq_controller_lock, flags);
     }
     else {
-        // printk("Incorrect IRQ action %d %s\n",irq, __FUNCTION__);
+        /* printk("Incorrect IRQ action %d %s\n",irq, __FUNCTION__); */
     }
 }
 
@@ -343,7 +335,7 @@ void enable_irq(unsigned int irq)
         spin_unlock_irqrestore(&irq_controller_lock, flags);
     }
     else {
-        // printk("Incorrect IRQ action %d %s\n",irq, __FUNCTION__);
+        /* printk("Incorrect IRQ action %d %s\n",irq, __FUNCTION__); */
     }
 }
 
@@ -390,7 +382,7 @@ int get_hw_config_num_irq()
  *     over-written (this is deficiency in ARC700 Interrupt mechanism)
  */
 
-#ifdef CONFIG_ARCH_ARC_LV2_INTR     // Complex version for 2 levels of Intr
+#ifdef CONFIG_ARCH_ARC_LV2_INTR     /* Complex version for 2 levels of Intr */
 
 void arch_local_irq_enable(void) {
 
@@ -437,7 +429,7 @@ void arch_local_irq_enable(void) {
         struct pt_regs *pt = get_irq_regs();
         if ( (flags & STATUS_A2_MASK ) && pt &&
               (pt->status32 & STATUS_A1_MASK ) ) {
-            //flags &= ~(STATUS_E1_MASK | STATUS_E2_MASK);
+            /*flags &= ~(STATUS_E1_MASK | STATUS_E2_MASK); */
             flags &= ~(STATUS_E1_MASK);
         }
     }

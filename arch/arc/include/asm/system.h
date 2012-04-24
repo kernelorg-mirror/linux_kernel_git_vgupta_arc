@@ -69,7 +69,6 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
     switch (size) {
         case 4:
             return __xchg_32(val, ptr);
-        // TODO-vineetg: 64 bit atomic xchg go here
     }
     __xchg_bad_pointer();
     return val;
@@ -82,7 +81,7 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  * Barriers
  ******************************************************************/
 
-//TODO-vineetg: Need to see what this does, dont we need sync anywhere
+/* TODO-vineetg: Need to see what this does, dont we need sync anywhere */
 #define mb() __asm__ __volatile__ ("" : : : "memory")
 #define rmb() mb()
 #define wmb() mb()
@@ -106,7 +105,7 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  * Arch Depenedent Context Switch Macro  called by sched
  * This in turn calls the regfile switching macro __switch_to ( )
  ******************************************************************/
-struct task_struct; // to prevent cyclic dependencies
+struct task_struct; /* to prevent cyclic dependencies */
 
 /* switch_to macro based on the ARM implementaion */
 extern struct task_struct *__switch_to(struct task_struct *prev,
@@ -211,8 +210,6 @@ static inline void sched_cacheflush(void)
 
 static inline unsigned long arch_align_stack(unsigned long sp)
 {
-    //unsigned long orig_sp = sp;
-
 #ifdef CONFIG_ARCH_ARC_SPACE_RND
     /* ELF loader sets this flag way early.
      * So no need to check for multiple things like
@@ -226,9 +223,9 @@ static inline unsigned long arch_align_stack(unsigned long sp)
     }
 #endif
 
-    sp &= ~0xF;  // always align stack to 16 bytes
+    /* always align stack to 16 bytes */
+    sp &= ~0xF;
 
-    //printk("RAND: SP orig %x rnd %x\n", orig_sp, sp);
     return sp;
 }
 
@@ -240,8 +237,8 @@ static inline unsigned long arch_align_stack(unsigned long sp)
  ******************************************************************/
 
 
-#include <plat_memmap.h>    // Peripherals Memory Map
-#include <asm/event-log.h>  // event log from "C"
+#include <plat_memmap.h>    /* Peripherals Memory Map */
+#include <asm/event-log.h>  /* event log from "C" */
 
 void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs);
 void raw_printk(const char *str, unsigned int num);
@@ -270,7 +267,7 @@ void raw_printk5(const char *str, unsigned int n1, unsigned int n2,
 
 #else  /* !__ASSEMBLY__ */
 
-#include <asm/event-log.h>  // event log from Assembly
+#include <asm/event-log.h>  /* event log from Assembly */
 
 
 #endif /* __ASSEMBLY__ */

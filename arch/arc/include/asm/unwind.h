@@ -41,12 +41,12 @@ struct arc700_regs {
     unsigned long r24;
     unsigned long r25;
     unsigned long r26;
-    unsigned long r27;   // fp
-    unsigned long r28;   // sp
+    unsigned long r27;   /* fp */
+    unsigned long r28;   /* sp */
     unsigned long r29;
     unsigned long r30;
-    unsigned long r31;   // blink
-    unsigned long r63;   // pc
+    unsigned long r31;   /* blink */
+    unsigned long r63;   /* pc */
 };
 
 struct unwind_frame_info
@@ -60,7 +60,7 @@ struct unwind_frame_info
 #define UNW_SP(frame)        (frame)->regs.r28
 #define UNW_BLINK(frame)     (frame)->regs.r31
 
-// Rajesh FIXME
+/* Rajesh FIXME */
 #ifdef CONFIG_FRAME_POINTER
 #define UNW_FP(frame)        (frame)->regs.r27
 #define FRAME_RETADDR_OFFSET 4

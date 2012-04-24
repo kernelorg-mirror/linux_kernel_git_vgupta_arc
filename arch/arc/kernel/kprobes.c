@@ -80,16 +80,18 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
     u16 word1 = 0, word0 = 0;
     int subopcode, is_linked, op_format;
 
-    // Read the first instruction;
-    // This fetches the upper part of the 32 bit instruction
-    // in both the cases of Little Endian or Big Endian configurations.
+	/*
+	 * Read the first instruction;
+	 * This fetches the upper part of the 32 bit instruction
+	 * in both the cases of Little Endian or Big Endian configurations.
+	 */
     state->words[0] = *((u16 *)addr);
     word1 = *((u16 *)addr);
 
-    // Get the Opcode
+    /* Get the Opcode */
     state->opcode = (word1 >> 11) & 0x1F;
 
-    // Check if the instruction is 32bit or 16 bit instruction
+    /* Check if the instruction is 32bit or 16 bit instruction */
     if (state->opcode < 0x0B)
     {
         state->instr_len = 4;
@@ -100,7 +102,7 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
 
     state->words[0] = (word1 << 16) | word0;
 
-    // Read the second word incase of limm
+    /* Read the second word incase of limm */
     word1 = *((u16 *)(addr + state->instr_len));
     word0 = *((u16 *)(addr + state->instr_len + 2));
     state->words[1] = (word1 << 16) | word0;
@@ -180,10 +182,10 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
             subopcode = BITS (state->words[0], 16, 21);
             switch (subopcode)
             {
-                case 32:    //"Jcc"
-                case 33:    //"Jcc.D"
-                case 34:    //"JLcc"
-                case 35:    //"JLcc.D"
+                case 32:    /* "Jcc" */
+                case 33:    /* "Jcc.D" */
+                case 34:    /* "JLcc" */
+                case 35:    /* "JLcc.D" */
                     is_linked = 0;
 
                     if (subopcode == 33 || subopcode == 35)
@@ -209,7 +211,7 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
                     {
                         fieldC = FIELDC(state->words[0]);
                     }
-                    else  // op_format == 2
+                    else  /* op_format == 2 */
                     {
                         fieldC = FIELDS(state->words[0]);
                         fieldC = sign_extend(fieldC,11);
@@ -229,10 +231,10 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
                     break;
 
                 case 40:
-                    //"LPcc"
+                    /* "LPcc" */
                     if (BITS(state->words[0],22,23) == 3)
                     {
-                        // Conditional LPcc u7
+                        /* Conditional LPcc u7 */
                         fieldC = FIELDC(state->words[0]);
 
                         fieldC = fieldC << 1;
@@ -241,13 +243,14 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
                         state->flow = direct_jump;
                         state->target = fieldC;
                     }
-                    /* For Unconditional lp, next pc is the fall through which
-                     * is updated
+                    /*
+		     * For Unconditional lp, next pc is the fall
+		     * through which is updated
                      */
                     break;
 
                 default:
-                    // Not a Jump or Loop instruction
+                    /* Not a Jump or Loop instruction */
                     break;
             }
             break;
@@ -258,13 +261,15 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
             subopcode = BITS(state->words[0],5,7);
             switch(subopcode)
             {
-                case 0:  // "j_s"
-                case 1:  // "j_s.d"
-                case 2:  // "jl_s"
-                case 3:  // "jl_s.d"
+                case 0:  /* "j_s" */
+                case 1:  /* "j_s.d" */
+                case 2:  /* "jl_s" */
+                case 3:  /* "jl_s.d" */
                     fieldB = (BITS(state->words[0],8,10));
-                    // For 16-bit instructions, reduced register range
-                    // from r0-r3 and r12-r15, get the actual register below.
+                    /*
+		     * For 16-bit instructions, reduced register range
+                     * from r0-r3 and r12-r15, get the actual register below.
+                     */
                     if (fieldB > 3)
                         fieldB += 8;
 
@@ -283,11 +288,11 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
                 case 7:
                     switch(BITS(state->words[0], 8, 10))
                     {
-                        // Zero Operand Jump instruction
-                        case 4: // "jeq_s [blink]"
-                        case 5: // "jne_s [blink]"
-                        case 6: // "j_s [blink]"
-                        case 7: // "j_s.d [blink]"
+                        /* Zero Operand Jump instruction */
+                        case 4: /* "jeq_s [blink]" 	*/
+                        case 5: /* "jne_s [blink]" 	*/
+                        case 6: /* "j_s [blink]" 	*/
+                        case 7: /* "j_s.d [blink]" 	*/
                             if (subopcode == 7)
                                 state->delay_slot = 1;
 
@@ -304,7 +309,7 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
             }
             break;
 
-        // 16-bit Branch on Compare Register with Zero
+        /* 16-bit Branch on Compare Register with Zero */
         case op_BR_S:
                 fieldA = (BITS(state->words[0],0,6)) << 1;
                 fieldA = sign_extend(fieldA,7);
@@ -314,7 +319,7 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
                 state->is_branch = 1;
                 break;
 
-        // 16-bit Branch Conditionally
+        /* 16-bit Branch Conditionally */
         case op_B_S:
                 subopcode = BITS(state->words[0],9,10);
                 if (subopcode == 3)
@@ -335,7 +340,7 @@ static void __kprobes dsmArcInstr(unsigned long addr, struct arcDisState *state)
                 state->is_branch = 1;
                 break;
 
-        //  16-bit  Branch and link unconditionally
+        /*  16-bit  Branch and link unconditionally */
         case op_BL_S:
                 fieldA = (BITS(state->words[0],0,10)) << 2;
                 fieldA = sign_extend(fieldA,12);
@@ -398,14 +403,15 @@ static int __kprobes next_pc(unsigned long pc, struct pt_regs *regs,
         }
         else
         {
-            // Get it from the register
+            /* Get it from the register */
             *target = get_reg(regs, instr.reg_jump);
         }
     }
 
-    /* For the instructions with delay slots, the fall thru is the instruction
-       following the instruction in delay slot.
-    */
+    /*
+     * For the instructions with delay slots, the fall thru is the
+     * instruction following the instruction in delay slot.
+     */
     if (instr.delay_slot)
     {
         struct arcDisState instr_d;
@@ -453,13 +459,11 @@ void kretprobe_trampoline(void);
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 
-    // Attempt to probe at unaligned address
+    /* Attempt to probe at unaligned address */
     if((unsigned long)p->addr & 0x01)
         return -EINVAL;
 
-    /* Address should not be
-     *  in exception handling code
-     */
+    /* Address should not be in exception handling code */
 
     p->ainsn.is_short = is_short_instr((unsigned long)p->addr);
     p->opcode = *p->addr;
@@ -471,7 +475,6 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
     *p->addr = UNIMP_S_INSTRUCTION;
 
-    // Flush the icache
     flush_icache_range((unsigned long)p->addr,
             (unsigned long)p->addr + sizeof(kprobe_opcode_t));
 }
@@ -480,7 +483,6 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
     *p->addr = p->opcode;
 
-    // Flush the icache
     flush_icache_range((unsigned long)p->addr,
             (unsigned long)p->addr + sizeof(kprobe_opcode_t));
 }
@@ -489,7 +491,7 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
     arch_disarm_kprobe(p);
 
-    // Can we remove the kprobe in the middle of kprobe handling?
+    /* Can we remove the kprobe in the middle of kprobe handling? */
     if(p->ainsn.t1_addr)
     {
         *(p->ainsn.t1_addr) = p->ainsn.t1_opcode;
@@ -531,8 +533,8 @@ static inline void __kprobes set_current_kprobe(struct kprobe *p)
 static void __kprobes resume_execution(struct kprobe *p, unsigned long addr,
                                                             struct pt_regs *regs)
 {
-    /* Remove the trap instructions inserted for single step and restore the
-     * original instructions
+    /* Remove the trap instructions inserted for single step and
+     * restore the original instructions
      */
     if(p->ainsn.t1_addr)
     {
@@ -570,7 +572,6 @@ static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs)
      */
     *(p->addr) = p->opcode;
 
-    // Flush the icache and dcache
     flush_icache_range((unsigned long)p->addr,
            (unsigned long)p->addr + sizeof(kprobe_opcode_t));
 
@@ -678,7 +679,7 @@ int __kprobes kprobe_handler(unsigned long addr, struct pt_regs *regs)
         }
     }
 
-    // no_kprobe:
+    /* no_kprobe: */
     preempt_enable_no_resched();
     return 0;
 }
@@ -693,7 +694,7 @@ static int __kprobes post_kprobe_handler(unsigned long addr, struct pt_regs *reg
 
     resume_execution(cur, addr, regs);
 
-    // Rearm the kprobe
+    /* Rearm the kprobe */
     arch_arm_kprobe(cur);
 
     /* When we return from trap instruction we go to the next instruction
@@ -936,7 +937,7 @@ static struct kprobe trampoline_p = {
 
 int __init arch_init_kprobes()
 {
-    // Registering the trampoline code for the kret probe
+    /* Registering the trampoline code for the kret probe */
     return register_kprobe(&trampoline_p);
 }
 

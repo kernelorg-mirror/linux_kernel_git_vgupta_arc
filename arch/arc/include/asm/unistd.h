@@ -31,7 +31,7 @@
 #define __NR_write		    4
 #define __NR_open		    5
 #define __NR_close		    6
-//#define __NR_waitpid	    7
+	/*#define __NR_waitpid	    7 */
 #define __NR_creat		    8
 #define __NR_link		    9
 #define __NR_unlink		    10
@@ -551,8 +551,8 @@ type name(atype a, btype b, ctype c, dtype d, etype e)				\
 #define __ARCH_WANT_SYS_SOCKETCALL
 #define __ARCH_WANT_SYS_IPC
 
-// ARC uclibc implements waitpid() using wait4 so dont need this anymore
-//#define __ARCH_WANT_SYS_WAITPID
+/* ARC uclibc implements waitpid() using wait4 so dont need this anymore */
+#undef __ARCH_WANT_SYS_WAITPID
 
 /*
  * "Conditional" syscalls

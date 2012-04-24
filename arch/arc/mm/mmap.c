@@ -28,8 +28,7 @@
 #include <asm/tlbflush.h>
 
 #if 0
-//#define MMAP_DBG(fmt, args...)  pr_debug(fmt , ## args)
-#define MMAP_DBG(fmt, args...)  printk(fmt , ## args)
+#define MMAP_DBG(fmt, args...)  pr_debug(fmt , ## args)
 #else
 #define MMAP_DBG(fmt, args...)
 #endif
@@ -249,8 +248,6 @@ static inline unsigned long arc_mmap_base(void)
 
     base = PAGE_ALIGN(TASK_UNMAPPED_BASE + rnd);
 
-    //printk("RAND: mmap base orig %x rnd %x\n",TASK_UNMAPPED_BASE, base);
-
     return base;
 }
 
@@ -316,8 +313,10 @@ typedef struct {
 static mmapcode_tracker_t  mmap_tracker[MMAP_CODE_SPC_MAX];
 
 
-    // TODO: what if same file is mmaped via its symlink: will filp be same
-    // TODO: do we need locking: already called under mm semaphore
+/* TODO:
+ * -what if same file is mmaped via its symlink: will filp be same
+ * -do we need locking: already called under mm semaphore
+ */
 
 /* Allocate a vaddr to a dso's code mmap, such that vaddr itself is usable
  * across processes (doesn't overlap with any pvt maps).
@@ -351,8 +350,9 @@ int mmapcode_alloc_vaddr(struct file *filp,
             goto done;
         }
 
-        /* remember a free slot in table */
-        // XXX: len checked because valid inode-id can be zero ?
+        /* remember a free slot in table
+	 * XXX: len checked because valid inode-id can be zero ?
+	 */
         if (free_slot == -1) {
             if (db->ino == 0 && db->dso.len == 0)
                 free_slot = i;

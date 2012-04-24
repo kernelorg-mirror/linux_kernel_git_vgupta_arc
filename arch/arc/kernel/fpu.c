@@ -40,7 +40,7 @@ void fpu_save_restore(struct task_struct *prev,
     __asm__ __volatile__ (
         "daddh11  %0, %2, %2  \n"
         "dexcl1   %1, %3, %4  \n"
-        :"=&r"(*(saveto+1)),              // early clobber must here
+        :"=&r"(*(saveto+1)),	/* early clobber must here */
          "=&r"(*(saveto))
         :"r"(zero),
          "r"(*(readfrom+1)),"r"(*(readfrom))
@@ -49,7 +49,7 @@ void fpu_save_restore(struct task_struct *prev,
     __asm__ __volatile__ (
         "daddh22  %0, %2, %2  \n"
         "dexcl2   %1, %3, %4  \n"
-        :"=&r"(*(saveto+3)),              // early clobber must here
+        :"=&r"(*(saveto+3)),	/* early clobber must here */
          "=&r"(*(saveto+2))
         :"r"(zero),
          "r"(*(readfrom+3)),"r"(*(readfrom+2))

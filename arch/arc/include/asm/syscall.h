@@ -9,8 +9,8 @@
 #ifndef _ASM_SYSCALL_H
 #define _ASM_SYSCALL_H  1
 
-#include <asm/unistd.h>     // NR_syscalls
-#include <asm/ptrace.h>     // in_syscall()
+#include <asm/unistd.h>     /* NR_syscalls */
+#include <asm/ptrace.h>     /* in_syscall() */
 
 static inline long syscall_get_nr(struct task_struct *task,
                   struct pt_regs *regs)

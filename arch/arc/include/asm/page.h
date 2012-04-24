@@ -28,8 +28,8 @@
 #define PAGE_SIZE       (1 << PAGE_SHIFT)
 #define PAGE_OFFSET  	(0x80000000)
 #else
-#define PAGE_SIZE       (1UL << PAGE_SHIFT)	// 8K
-#define PAGE_OFFSET  	(0x80000000UL)		// Kernel starts at 2G onwards
+#define PAGE_SIZE       (1UL << PAGE_SHIFT)	/* Default 8K */
+#define PAGE_OFFSET  	(0x80000000UL)		/* Kernel starts at 2G onwards */
 #endif
 
 #define PAGE_MASK       (~(PAGE_SIZE-1))
@@ -125,9 +125,6 @@ typedef unsigned long pgtable_t;
 #define virt_addr_valid(kaddr)  pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define VALID_PAGE(page)    ((page - mem_map) < max_mapnr)
-
-// Simon Spooner ARC
-// Config option to make stack non-executable
 
 #ifdef CONFIG_ARC_STACK_NONEXEC
 #define VM_DATA_DEFAULT_FLAGS   (VM_READ | VM_WRITE |  \

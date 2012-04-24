@@ -36,7 +36,7 @@
  * things, common for all events in class, could be easily done
  */
 #define EVENT_ID(x)             (0x100 << x)
-#define EVENT_CLASS_ENTER       0x01	// Need to start from 1, not 0
+#define EVENT_CLASS_ENTER       0x01	/* Need to start from 1, not 0 */
 #define EVENT_CLASS_EXIT        0x02
 #define EVENT_CLASS_CUSTOM      0x80
 

@@ -145,15 +145,11 @@ void *memset(void * dest, int c, size_t count)
 
 EXPORT_SYMBOL(memset);
 
-#endif  // # __HAVE_ARCH_MEMSET
+#endif  /* # __HAVE_ARCH_MEMSET */
 
 #ifdef __HAVE_ARCH_MEMCPY
 
 #undef memcpy
-
-// After much experimentation if seems it's better to use
-// the already existing optimized version of copy_from_user
-// to do a quick memory copy
 
 void * memcpy (void * to, const void * from, size_t count)
 {

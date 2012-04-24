@@ -15,7 +15,6 @@
 
 #include <asm/ptrace.h>
 #include <linux/sched.h>
-//#include <linux/unwind.h>
 #include <asm/unwind.h>
 
 #include <linux/module.h>
@@ -27,9 +26,9 @@
 #include <asm/unaligned.h>
 
 extern char __start_unwind[], __end_unwind[];
-//extern const u8 __start_unwind_hdr[], __end_unwind_hdr[];
+/* extern const u8 __start_unwind_hdr[], __end_unwind_hdr[];*/
 
-// #define UNWIND_DEBUG
+/* #define UNWIND_DEBUG */
 
 #ifdef UNWIND_DEBUG
 #define unw_debug(fmt, ...) printk(fmt, ##__VA_ARGS__)
@@ -211,7 +210,7 @@ void __init arc_unwind_init(void)
 	                  NULL, 0,
 	                  __start_unwind, __end_unwind - __start_unwind,
                       NULL, 0);
-	                  //__start_unwind_hdr, __end_unwind_hdr - __start_unwind_hdr);
+	                  /*__start_unwind_hdr, __end_unwind_hdr - __start_unwind_hdr);*/
 }
 
 static const u32 bad_cie, not_fde;
@@ -288,9 +287,10 @@ static void __init setup_unwind_table(struct unwind_table *table,
 		                  (const u8 *)(fde + 1) + *fde,
 		                  ptrType))
         {
-            // FIXME_Rajesh We have 4 instances of null addresses
-            // instead of the initial loc addr
-            // return;
+            /* FIXME_Rajesh We have 4 instances of null addresses
+             * instead of the initial loc addr
+             * return;
+             */
         }
 		++n;
 	}
@@ -317,7 +317,7 @@ static void __init setup_unwind_table(struct unwind_table *table,
 	for (fde = table->address, tableSize = table->size, n = 0;
 	     tableSize;
 	     tableSize -= sizeof(*fde) + *fde, fde += 1 + *fde / sizeof(*fde)) {
-		// const u32 *cie = fde + 1 - fde[1] / sizeof(*fde);
+		/* const u32 *cie = fde + 1 - fde[1] / sizeof(*fde); */
 		const u32 *cie = (const u32*)(fde[1]);
 
 		if (fde[1] == 0xffffffff)
@@ -409,10 +409,10 @@ static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *table)
 		return &not_fde; /* this is a CIE */
 
 	if ((fde[1] & (sizeof(*fde) - 1)))
-	    // || fde[1] > (unsigned long)(fde + 1) - (unsigned long)table->address)
+	    /* || fde[1] > (unsigned long)(fde + 1) - (unsigned long)table->address) */
 		return NULL; /* this is not a valid FDE */
 
-    // cie = fde + 1 - fde[1] / sizeof(*fde);
+    /* cie = fde + 1 - fde[1] / sizeof(*fde); */
     cie = (u32 *)fde[1];
 
 	if (*cie <= sizeof(*cie) + 4
@@ -551,8 +551,9 @@ static int advance_loc(unsigned long delta, struct unwind_state *state)
 {
 	state->loc += delta * state->codeAlign;
 
-    // FIXME_Rajesh: Probably we are defining for the initial range as well;
-	// return delta > 0;
+    /* FIXME_Rajesh: Probably we are defining for the initial range as well;
+	return delta > 0;
+     */
     unw_debug("delta %3lu => loc 0x%lx: ", delta, state->loc);
 	return 1;
 }
@@ -625,7 +626,7 @@ static int processCFI(const u8 *start,
                 value += *ptr.p8++ << 8;
                 unw_debug("\ncfa advance loc2:");
 				result = ptr.p8 <= end + 2
-				         //&& advance_loc(*ptr.p16++, state);
+				         /* && advance_loc(*ptr.p16++, state); */
 				         && advance_loc(value, state);
 				break;
 			case DW_CFA_advance_loc4:
@@ -1012,12 +1013,15 @@ int arc_unwind(struct unwind_frame_info *frame)
 	memcpy(&state.cfa, &badCFA, sizeof(state.cfa));
 
     unw_debug("\nProcess instructions\n");
-	/* process instructions */
-// For ARC, we optimize by having blink(retAddrReg) with the sameValue in the
-// leaf function, so we should not check state.regs[retAddrReg].where == Nowhere
+
+	/* process instructions
+	 * For ARC, we optimize by having blink(retAddrReg) with
+	 * the sameValue in the leaf function, so we should not check
+	 * state.regs[retAddrReg].where == Nowhere
+	 */
     if (!processCFI(ptr, end, pc, ptrType, &state)
 	   || state.loc > endLoc
-//	   || state.regs[retAddrReg].where == Nowhere
+/*	   || state.regs[retAddrReg].where == Nowhere */
 	   || state.cfa.reg >= ARRAY_SIZE(reg_info)
 	   || reg_info[state.cfa.reg].width != sizeof(unsigned long)
 	   || state.cfa.offs % sizeof(unsigned long))

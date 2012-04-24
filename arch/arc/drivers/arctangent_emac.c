@@ -87,11 +87,8 @@ extern unsigned long clk_speed;
 #define NAPI_WEIGHT 40      /* workload for NAPI */
 
 
-// Pre - allocated(cached) SKB 's.  Improve driver performance by allocating SKB' s
-// in advance of when they are needed.
+/* Preallocated SKB's Improve driver performance */
 volatile struct sk_buff *skb_prealloc[SKB_PREALLOC];
-
-//pre - allocated SKB 's
 volatile unsigned int skb_count = 0;
 
 /*
@@ -368,7 +365,7 @@ static int arc_emac_poll (struct napi_struct *napi, int budget)
         EMAC_REG(ap)->enable |= RXINT_MASK;
     }
 
-//    printk("work done %u budget %u\n", work_done, budget);
+    /*    printk("work done %u budget %u\n", work_done, budget); */
     return(work_done);
 }
 
@@ -473,8 +470,8 @@ static int arc_emac_clean(struct net_device *dev
 				ap->stats.rx_length_errors++;
 		    }
 
-        }  // BD for CPU
-    } // BD chain loop
+        }  /* BD for CPU */
+    } /* BD chain loop */
 
     return work_done;
 }
@@ -496,7 +493,7 @@ static irqreturn_t arc_emac_intr (int irq, void *dev_instance)
 #ifdef CONFIG_EMAC_NAPI
         if(likely(napi_schedule_prep(&ap->napi)))
         {
-            EMAC_REG(ap)->enable &= ~RXINT_MASK; // no more interrupts.
+            EMAC_REG(ap)->enable &= ~RXINT_MASK; /* no more interrupts. */
             __napi_schedule(&ap->napi);
         }
 #else
@@ -770,7 +767,7 @@ arc_emac_open(struct net_device * dev)
 
 	printk(KERN_INFO "%s up\n", dev->name);
 
-	//ARC Emac helper thread.
+	/* ARC Emac helper thread. */
     kthread_run(arc_thread, 0, "EMAC helper");
 
 	return 0;
@@ -945,8 +942,6 @@ arc_emac_set_address(struct net_device * dev, void *p)
 	EMAC_REG(ap)->addrl = *(unsigned int *) dev->dev_addr;
 	EMAC_REG(ap)->addrh = (*(unsigned int *) &dev->dev_addr[4]) & 0x0000ffff;
 
-//	printk(KERN_INFO "MAC address set to %s",print_mac(buf, dev->dev_addr));
-
 	return 0;
 }
 
@@ -958,8 +953,6 @@ static const struct net_device_ops arc_emac_netdev_ops = {
 	.ndo_tx_timeout 	= arc_emac_tx_timeout,
 	.ndo_set_mac_address= arc_emac_set_address,
     .ndo_get_stats      = arc_emac_stats,
-    // .ndo_do_ioctl    = arc_emac_ioctl;
-	// .ndo_change_mtu 	= arc_emac_change_mtu, FIXME:  not allowed
 };
 
 static int __devinit arc_emac_probe(struct platform_device *pdev)
@@ -1115,7 +1108,7 @@ void __exit arc_emac_exit(void) {
 module_init(arc_emac_init);
 module_exit(arc_emac_exit);
 
-static int arc_thread(void *unused) //helps with interrupt mitigation.
+static int arc_thread(void *unused)
 {
 	unsigned int    i;
 	while (1)
@@ -1128,7 +1121,6 @@ static int arc_thread(void *unused) //helps with interrupt mitigation.
 			for (i = 1; i != SKB_PREALLOC; i++)
 			{
 				skb_prealloc[i] = dev_alloc_skb(1500 + VMAC_BUFFER_PAD);
-				//MTU
 					if (!skb_prealloc[i])
 					printk(KERN_CRIT "Failed to get an SKB\n");
 

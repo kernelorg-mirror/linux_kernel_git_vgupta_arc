@@ -6,10 +6,10 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/fs.h>       // file_operations
-#include <linux/device.h>   // class_create
-#include <linux/cdev.h>     // cdev
-#include <linux/mm.h>       // VM_IO
+#include <linux/fs.h>       /* file_operations */
+#include <linux/device.h>   /* class_create */
+#include <linux/cdev.h>     /* cdev */
+#include <linux/mm.h>       /* VM_IO */
 #include <linux/module.h>
 #include <asm/uaccess.h>
 
@@ -40,34 +40,35 @@ static int __init arc_hl_linux_glue(void)
 	dev_t arc_hl_dev;
     int i;
 
-	if (arc_hl_major) {	// Preallocated MAJOR
+	if (arc_hl_major) {	/* Preallocated MAJOR */
 
 		arc_hl_dev = MKDEV( arc_hl_major, arc_hl_minor );
 		register_chrdev_region( arc_hl_dev, arc_hl_nr_devs, arc_hl_devnm);
 	}
-	else {			// allocates Major to devices
-
+	else {		/* allocates Major to devices */
 		alloc_chrdev_region(&arc_hl_dev, 0, arc_hl_nr_devs, arc_hl_devnm);
 		arc_hl_major = MAJOR(arc_hl_dev);
 	}
 
-	// Populate sysfs entries: creates /sys/class/ sub-node for your device
+	/* Populate sysfs entries: creates /sys/class/ sub-node for device */
 
 	arc_hl_class = class_create(THIS_MODULE, arc_hl_devnm);
 
-	// connect file ops with cdev
+	/* connect file ops with cdev */
 
 	cdev_init(&arc_hl_cdev, &arc_hl_fops);
 	arc_hl_cdev.owner = THIS_MODULE;
 
-	// Connect major/minor number to cdev
-	// makes device available.
-	//  device nodes created with 'mknod` are probably already active.
+	/* Connect major/minor number to cdev
+	 * makes device available.
+	 *  device nodes created with 'mknod` are probably already active.
+	 */
 
 	cdev_add(&arc_hl_cdev, arc_hl_dev, arc_hl_nr_devs);
 
-	// creates /sys/devices/virtual/<dev_name>/<names[i]> node with
-	//	link from/sys/class/<dev_name>, needed by mdev.
+	/* creates /sys/devices/virtual/<dev_name>/<names[i]> node with
+	 *	link from/sys/class/<dev_name>, needed by mdev.
+	 */
 
 	for (i = 0; i < arc_hl_nr_devs; i++)
 		device_create(arc_hl_class,NULL,MKDEV(MAJOR(arc_hl_dev), i), NULL, arc_hl_devnm);
@@ -89,8 +90,10 @@ static int arc_hl_mmap(struct file *fp, struct vm_area_struct *vma)
 {
     vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-//    printk("@ ARC Linux HostLink Drv %lx %lx %lx %lx\n",
-//        vma->vm_start,  vma->vm_end, vma->vm_pgoff, vma->vm_page_prot);
+#if 0
+    printk("@ ARC Linux HostLink Drv %lx %lx %lx %lx\n",
+        vma->vm_start,  vma->vm_end, vma->vm_pgoff, vma->vm_page_prot);
+#endif
 
     if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			       vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
@@ -103,7 +106,7 @@ static int arc_hl_mmap(struct file *fp, struct vm_area_struct *vma)
 static int arc_hl_ioctl(struct inode *inode, struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
-    // we only support, returning the physical addr to mmap in user space
+    /* we only support, returning the physical addr to mmap in user space */
     put_user(__HOSTLINK__, (int __user *)arg);
     return 0;
 }

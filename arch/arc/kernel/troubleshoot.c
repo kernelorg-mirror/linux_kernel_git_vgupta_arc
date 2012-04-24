@@ -11,10 +11,10 @@
 #include <linux/fs.h>
 #include <linux/kdev_t.h>
 #include <asm/arcregs.h>
-#include <asm/traps.h>      /* defines for Reg values */
+#include <asm/traps.h>
 #include <linux/fs_struct.h>
-#include <linux/proc_fs.h>  // get_mm_exe_file
-#include <linux/file.h>     // fput
+#include <linux/proc_fs.h>
+#include <linux/file.h>
 
 /* For dumping register file (r0-r12) or (r13-r25), instead of 13 printks,
  * we simply loop otherwise gcc generates 13 calls to printk each with it's
@@ -106,9 +106,9 @@ static void show_ecr_verbose(struct pt_regs *regs)
     cause_code = ( cause_reg >> 8 ) & 0xFF;
 
     /* For DTLB Miss or ProtV, display the memory involved too */
-    if ( cause_vec == 0x22)   // DTLB Miss
+    if ( cause_vec == 0x22)   /* DTLB Miss */
     {
-        if (cause_code != 0x04 ) {  // Mislaigned access doesn't tell R/W/X
+        if (cause_code != 0x04 ) {  /* Mislaigned access */
             printk("While (%s): 0x%08lx by instruction @ 0x%08lx\n",
                 ((cause_code == 0x01)?"Read From":
                 ((cause_code == 0x02)?"Write to":"Exchg")),
@@ -122,11 +122,11 @@ static void show_ecr_verbose(struct pt_regs *regs)
     else if (cause_vec == PROTECTION_VIOL) {
         printk("Reason : ");
         if (cause_code == 0x0)
-            printk("Instruction fetch protection violation (execute from page marked non-execute)\n");
+            printk("Execute from Non-exec Page\n");
         else if (cause_code == 0x1)
-            printk("Data read protection violation (read from page marked non-read)\n");
+            printk("Read from Non-readable Page\n");
         else if (cause_code == 0x2)
-            printk("Data store protection violation (write to a page marked non-write)\n");
+            printk("Write to Non-writable Page\n");
         else if (cause_code == 0x3)
             printk("Data exchange protection violation\n");
         else if (cause_code ==0x4)
@@ -157,10 +157,11 @@ void show_regs(struct pt_regs *regs)
     printk("[EFA]: 0x%08lx\n", current->thread.fault_address);
     printk("[ERET]: 0x%08lx (Faulting instruction)\n",regs->ret);
 
-    show_faulting_vma(regs->ret, buf);   // VMA of faulting code, not data
+    show_faulting_vma(regs->ret, buf);   /* faulting code, not data */
 
-    //extern void print_vma_addr(char *prefix, unsigned long ip);
-    //print_vma_addr("",regs->ret);
+	/* can't use print_vma_addr() yet as it doesn't check for
+	 * non-inclusive vma
+	 */
 
     /* print special regs */
     printk("status32: 0x%08lx\n", regs->status32);
@@ -175,7 +176,7 @@ void show_regs(struct pt_regs *regs)
      */
     print_reg_file(&(regs->r0), 0);
 
-    // If Callee regs were saved, display them too
+    /* If Callee regs were saved, display them too */
     cregs = (struct callee_regs *) current->thread.callee_reg;
     if (cregs) show_callee_regs(cregs);
 
@@ -189,10 +190,10 @@ void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
     current->thread.fault_address = address;
     current->thread.cause_code = cause_reg;
 
-    // Caller and Callee regs
+    /* Caller and Callee regs */
     show_regs(regs);
 
-    // Show kernel stack trace if this Fatality happened in kernel mode
+    /* Show stack trace if this Fatality happened in kernel mode */
     if (!user_mode(regs))
         show_stacktrace(current, regs);
 
@@ -209,7 +210,7 @@ void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
  * The macro itself can be switched on/off at runtime using a toggle
  * @irq_inspect_on
  */
-int irq_inspect_on = 1;   // toggle to switch on/off at runtime
+int irq_inspect_on = 1;   /* toggle to switch on/off at runtime */
 
 /* Function called from level ISR */
 void print_var_on_irq(int irq, int in_or_out, uint addr, uint val)

@@ -54,7 +54,7 @@ static void arc_timer0_setup_event(unsigned int limit)
 {
     /* setup start and end markers */
     write_new_aux_reg(ARC_REG_TIMER0_LIMIT, limit);
-    write_new_aux_reg(ARC_REG_TIMER0_CNT, 0);     // start from 0
+    write_new_aux_reg(ARC_REG_TIMER0_CNT, 0);     /* start from 0 */
 
     /* IE: Interrupt on count = limit,
      * NH: Count cycles only when CPU running (NOT Halted)
@@ -89,8 +89,8 @@ static void arc_timer1_setup_free_flow(unsigned int limit)
     /* although for free flowing case, limit would alway be max 32 bits
      * still we've kept the interface open, just in case ...
      */
-    write_new_aux_reg(ARC_REG_TIMER1_LIMIT, limit);     // caller specifies
-    write_new_aux_reg(ARC_REG_TIMER1_CNT, 0);           // start from 0
+    write_new_aux_reg(ARC_REG_TIMER1_LIMIT, limit);
+    write_new_aux_reg(ARC_REG_TIMER1_CNT, 0);
     write_new_aux_reg(ARC_REG_TIMER1_CTRL, TIMER_CTRL_NH);
 }
 

@@ -177,8 +177,9 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
     if (next->context.asid > asid_cache) {
         get_new_mmu_context(next);
     } else {
-        // XXX: This will never happen given the chks above
-        // BUG_ON(next->context.asid > MAX_ASID);
+        /* XXX: This will never happen given the chks above
+	 * BUG_ON(next->context.asid > MAX_ASID);
+	 */
         write_new_aux_reg(ARC_REG_PID, next->context.asid|MMU_ENABLE);
     }
 

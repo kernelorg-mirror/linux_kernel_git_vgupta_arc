@@ -46,8 +46,8 @@
 #include <asm/arcregs.h>
 #include <asm/current.h>
 #include <asm/ptrace.h>
-#include <asm/pgtable.h>   // For VMALLOC_START
-#include <asm/thread_info.h>   // For THREAD_SIZE
+#include <asm/pgtable.h>   	/* For VMALLOC_START */
+#include <asm/thread_info.h>   	/* For THREAD_SIZE */
 
 /* Context saving macros -
  *
@@ -237,11 +237,12 @@
 
 .macro SWITCH_TO_KERNEL_STK
 
-    // User Mode when this happened ? Yes: Proceed to switch stack
+    /* User Mode when this happened ? Yes: Proceed to switch stack */
     bbit1   r9, STATUS_U_BIT, 88f
 
     /* OK we were already in kernel mode when this event happened, thus can
-     * assume SP is kernle mode SP. _NO_ need to do any stack switching */
+     * assume SP is kernle mode SP. _NO_ need to do any stack switching
+     */
 
 #ifdef  CONFIG_ARCH_ARC_LV2_INTR
     /* However....
@@ -257,16 +258,16 @@
      */
     brlo sp, VMALLOC_START, 88f
 
-    // TODO: vineetg:
-    // We need to be a bit more cautious here. What if a kernel bug in
-    // L1 ISR, caused SP to go whaco (some small value which looks like USER stk)
-    // and then we take L2 ISR.
-    //
-    // the above brlo alone would treat it as a valid L1-L2 sceanrio instead of
-    // shouting alound
-    // The only feasible way is to make sure this L2 happened in L1 prelogue ONLY
-    // i.e. ilink2 is less than a pre-set marker in L1 ISR before it
-    // switches stack
+	/* TODO: vineetg:
+	 * We need to be a bit more cautious here. What if a kernel bug in
+	 * L1 ISR, caused SP to go whaco (some small value which looks like
+	 * USER stk) and then we take L2 ISR.
+	 * Above brlo alone would treat it as a valid L1-L2 sceanrio
+	 * instead of shouting alound
+	 * The only feasible way is to make sure this L2 happened in
+	 * L1 prelogue ONLY i.e. ilink2 is less than a pre-set marker in
+	 * L1 ISR before it switches stack
+	 */
 
 #endif
 
@@ -303,7 +304,7 @@
     /* Go to end of page pointed to by task->thread_info.
      *  This is start of THE kernel stack (grows upwards remember)
      */
-    add2 r9, r9, (THREAD_SIZE - 4)/4   // 0ne word GUTTER
+    add2 r9, r9, (THREAD_SIZE - 4)/4   /* 0ne word GUTTER */
 
 #ifdef PT_REGS_CANARY
     st    0xabcdabcd, [r9, 0]

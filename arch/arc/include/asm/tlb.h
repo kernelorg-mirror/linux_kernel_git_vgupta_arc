@@ -29,17 +29,17 @@
 
 #if (CONFIG_ARC_MMU_VER >=2)
 
-#define TLBWriteNI  0x5     // JH special -- write JTLB without inv uTLBs
-#define TLBIVUTLB   0x6     //JH special -- explicitly inv uTLBs
+#define TLBWriteNI  0x5     /* JH special -- write JTLB without inv uTLBs */
+#define TLBIVUTLB   0x6     /*JH special -- explicitly inv uTLBs */
 
 #elif (METAL_FIX==1)   /* Metal Fix: Old MMU but a new Cmd */
 
-#define TLBWriteNI  TLBWrite    // WriteNI doesn't exist on this H/w
-#define TLBIVUTLB   0x5         // This is the only additional cmd
+#define TLBWriteNI  TLBWrite    /* WriteNI doesn't exist on this H/w */
+#define TLBIVUTLB   0x5         /* This is the only additional cmd */
 
 #else /* MMU V1 */
 
-#undef TLBWriteNI       // These cmds don't exist on older MMU
+#undef TLBWriteNI       /* These cmds don't exist on older MMU */
 #undef TLBIVUTLB
 
 #endif

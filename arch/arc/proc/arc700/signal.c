@@ -513,7 +513,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
              * only be restarted if there was no handler for
              * the signal, and since we only get here if there
              * is a handler, we don't restart */
-            regs->r0 = -EINTR;  // ERESTART_xxx is kernel internal so chg it
+            regs->r0 = -EINTR;  /* ERESTART_xxx is kernel internal */
             break;
 
         case -ERESTARTSYS:
@@ -528,18 +528,15 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 
         case -ERESTARTNOINTR:
             /* ERESTARTNOINTR means that the syscall should
-             * be called again after the signal handler returns. */
-            /* Setup reg state just as it was before doing the trap
+             * be called again after the signal handler returns.
+             * Setup reg state just as it was before doing the trap
              * r0 has been clobbered with sys call ret code thus it needs to
-             * be reloaded with orig value. Rest of relevant reg-file
-             * r8 (syscall num) and
-             * (r1 - r7) will be reset to their orig user space value when
+             * be reloaded with orig first arg to syscall in orig_r0
+             * Rest of relevant reg-file: r8 (syscall num) and (r1 - r7)
+             * will be reset to their orig user space value when
              * we ret from kernel
              */
-            regs->r0 = regs->orig_r0;   // No need to worry abt ERESTART_xxx conv
-                                        // as nobody is looking at it
-                                        // Since swi is re-executed, setup r0
-                                        // with the first sys call arg in orig_r0
+            regs->r0 = regs->orig_r0;
             regs->ret -= 4;
             break;
         }

@@ -12,16 +12,16 @@
 #ifdef __KERNEL__
 
 /* These are extension BCR's*/
-#define ARC_REG_DCCMBASE_BCR 0x61   // DCCM Base Addr
+#define ARC_REG_DCCMBASE_BCR 0x61   /* DCCM Base Addr */
 #define ARC_REG_CRC_BCR      0x62
 #define ARC_REG_DVFB_BCR     0x64
 #define ARC_REG_EXTARITH_BCR 0x65
 #define ARC_REG_VECBASE_BCR  0x68
 #define ARC_REG_PERIBASE_BCR 0x69
-#define ARC_REG_FP_BCR       0x6B   // Single-Precision FPU
-#define ARC_REG_DPFP_BCR     0x6C   // Dbl Precision FPU
+#define ARC_REG_FP_BCR       0x6B   /* Single-Precision FPU */
+#define ARC_REG_DPFP_BCR     0x6C   /* Dbl Precision FPU */
 #define ARC_REG_MMU_BCR      0x6f
-#define ARC_REG_DCCM_BCR     0x74   // DCCM Present + SZ
+#define ARC_REG_DCCM_BCR     0x74   /* DCCM Present + SZ */
 #define ARC_REG_TIMERS_BCR   0x75
 #define ARC_REG_ICCM_BCR     0x78
 #define ARC_REG_XY_MEM_BCR   0x79
@@ -160,13 +160,11 @@
 
 #endif
 
-// Profiling AUX regs.
-
-
+/* Profiling AUX regs. */
 #define ARC_PCT_CONTROL         0x255
-#define ARC_HWP_CTRL            0xc0fcb018 //Periphbase + b000 + 18
+#define ARC_HWP_CTRL            0xc0fcb018
 #define PR_CTRL_EN              (1<<0)
-#define ARC_PR_ID                   0xc0fcb000
+#define ARC_PR_ID               0xc0fcb000
 
 /* Floating Pt Registers
  * Status regs are read-only (build-time) so need not be saved/restored
@@ -190,7 +188,7 @@
 
 #define read_new_aux_reg(reg)               __builtin_arc_lr(reg)
 
-// gcc builtin sr needs reg param to be long immediate
+/* gcc builtin sr needs reg param to be long immediate */
 #define write_new_aux_reg(reg_immed, val)   \
                     __builtin_arc_sr((unsigned int)val, reg_immed)
 
@@ -318,7 +316,7 @@ struct bcr_dccm {
     unsigned long ver:8, sz: 3, res:21;
 };
 
-// Both SP and DP FPU BCRs have same format
+/* Both SP and DP FPU BCRs have same format */
 struct bcr_fp {
     unsigned int ver:8,
                  fast:1;
@@ -359,10 +357,10 @@ struct cpuinfo_arc {
     unsigned int timers;
     unsigned int vec_base;
     unsigned int perip_base;
-    struct bcr_perip uncached_space;   // For mapping Periph Regs etc
+    struct bcr_perip uncached_space;   /* For mapping Periph Regs etc */
     struct bcr_extn extn;
     struct bcr_extn_xymem extn_xymem;
-    struct bcr_extn_mac_mul extn_mac_mul;// DCCM RAM SZ
+    struct bcr_extn_mac_mul extn_mac_mul;
     struct bcr_ccm iccm, dccm;
 #ifdef CONFIG_ARCH_ARC800
     struct bcr_mp  mp;

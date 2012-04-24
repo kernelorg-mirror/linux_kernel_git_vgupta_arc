@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/a.out.h>
 #include <linux/reboot.h>
-#include <linux/sys.h>      // for NR_SYSCALS
+#include <linux/sys.h>      /* for NR_SYSCALS */
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/setup.h>
@@ -35,8 +35,8 @@
 #include <asm/ptrace.h>
 #include <asm/pgalloc.h>
 #include <linux/vmalloc.h>
-#include <asm/arcregs.h>    // For aux_regs
-#include <linux/tick.h>     // for tick_nohz_xx
+#include <asm/arcregs.h>
+#include <linux/tick.h>
 #include <asm/bug.h>
 #include <linux/random.h>
 
@@ -290,7 +290,7 @@ int copy_thread(unsigned long clone_flags,
      * it unwinds stack, loading CALLEE Regs from top and goes it's
      * merry way
      */
-    p->thread.ksp = (unsigned long)child_cregs;  // THREAD_KSP
+    p->thread.ksp = (unsigned long)child_cregs;  /* THREAD_KSP */
 
 #ifdef CONFIG_ARCH_ARC_CURR_IN_REG
     /* Replicate parent's user mode r25 for child */
@@ -351,12 +351,14 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
 /* Sameer: We don't have implementation yet */
 void (*pm_power_off) (void) = NULL;
 
-// Simon Spooner
-// "prepare" for a context switch.
-// This arch specific code detects if the next process is the process
-// that is being monitored with the ARC profiling tools.
-// If it is not, then it will optionally switch off the hardware profiling
-// if desired.  If it is it will switch on the monitoring hardware
+/*
+ * Simon Spooner
+ * "prepare" for a context switch.
+ * This arch specific code detects if the next process is the process
+ * that is being monitored with the ARC profiling tools.
+ * If it is not, then it will optionally switch off the hardware profiling
+ * if desired.  If it is it will switch on the monitoring hardware
+ */
 
 #ifdef CONFIG_ARC_PROFILING
 
@@ -370,31 +372,34 @@ void arc_ctx_callout(struct task_struct *next)
     unsigned int pct_control;
     volatile unsigned int *hwp_ctrl = (unsigned int *)ARC_HWP_CTRL;
 
-    if(arc_profiling & 0x1)       // Is profiling context switch support enabled ?
+    if(arc_profiling & 0x1)   /* Is profiling ctxt-switch support enabled ? */
     {
-        if(arc_profiling &0x2) // PCT counters enabled ?
+        if(arc_profiling &0x2) /* PCT counters enabled ? */
         {
-            pct_control = read_new_aux_reg(ARC_PCT_CONTROL);  // Read hardware enable bit
-            if( (arc_pid_to_monitor == next->pid)  \
-                || arc_pid_to_monitor == 0)     // Are we interested (0 = system mode)?
-                pct_control |= 0x1;     // switch on profiling
+            pct_control = read_new_aux_reg(ARC_PCT_CONTROL);
+
+            /* Are we interested */
+            if( (arc_pid_to_monitor == next->pid)
+                || arc_pid_to_monitor == 0)
+                pct_control |= 0x1;     /* profiling on */
             else
-                pct_control &= ~0x1;    // switch off profiling
+                pct_control &= ~0x1;    /* profiling off */
 
             write_new_aux_reg(ARC_PCT_CONTROL, pct_control);
         }
 
+        /* Are we interested in this PID ? */
         if(arc_profiling & 0x4)
         {
             if ( (arc_pid_to_monitor == next->pid) || \
-                (arc_pid_to_monitor ==0) ) // Are we interested in this PID ?
+                (arc_pid_to_monitor == 0) )
             {
-                // switch on hardware.
+                /* switch on hardware. */
                 *hwp_ctrl |= PR_CTRL_EN;
             }
             else
             {
-                //switch off hardware
+                /* switch off hardware */
                 *hwp_ctrl &= ~PR_CTRL_EN;
             }
         }

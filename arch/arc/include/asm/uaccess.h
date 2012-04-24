@@ -36,7 +36,8 @@
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
-//#define ARC_HIGH_LATENCY_MEMORY
+
+#undef ARC_HIGH_LATENCY_MEMORY
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -178,7 +179,7 @@ do {                                                    \
     }                                                   \
 } while (0)
 
-// FIXME :: check if the "nop" is required
+/* FIXME :: check if the "nop" is required */
 #define __get_user_asm(x,addr,err,op)       \
     __asm__ __volatile__(                   \
     "1: "op"    %1,[%2]\n"                  \
@@ -284,7 +285,7 @@ __copy_from_user_inline(void *to, const void *from, unsigned long n)
 
     if( ((unsigned long) to & 0x3) || ((unsigned long) from & 0x3))
     {
-        // unaligned
+        /* unaligned */
         res = slowpath_copy_from_user(to, from, n);
     }
     else
@@ -294,46 +295,46 @@ __copy_from_user_inline(void *to, const void *from, unsigned long n)
         "       pf      [%1,32]         \n"
         "       sync                    \n"
         "       mov     %0,%3           \n"
-        "       lsr.f   lp_count, %3,5  \n"  // number of words
+        "       lsr.f   lp_count, %3,5  \n"  /* number of words */
         "       lpnz    3f              \n"
         "1:     pf      [%2,32]         \n"
         "       nop_s                   \n"
-        "10:    ld.ab   %5, [%2, 4]     \n"  // 0
+        "10:    ld.ab   %5, [%2, 4]     \n"  /* 0 */
         "       nop_s                   \n"
-        "11:    ld.ab   %6, [%2, 4]     \n"  // 1
+        "11:    ld.ab   %6, [%2, 4]     \n"  /* 1 */
         "       nop_s                   \n"
-        "12:    ld.ab   %7, [%2, 4]     \n"  // 2
+        "12:    ld.ab   %7, [%2, 4]     \n"  /* 2 */
         "       nop_s                   \n"
-        "       st.ab   %5, [%1, 4]     \n"  // 0
+        "       st.ab   %5, [%1, 4]     \n"  /* 0 */
         "       nop_s                   \n"
-        "       st.ab   %6, [%1, 4]     \n"  // 1
+        "       st.ab   %6, [%1, 4]     \n"  /* 1 */
         "       nop_s                   \n"
-        "       st.ab   %7, [%1, 4]     \n"  // 2
+        "       st.ab   %7, [%1, 4]     \n"  /* 2 */
         "       nop_s                   \n"
-        "13:    ld.ab   %5, [%2, 4]     \n"  // 3
+        "13:    ld.ab   %5, [%2, 4]     \n"  /* 3 */
         "       nop_s                   \n"
-        "14:    ld.ab   %6, [%2, 4]     \n"  // 4
+        "14:    ld.ab   %6, [%2, 4]     \n"  /* 4 */
         "       nop_s                   \n"
         "144:   pf      [%2,0]          \n"
-        "       st.ab   %5, [%1, 4]     \n"  // 3
+        "       st.ab   %5, [%1, 4]     \n"  /* 3 */
         "       nop_s                   \n"
-        "       st.ab   %6, [%1, 4]     \n"  // 4
+        "       st.ab   %6, [%1, 4]     \n"  /* 4 */
         "       nop_s                   \n"
-        "15:    ld.ab   %5, [%2, 4]     \n"  // 5
+        "15:    ld.ab   %5, [%2, 4]     \n"  /* 5 */
         "       nop_s                   \n"
-        "16:    ld.ab   %6, [%2, 4]     \n"  // 6
+        "16:    ld.ab   %6, [%2, 4]     \n"  /* 6 */
         "       nop_s                   \n"
-        "17:    ld.ab   %7, [%2, 4]     \n"  // 7
+        "17:    ld.ab   %7, [%2, 4]     \n"  /* 7 */
         "       nop_s                   \n"
-        "       st.ab   %5, [%1, 4]     \n"  // 5
+        "       st.ab   %5, [%1, 4]     \n"  /* 5 */
         "       nop_s                   \n"
-        "       st.ab   %6, [%1, 4]     \n"  // 6
+        "       st.ab   %6, [%1, 4]     \n"  /* 6 */
         "       nop_s                   \n"
-        "       st.ab   %7, [%1, 4]     \n"  // 7
+        "       st.ab   %7, [%1, 4]     \n"  /* 7 */
         "       sync                    \n"
         "       sub     %0,%0,32        \n"
-        "3:     and.f   %3,%3,0x1f      \n" // any left over bytes ?
-        "       bz 34f                  \n" // no stragglers
+        "3:     and.f   %3,%3,0x1f      \n" /* any left over bytes ? */
+        "       bz 34f                  \n" /* no stragglers */
         "       bbit0   %3,4,30f        \n"
         "18:    ld.ab   %5, [%2, 4]     \n"
         "19:    ld.ab   %6, [%2, 4]     \n"
@@ -344,22 +345,22 @@ __copy_from_user_inline(void *to, const void *from, unsigned long n)
         "       st.ab   %7, [%1, 4]     \n"
         "       st.ab   %8, [%1, 4]     \n"
         "       sub.f   %0, %0, 16      \n"
-        "30:    bbit0   %3,3,31f        \n" // 8 bytes left
+        "30:    bbit0   %3,3,31f        \n" /* 8 bytes left */
         "22:    ld.ab   %5, [%2,4]      \n"
         "23:    ld.ab   %6, [%2,4]      \n"
         "       st.ab   %5, [%1,4]      \n"
         "       st.ab   %6, [%1,4]      \n"
         "       sub.f   %0,%0,8         \n"
-        "31:    bbit0   %3,2,32f        \n" // 4 bytes left.
+        "31:    bbit0   %3,2,32f        \n" /* 4 bytes left. */
         "24:    ld.ab   %5, [%2,4]      \n"
         "       st.ab   %5, [%1,4]      \n"
         "       sub.f   %0,%0,4         \n"
-        "32:    bbit0   %3,1,33f        \n" // 2 bytes left
+        "32:    bbit0   %3,1,33f        \n" /* 2 bytes left */
         "25:    ldw.ab  %5, [%2,2]      \n"
         "       stw.ab  %5, [%1,2]      \n"
         "       sub.f   %0,%0,2         \n"
         "33:    bbit0   %3,0,34f        \n"
-        "26:    ldb.ab  %5, [%2,1]      \n" // just one byte left
+        "26:    ldb.ab  %5, [%2,1]      \n" /* just one byte left */
         "       stb.ab  %5, [%1,1]      \n"
         "       sub.f   %0,%0,1         \n"
         "34:    nop                     \n"
@@ -406,7 +407,7 @@ __copy_from_user_inline(void *to, const void *from, unsigned long n)
                 orig_n = orig_n % 16;
 
                 __asm__ __volatile__ (
-                "       lsr   lp_count, %7,4            \n"  // 16byte iters
+                "       lsr   lp_count, %7,4            \n"  /* 16byte iters */
                 "       lp    3f                        \n"
                 "1:     ld.ab   %3, [%2, 4]             \n"
                 "11:    ld.ab   %4, [%2, 4]             \n"
@@ -530,7 +531,7 @@ __copy_from_user_inline(void *to, const void *from, unsigned long n)
 
     __asm__ __volatile__ (
         "       mov %0,%3                       \n"
-        "       lsr.f   lp_count, %3,4          \n"  // number of words
+        "       lsr.f   lp_count, %3,4          \n"  /* number of words */
         "       lpnz    3f                      \n"
         "1:     ld.ab   %5, [%2, 4]             \n"
         "11:    ld.ab   %6, [%2, 4]             \n"
@@ -541,24 +542,24 @@ __copy_from_user_inline(void *to, const void *from, unsigned long n)
         "       st.ab   %7, [%1, 4]             \n"
         "       st.ab   %8, [%1, 4]             \n"
         "       sub     %0,%0,16                \n"
-        "3:     and.f   %3,%3,0xf               \n" // any left over bytes ?
-        "       bz      34f                     \n" // no stragglers
-        "       bbit0   %3,3,31f                \n" // 8 bytes left
+        "3:     and.f   %3,%3,0xf               \n" /* any left over bytes ? */
+        "       bz      34f                     \n" /* no stragglers */
+        "       bbit0   %3,3,31f                \n" /* 8 bytes left */
         "14:    ld.ab   %5, [%2,4]              \n"
         "15:    ld.ab   %6, [%2,4]              \n"
         "       st.ab   %5, [%1,4]              \n"
         "       st.ab   %6, [%1,4]              \n"
         "       sub.f   %0,%0,8                 \n"
-        "31:    bbit0   %3,2,32f                \n" // 4 bytes left.
+        "31:    bbit0   %3,2,32f                \n" /* 4 bytes left. */
         "16:    ld.ab   %5, [%2,4]              \n"
         "       st.ab   %5, [%1,4]              \n"
         "       sub.f   %0,%0,4                 \n"
-        "32:    bbit0   %3,1,33f                \n" // 2 bytes left
+        "32:    bbit0   %3,1,33f                \n" /* 2 bytes left */
         "17:    ldw.ab  %5, [%2,2]              \n"
         "       stw.ab  %5, [%1,2]              \n"
         "       sub.f   %0,%0,2                 \n"
         "33:    bbit0   %3,0,34f                \n"
-        "18:    ldb.ab  %5, [%2,1]              \n" // just one byte left
+        "18:    ldb.ab  %5, [%2,1]              \n" /* just one byte left */
         "       stb.ab  %5, [%1,1]              \n"
         "       sub.f   %0,%0,1                 \n"
         "34:    ;nop                             \n"
@@ -606,56 +607,56 @@ __copy_to_user_inline(void *to, const void *from, unsigned long n)
 
     if( ((unsigned long) to & 0x3) || ((unsigned long) from & 0x3))
     {
-        // unaligned
+        /* unaligned */
         res = slowpath_copy_to_user(to, from, n);
     }
-    else   // 32 bit aligned.
+    else   /* 32 bit aligned. */
     {
 
 #ifdef ARC_HIGH_LATENCY_MEMORY
     __asm__ __volatile__ (
         "       sync                        \n"
         "       mov     %0,%3               \n"
-        "       lsr.f   lp_count, %3,5      \n"  // number of words
+        "       lsr.f   lp_count, %3,5      \n"  /* number of words */
         "       lpnz    3f                  \n"
         "1:     pf      [%2,32]             \n"
         "       nop_s                       \n"
-        "       ld.ab   %5, [%2, 4]         \n"  // 0
+        "       ld.ab   %5, [%2, 4]         \n"  /* 0 */
         "       nop_s                       \n"
-        "       ld.ab   %6, [%2, 4]         \n"  // 1
+        "       ld.ab   %6, [%2, 4]         \n"  /* 1 */
         "       nop_s                       \n"
-        "       ld.ab   %7, [%2, 4]         \n"  // 2
+        "       ld.ab   %7, [%2, 4]         \n"  /* 2 */
         "       nop_s                       \n"
-        "10:    st.ab   %5, [%1, 4]         \n"  // 0
+        "10:    st.ab   %5, [%1, 4]         \n"  /* 0 */
         "       nop_s                       \n"
-        "11:    st.ab   %6, [%1, 4]         \n"  // 1
+        "11:    st.ab   %6, [%1, 4]         \n"  /* 1 */
         "       nop_s                       \n"
-        "12:    st.ab   %7, [%1, 4]         \n"  // 2
+        "12:    st.ab   %7, [%1, 4]         \n"  /* 2 */
         "       nop_s                       \n"
-        "       ld.ab   %5, [%2, 4]         \n"  // 3
+        "       ld.ab   %5, [%2, 4]         \n"  /* 3 */
         "       nop_s                       \n"
-        "       ld.ab   %6, [%2, 4]         \n"  // 4
+        "       ld.ab   %6, [%2, 4]         \n"  /* 4 */
         "       nop_s                       \n"
         "       pf      [%2,0]              \n"
-        "13:    st.ab   %5, [%1, 4]         \n"  // 3
+        "13:    st.ab   %5, [%1, 4]         \n"  /* 3 */
         "       nop_s                       \n"
-        "14:    st.ab   %6, [%1, 4]         \n"  // 4
+        "14:    st.ab   %6, [%1, 4]         \n"  /* 4 */
         "       nop_s                       \n"
-        "       ld.ab   %5, [%2, 4]         \n"  // 5
+        "       ld.ab   %5, [%2, 4]         \n"  /* 5 */
         "       nop_s                       \n"
-        "       ld.ab   %6, [%2, 4]         \n"  // 6
+        "       ld.ab   %6, [%2, 4]         \n"  /* 6 */
         "       nop_s                       \n"
-        "       ld.ab   %7, [%2, 4]         \n"  // 7
+        "       ld.ab   %7, [%2, 4]         \n"  /* 7 */
         "       nop_s                       \n"
-        "15:    st.ab   %5, [%1, 4]         \n"  // 5
+        "15:    st.ab   %5, [%1, 4]         \n"  /* 5 */
         "       nop_s                       \n"
-        "16:    st.ab   %6, [%1, 4]         \n"  // 6
+        "16:    st.ab   %6, [%1, 4]         \n"  /* 6 */
         "       nop_s                       \n"
-        "17:    st.ab   %7, [%1, 4]         \n"  // 7
+        "17:    st.ab   %7, [%1, 4]         \n"  /* 7 */
         "       sync                        \n"
         "       sub     %0,%0,32            \n"
-        "3:     and.f   %3,%3,0x1f          \n" // any left over bytes ?
-        "       bz 34f                      \n" // no stragglers
+        "3:     and.f   %3,%3,0x1f          \n" /* any left over bytes ? */
+        "       bz 34f                      \n" /* no stragglers */
         "       bbit0   %3,4,30f            \n"
         "       ld.ab   %5, [%2, 4]         \n"
         "       ld.ab   %6, [%2, 4]         \n"
@@ -666,22 +667,22 @@ __copy_to_user_inline(void *to, const void *from, unsigned long n)
         "20:    st.ab   %7, [%1, 4]         \n"
         "21:    st.ab   %8, [%1, 4]         \n"
         "       sub.f   %0, %0, 16          \n"
-        "30:    bbit0   %3,3,31f            \n" // 8 bytes left
+        "30:    bbit0   %3,3,31f            \n" /* 8 bytes left */
         "       ld.ab   %5, [%2,4]          \n"
         "       ld.ab   %6, [%2,4]          \n"
         "22:    st.ab   %5, [%1,4]          \n"
         "23:    st.ab   %6, [%1,4]          \n"
         "       sub.f   %0,%0,8             \n"
-        "31:    bbit0   %3,2,32f            \n" // 4 bytes left.
+        "31:    bbit0   %3,2,32f            \n" /* 4 bytes left. */
         "       ld.ab   %5, [%2,4]          \n"
         "24:    st.ab   %5, [%1,4]          \n"
         "       sub.f   %0,%0,4             \n"
-        "32:    bbit0   %3,1,33f            \n" // 2 bytes left
+        "32:    bbit0   %3,1,33f            \n" /* 2 bytes left */
         "       ldw.ab  %5, [%2,2]          \n"
         "25:    stw.ab  %5, [%1,2]          \n"
         "       sub.f   %0,%0,2             \n"
         "33:    bbit0   %3,0,34f            \n"
-        "       ldb.ab  %5, [%2,1]          \n" // just one byte left
+        "       ldb.ab  %5, [%2,1]          \n" /* just one byte left */
         "26:    stb.ab  %5, [%1,1]          \n"
         "       sub.f   %0,%0,1             \n"
         "34:    nop                         \n"
@@ -730,7 +731,7 @@ __copy_to_user_inline(void *to, const void *from, unsigned long n)
                 orig_n = orig_n % 16;
 
                 __asm__ __volatile__ (
-                "     lsr lp_count, %7,4        \n"  // 16byte iters
+                "     lsr lp_count, %7,4        \n"  /* 16byte iters */
                 "     lp  3f                    \n"
                 "     ld.ab %3, [%2, 4]         \n"
                 "     ld.ab %4, [%2, 4]         \n"
@@ -832,7 +833,7 @@ __copy_to_user_inline(void *to, const void *from, unsigned long n)
             if (orig_n & 1)
             {
                 __asm__ __volatile__ (
-                "     ldb.ab  %3, [%2,1]        \n" // just one byte left
+                "     ldb.ab  %3, [%2,1]        \n" /* just one byte left */
                 "18:  stb.ab  %3, [%1,1]        \n"
                 "     sub     %0, %0, 1         \n"
                 "34:  ;nop                      \n"
@@ -854,7 +855,7 @@ __copy_to_user_inline(void *to, const void *from, unsigned long n)
         {
     __asm__ __volatile__ (
         "     mov   %0,%3               \n"
-        "     lsr.f lp_count, %3,4      \n"  // number of words
+        "     lsr.f lp_count, %3,4      \n"  /* number of words */
         "     lpnz  3f                  \n"
         "     ld.ab %5, [%2, 4]         \n"
         "     ld.ab %6, [%2, 4]         \n"
@@ -865,24 +866,24 @@ __copy_to_user_inline(void *to, const void *from, unsigned long n)
         "12:  st.ab %7, [%1, 4]         \n"
         "13:  st.ab %8, [%1, 4]         \n"
         "     sub   %0, %0, 16          \n"
-        "3:   and.f %3,%3,0xf           \n" // any left over bytes ?
-        "     bz 34f                    \n" // no stragglers
-        "     bbit0   %3,3,31f          \n" // 8 bytes left
+        "3:   and.f %3,%3,0xf           \n" /* any left over bytes ? */
+        "     bz 34f                    \n" /* no stragglers */
+        "     bbit0   %3,3,31f          \n" /* 8 bytes left */
         "     ld.ab   %5, [%2,4]        \n"
         "     ld.ab   %6, [%2,4]        \n"
         "14:  st.ab   %5, [%1,4]        \n"
         "15:  st.ab   %6, [%1,4]        \n"
         "     sub.f   %0, %0, 8         \n"
-        "31:  bbit0   %3,2,32f          \n" // 4 bytes left.
+        "31:  bbit0   %3,2,32f          \n" /* 4 bytes left. */
         "     ld.ab   %5, [%2,4]        \n"
         "16:  st.ab   %5, [%1,4]        \n"
         "     sub.f   %0, %0, 4         \n"
-        "32:  bbit0 %3,1,33f            \n" // 2 bytes left
+        "32:  bbit0 %3,1,33f            \n" /* 2 bytes left */
         "     ldw.ab    %5, [%2,2]      \n"
         "17:  stw.ab    %5, [%1,2]      \n"
         "     sub.f %0, %0, 2           \n"
         "33:  bbit0 %3,0,34f            \n"
-        "     ldb.ab    %5, [%2,1]      \n" // just one byte left
+        "     ldb.ab    %5, [%2,1]      \n" /* just one byte left */
         "18:  stb.ab  %5, [%1,1]        \n"
         "     sub.f %0, %0, 1           \n"
         "34:  ;nop                       \n"
@@ -1006,7 +1007,7 @@ __strncpy_from_user_inline(char *dst, const char *src, long count)
         "   .previous                   \n"
 
         :"=r"(res), "+r"(dst), "+r"(src), "=&r"(val),"=l"(hw_count)
-        :"g" (-EFAULT), "ir"(count),"4"(count)  // this "4" seeds lp_count abv
+        :"g" (-EFAULT), "ir"(count),"4"(count)  /* this "4" seeds lp_count */
         :"memory"
     );
 

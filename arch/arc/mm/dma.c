@@ -42,16 +42,16 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
     flag |= GFP_DMA | __GFP_HIGHMEM;
 
-    // This is linear addr (0x8000_0000 based)
+    /* This is linear addr (0x8000_0000 based) */
     page_addr = __get_free_pages(flag, get_order(size));
 
-    // This is kernel Virtual address (0x7000_0000 based)
+    /* This is kernel Virtual address (0x7000_0000 based) */
     kvaddr = ioremap_nocache(page_addr, size);
 
     if (kvaddr != NULL) {
         memset(kvaddr, 0, size);
 
-        // This is bus address, platform dependent
+        /* This is bus address, platform dependent */
         *dma_handle = plat_kernel_addr_to_dma(dev, (void *)page_addr);
     }
 

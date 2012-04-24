@@ -42,7 +42,7 @@
 #define BITS_FOR_PGD  (32 - BITS_FOR_PTE - BITS_IN_PAGE)
 
 #define PGDIR_SHIFT	(BITS_FOR_PTE + BITS_IN_PAGE)
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)    // Not TBL-sz, rather addr-space mapped
+#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)    /* Not TBL-sz, rather addr-space mapped */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /* These come automatically from the split above */

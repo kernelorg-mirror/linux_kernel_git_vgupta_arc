@@ -34,17 +34,19 @@ ARC_SCHED_FUNC __switch_to
     /* Save the now KSP in task->thread.ksp */
     st.as  sp, [r0, (TASK_THREAD + THREAD_KSP)/4]
 
-    /* Return last task in r0 (return reg)
-         On ARC, Return reg = First Arg reg = r0.
-         Since we already have last task in r0,
-         don't need to do anything special to return it
-    */
+    /*
+     * Return last task in r0 (return reg)
+     * On ARC, Return reg = First Arg reg = r0.
+     * Since we already have last task in r0,
+     * don't need to do anything special to return it
+     */
 
 	; hardware memory barrier
     sync
 
-    /* switch to new task , second parameter to this function , ie r1*/
-    // Temp reg r3 is required to get the ptr to store val
+    /* switch to new task, contained in r1
+     * Temp reg r3 is required to get the ptr to store val
+     */
     SET_CURR_TASK_ON_CPU  r1, r3
 
     /* reload SP with saved kernel mode stack pointer in task->thread.ksp */

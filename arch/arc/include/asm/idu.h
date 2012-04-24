@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <asm/arcregs.h>
 
-// IDU supports 256 common interrupts
+/* IDU supports 256 common interrupts */
 #define NR_IDU_IRQS     256
 
 
@@ -29,7 +29,7 @@
 #define IDU_GET_PARAM()     read_new_aux_reg(ARC_AUX_IDU_REG_PARAM)
 
 
-// IDU Commands
+/* IDU Commands */
 #define IDU_DISABLE         0x00
 #define IDU_ENABLE          0x01
 #define IDU_IRQ_CLEAR       0x02
@@ -60,7 +60,7 @@
 #define IDU_IRQ_MOD_TCPU_ALLRECP        0x03
 
 
-// IDU Interrupt Mode Triggering Mode
+/* IDU Interrupt Mode Triggering Mode */
 #define IDU_IRQ_MODE_LEVEL_TRIG         0x00
 #define IDU_IRQ_MODE_PULSE_TRIG         0x01
 

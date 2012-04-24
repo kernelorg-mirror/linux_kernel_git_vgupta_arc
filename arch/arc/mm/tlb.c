@@ -183,7 +183,7 @@ static void tlb_entry_erase(unsigned int vaddr_n_asid)
 
         /* Duplicate entry error */
         if ( idx & 0x1 ) {
-            // TODO we need to handle this case too
+            /* TODO we need to handle this case too */
             printk("#### unhandled Duplicate flush for %x\n", vaddr_n_asid);
         }
         else {
@@ -480,7 +480,9 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddress, pte_t *ptep)
 {
     /* XXX: This definitely seems useless */
-    // BUG_ON(!pfn_valid(pte_pfn(*ptep)));
+#if 0
+    BUG_ON(!pfn_valid(pte_pfn(*ptep)));
+#endif
 
     /* XXX: This is useful - but only once during execve - check why?
      *  handle_mm_fault()
@@ -502,9 +504,9 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddress, pte_t 
 void __init read_decode_mmu_bcr(void)
 {
     unsigned int tmp;
-    struct bcr_mmu_1_2  *mmu2;      // encoded MMU2 attributes
-    struct bcr_mmu_3    *mmu3;      // encoded MMU3 attributes
-    struct cpuinfo_arc_mmu *mmu;    // simplified attributes
+    struct bcr_mmu_1_2  *mmu2;      /* encoded MMU2 attr */
+    struct bcr_mmu_3    *mmu3;      /* encoded MMU3 attr */
+    struct cpuinfo_arc_mmu *mmu;    /* simplified attr */
 
     mmu = &cpuinfo_arc700[0].mmu;
 
@@ -598,8 +600,8 @@ void __init arc_mmu_init(void)
     /* Enable the MMU */
     write_new_aux_reg(ARC_REG_PID, MMU_ENABLE);
 
-#ifndef CONFIG_SMP    // In smp we use this reg for interrupt 1 scratch
-
+    /* In smp we use this reg for interrupt 1 scratch */
+#ifndef CONFIG_SMP
     /* swapper_pg_dir is the pgd for the kernel, used by vmalloc */
     write_new_aux_reg(ARC_REG_SCRATCH_DATA0, swapper_pg_dir);
 #endif

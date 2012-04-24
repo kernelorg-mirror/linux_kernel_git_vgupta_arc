@@ -16,7 +16,6 @@
 
 #ifdef __KERNEL__
 
-//#include <linux/linkage.h>
 #include <asm/page.h>       /* for PAGE_OFFSET  */
 #include <asm/arcregs.h>    /* for STATUS_E1_MASK et all */
 

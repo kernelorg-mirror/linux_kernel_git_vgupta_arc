@@ -78,7 +78,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
     pr_debug("rela->r_off | rela->addend | sym->st_value | ADDR | VALUE\n");
     pr_debug("===========================================================\n");
 
-    // Loop thru entries in relocation section.
+    /* Loop thru entries in relocation section */
     for (i = 0; i < n; i++) {
 
         /* This is where to make the change */

@@ -8,9 +8,9 @@ Following are the steps to add non-default page size support to kernel/tools.
 --------------------------------------------------------------------------
 Edit arch/arc/include/asm/page.h
 
--#define PAGE_SHIFT     13	//8k
-+#define PAGE_SHIFT     14	//16k
-+#define PAGE_SHIFT     12	//4k
+-#define PAGE_SHIFT     13	/*  8k */
++#define PAGE_SHIFT     14	/* 16k */
++#define PAGE_SHIFT     12	/*  4k */
 
 --------------------------------------------------------------------------
 (2) Tools
@@ -35,9 +35,9 @@ GNUINST/uclibc/arc-linux-uclibc/lib/ldscripts/arclinux.xs
 
 (2c) Edit GNUSRC/2.4/uClibc-0.9.29/libc/sysdeps/linux/arc/bits/uClibc_page.h
 
--#define PAGE_SHIFT     13	//8k
-+#define PAGE_SHIFT     14	//16k
-+#define PAGE_SHIFT     12	//4k
+-#define PAGE_SHIFT     13	/*  8k */
++#define PAGE_SHIFT     14	/* 16k */
++#define PAGE_SHIFT     12	/*  4k */
 
 (2d) Rebuild uClibc (which rebuilds other system libs as well)
 cd GNUSRC/2.4/uClibc-0.9.29

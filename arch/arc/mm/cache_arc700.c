@@ -154,7 +154,7 @@ void __init read_decode_cache_bcr(void)
         READ_BCR(ARC_REG_D_CACHE_BUILD_REG, dbcr);
 
         if (dbcr.config == 0x2)
-            p_dc->assoc = 4; // 4 way set assoc
+            p_dc->assoc = 4;
 
         p_dc->line_len = 16 << dbcr.line_len;
         p_dc->sz = 0x200 << dbcr.sz;
@@ -667,7 +667,7 @@ static void __arc_icache_inv_lines_vaddr(unsigned long phy_start,
     vaddr &= ~ICACHE_LINE_MASK;
     addr = phy_start;
 #else
-    // bits 17:13 of vaddr go as bits 4:0 of paddr
+    /* bits 17:13 of vaddr go as bits 4:0 of paddr */
     addr = phy_start | (( vaddr >> 13 ) & 0x1F);
 #endif
 
@@ -705,7 +705,7 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
     unsigned long phy, pfn;
     unsigned long flags;
 
-    //printk("Kernel Cache Cohenercy: %lx to %lx\n",kstart, kend);
+    /* printk("Kernel Cache Cohenercy: %lx to %lx\n",kstart, kend); */
 
     /* This is not the right API for user virtual address */
     if (kstart < TASK_SIZE) {
@@ -741,7 +741,7 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
         pfn = vmalloc_to_pfn((void *)kstart);
         phy = pfn << PAGE_SHIFT;
         sz = (tot_sz >= PAGE_SIZE)? PAGE_SIZE : tot_sz;
-        //printk("Flushing for virt %lx Phy %lx PAGE %lx\n", kstart, phy, pfn);
+        /* printk("Flushing: virt %lx Phy %lx PAGE %lx\n", kstart, phy, pfn); */
         local_irq_save(flags);
         __arc_dcache_flush_lines(phy, sz);
         __arc_icache_inv_lines(phy, sz);

@@ -197,7 +197,7 @@ ex_saved_reg1:
     sr  r3, [ARC_REG_TLBPD1]    ; these go in PD1
 
     and r2, r0, PTE_BITS_IN_PD0 ; Extract other PTE flags: (V)alid, (G)lb
-#if (CONFIG_ARC_MMU_VER <= 2)   // Neednot be done with v3 onwards
+#if (CONFIG_ARC_MMU_VER <= 2)   /* Neednot be done with v3 onwards */
     lsr r2, r2                  ; shift PTE flags to match layout in PD0
 #endif
 
@@ -226,7 +226,7 @@ ex_saved_reg1:
     sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
 
     /* Commit the Write */
-#if (CONFIG_ARC_MMU_VER >= 2)   // introduced in v2
+#if (CONFIG_ARC_MMU_VER >= 2)   /* introduced in v2 */
     sr TLBWriteNI, [ARC_REG_TLBCOMMAND]
 #else
     sr TLBWrite, [ARC_REG_TLBCOMMAND]

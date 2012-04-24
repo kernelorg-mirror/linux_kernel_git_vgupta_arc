@@ -38,7 +38,7 @@ void die(const char *str, struct pt_regs *regs, unsigned long address,
         show_kernel_fault_diag(str, regs, address, cause_reg);
     }
 
-    // DEAD END
+    /* DEAD END */
     __asm__("flag 1");
 }
 

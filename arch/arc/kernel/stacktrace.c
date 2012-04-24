@@ -122,7 +122,7 @@ static unsigned int noinline arc_unwind_core(struct task_struct *tsk,
         }
     }
 
-    return address; // return the last address it saw
+    return address; /* return the last address it saw */
 }
 
 #else

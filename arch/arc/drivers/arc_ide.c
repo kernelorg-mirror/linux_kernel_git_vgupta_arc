@@ -74,7 +74,7 @@ typedef volatile struct {
     unsigned long timing;
     unsigned long statctrl;
 
-    // Version 2 registers
+    /* Version 2 registers */
     unsigned long dma_timing;
     unsigned long dma_address;
     unsigned long dma_command;
@@ -134,7 +134,6 @@ static unsigned long timings[5][8] = {
     { 240, 30, 100,  0, 30, 15, 20, 5 },
     { 180, 30,  80, 70, 30, 10, 20, 5 },
     { 120, 25,  70, 25, 20, 10, 20, 5 }
-  //{ 120, 25, 100, 25, 20, 10, 20, 5 }
 };
 
 /* We're actually only interested in these. Why did I just type the rest in ? */
@@ -198,7 +197,7 @@ static void arc_ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
     DBG("t0 is %lu, t1 is %lu, t2 is %lu, t2l is %lu\n",t0,t1,t2,t2l);
 
-    t0++; // Lose truncation errors
+    t0++; /* Lose truncation errors */
     while ((t1+t2+t2l) < t0) {
         DBG("Incrementing to match basic timing requirements\n");
         t2++;
@@ -302,7 +301,7 @@ void arc_ide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t * drive)
     DBG("t0 is %lu, tkw is %lu, tkr is %lu, td is %lu, tm is %lu\n",
                                                             t0,tkw,tkr,td,tm);
 
-    t0++; // Lose truncation errors
+    t0++; /* Lose truncation errors */
 
     while ((tkw + td) < t0) {
         DBG("Incrementing tkw++ to match basic write timing requirements\n");
@@ -466,15 +465,17 @@ static int arc_ide_dma_end(ide_drive_t *drive)
             memcpy(sg_virt(sg), bounce_buffer, sg_dma_len(sg));
         }
 
+#if 0
         /* Since this is bounced dma finalisation, to be good linux citizens
          * we need to call dma_unmap_single(bounce_buffer)
          * But we don't because
          * (i) It is a NOP on ARC
          * (ii) calling it causes a unncessary volatile read
          */
-//        dma_unmap_single(HWIF(drive)->dev,
-//                        CTRL_TO_BUS_ADDR(controller->dma_address),
-//                        sg_dma_len(sg), DMA_FROM_DEVICE);
+        dma_unmap_single(HWIF(drive)->dev,
+                        CTRL_TO_BUS_ADDR(controller->dma_address),
+                        sg_dma_len(sg), DMA_FROM_DEVICE);
+#endif
     }
 
     /* verify good DMA status */
@@ -525,12 +526,12 @@ static int arc_ide_setup_dma_from_dev(ide_drive_t *drive)
 
     DBG("<- DMA FROM %x %d\n", sg_virt(sg), sg_dma_len(sg));
 
-    if (real_dma_buf % 8192) {  // ARC IDE doesn't like non page aligned (8k) buf
+    if (real_dma_buf % 8192) {  /* ctlr wants non 8k aligned buf */
 
         DBG("%s, non page-aligned FROM DEV\n", __FUNCTION__);
 
         if (grow_bounce_buffer(sg_dma_len(sg)) == 0) {
-            return 1; // No bounce buffer, go to PIO
+            return 1; /* No bounce buffer, go to PIO */
         }
 
         /* DMA into bounce buffer instead of block layer buffer
@@ -543,7 +544,7 @@ static int arc_ide_setup_dma_from_dev(ide_drive_t *drive)
 
     controller->dma_address = BUS_ADDR_TO_CTRL(real_dma_buf);
     controller->dma_command = ((sg_dma_len(sg) >> 9) << 8);
-                                  // 9 is the sector size shift (512B)
+                                  /* 9 is the sector size shift (512B) */
 
     return 0;
 }
@@ -556,11 +557,11 @@ static int arc_ide_setup_dma_to_dev(ide_drive_t *drive)
 
     DBG("-> DMA TO %x %d\n",sg_virt(sg), sg_dma_len(sg));
 
-    if (real_dma_buf % 8192) {  // ARC IDE doesn't like non page aligned (8k) buf
+    if (real_dma_buf % 8192) {
 
         DBG("non aligned buffer TO DEV\n");
         if (grow_bounce_buffer(sg_dma_len(sg)) == 0) {
-            return 1; // No bounce buffer, go to PIO
+            return 1;
         }
 
         /* Copy block layer buffer into bounce buffer */
@@ -598,7 +599,6 @@ int arc_ide_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
     DBG("%s:\n", __FUNCTION__);
 
-    // Check controller version and decide whether or not to enable DMA modes.
     if ( IDE_REV(controller->ID) >= ARC_IDE_FIRST_DMA_VERSION)
     {
         printk("Enabling DMA...\n");
@@ -729,16 +729,16 @@ int __init arc_ide_init(void)
         return -1;
     }
 
-    // Reset the IDE Controller
+    /* Reset the IDE Controller */
     arc_ide_reset_controller(0);
 
     arc_ide_setup_ports(&hw, IDE_CONTROLLER_BASE + DRIVE_REGISTER_OFFSET,
                    IDE_CONTROLLER_BASE + DRIVE_STATCTRL_OFFSET, IDE_IRQ);
 
-    // Clear the Interrupt
+    /* Clear the Interrupt */
     arc_ide_ack_irq(NULL);
 
-    // Enable the irq at the IDE Controller
+    /* Enable the irq at the IDE Controller */
     arc_ide_enable_irq();
 
     ide_host_add(&arc_ide_port_info, hws, 1, &host);
@@ -750,7 +750,7 @@ int __init arc_ide_init(void)
 
 void __exit arc_ide_exit(void)
 {
-    //IDE to reset state
+    /* IDE to reset state */
     controller->statctrl = 0;
 }
 

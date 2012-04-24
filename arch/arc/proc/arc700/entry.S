@@ -122,7 +122,7 @@
 ;############################ Vector Table #################################
 
 .macro VECTOR  lbl
-#if 1   // Just in case, build breaks
+#if 1   /* Just in case, build breaks */
     j   \lbl
 #else
     b   \lbl

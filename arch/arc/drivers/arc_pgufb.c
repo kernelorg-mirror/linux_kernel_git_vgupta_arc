@@ -67,9 +67,9 @@
 DECLARE_MUTEX(pgu_sem);
 
 struct arc_pgu_devdata {
-        struct fb_info info;                    // Framebuffer driver info
-        struct known_displays *display;         // Display connected to this device
-        arc_pgu *regs;                  // PGU registers
+        struct fb_info info;            /* Framebuffer driver info */
+        struct known_displays *display; /* Display connected to device */
+        arc_pgu *regs;                  /* PGU registers */
         unsigned long fb_virt_start;
         size_t fb_size;
         unsigned long fb_phys;
@@ -80,7 +80,6 @@ struct arc_pgu_devdata {
         unsigned long yuv_base[CONFIG_ARCPGU_YUVBUFS];
 };
 
-/*--------------------------------------------------------------------------------*/
 struct known_displays displays[] =
 {
         { /* 0: Toshiba 640x480 TFT panel - AA4 colour display */
@@ -153,8 +152,6 @@ static struct fb_var_screeninfo arc_pgu_var __initdata = {
         .bits_per_pixel = 16,
 };
 
-/*--------------------------------------------------------------------------------*/
-
 static int display_index = 0;
 static int nohwcursor = 0;
 struct arc_pgu_devdata fb_devdata;
@@ -169,15 +166,13 @@ unsigned int cpld_controls_pll = 1;
 
 struct fb_fix_screeninfo *fix;
 
-/*--------------------------------------------------------------------------------*/
-
 void arc_pgu_setup(char *options);
 static int arc_pgu_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg);
 
 static int arc_pgu_setcolreg(unsigned regno, unsigned red, unsigned green,
                          unsigned blue, unsigned transp,
                          struct fb_info *info);
-/*--------------------------------------------------------------------------------*/
+
 static struct fb_ops arc_pgu_ops = {
         .owner                  = THIS_MODULE,
         .fb_setcolreg           = arc_pgu_setcolreg,
@@ -198,7 +193,6 @@ static void set_vlck(unsigned int newval)
 #endif
 }
 
-/*--------------------------------------------------------------------------------*/
 
 static void reset_video_pll(unsigned int enable)
 {
@@ -211,22 +205,19 @@ static void reset_video_pll(unsigned int enable)
 		set_vlck(VESA_75HZ | VESA_DMT);
 }
 
-/*--------------------------------------------------------------------------------*/
 
 static void stop_arcpgu(void)
 {
 	int i;
 
-	// Stop PGU
+	/* Stop PGU */
 	fb_devdata.regs->statctrl &= ~STATCTRL_REG_DISP_EN_MASK;
 
-	// Wait for the PGU to stop running
-	while ((fb_devdata.regs->statctrl & STATCTRL_DISP_BUSY_MASK) && (fb_devdata.regs->statctrl & STATCTRL_BU_BUSY_MASK)) {}
-	// And a bit more for good measure
+	/* Wait for the PGU to stop running */
+	while ((fb_devdata.regs->statctrl & STATCTRL_DISP_BUSY_MASK) && (fb_devdata.regs->statctrl & STATCTRL_BU_BUSY_MASK)) ;
+	/* And a bit more for good measure */
 	for (i = 0; i < 10000; i++) {}
 }
-
-/*--------------------------------------------------------------------------------*/
 
 static int calculate_yuv_offsets(struct yuv_info *info)
 {
@@ -239,8 +230,6 @@ static int calculate_yuv_offsets(struct yuv_info *info)
 
 	/* Check if we can fit the requested number of buffers in the available area */
 	tmpsize = info->num_buffers * ((info->height * info->width) + ((info->width * info->height)/2) + (4 * info->alignment));
-	//if (tmpsize > fb_devdata.yuv_max_size)
-	//	return -1;
 
 	/* Now we're motoring. Use this for U,V size now. */
 	tmpsize = (info->width/2 * info->height/2);
@@ -251,7 +240,7 @@ static int calculate_yuv_offsets(struct yuv_info *info)
 	/* This now contains the length of the buffer */
 	tmpsize += info->v_offset;
 
-	// Work out base offsts
+	/* Work out base offsts */
 	fb_devdata.yuv_base[0] = BUF_ALIGN((info->start_offset + info->alignment),
 		info->alignment);
 	for (i = 1; i < info->num_buffers; i++)
@@ -283,9 +272,6 @@ static void blank_yuv(struct yuv_info *info)
 
 static void arc_pgu_setdims(struct yuv_info *info)
 {
-/*	printk(KERN_INFO "Setting dims to: width %d, height %d, stride %d, u stride %d, v stride %d, u offset %d, v offset %d\n", */
-/*				 info->width, info->height,fb_devdata.yuv.y_stride,fb_devdata.yuv.u_stride,fb_devdata.yuv.v_stride,fb_devdata.yuv.u_offset,fb_devdata.yuv.v_offset); */
-
 	unsigned long width, height;
 
 	/* Clip frame dimensions to size of display */
@@ -312,8 +298,6 @@ static int set_yuv_pointer(void)
 
 	return 0;
 }
-
-/*--------------------------------------------------------------------------------*/
 
 static int set_rgb_pointer(void)
 {
@@ -413,14 +397,10 @@ static void set_color_bitfields(struct arc_pgu_devdata *fb_devdata, struct fb_va
 }
 
 
-/*--------------------------------------------------------------------------------*/
-
 static void copy_pgu(arc_pgu *src, arc_pgu *dest)
 {
 	memcpy((void *)dest, (void *)src,sizeof(arc_pgu));
 }
-
-/*--------------------------------------------------------------------------------*/
 
 static int arc_pgu_setmode(void)
 {
@@ -430,7 +410,6 @@ static int arc_pgu_setmode(void)
 	unsigned long clk_div;
 	unsigned long high;
 
-	/*	printk(KERN_INFO "arc_pgu: in arc_pgu_setmode, lcd index is %d\n",display_index); */
 	dispmode = current_par.overlay_mode & STATCTRL_OL_FMT_MASK; /* current controller mode, not display mode. Make this boot param. */
 
 	stop_arcpgu();
@@ -478,7 +457,7 @@ static int arc_pgu_setmode(void)
 
 
 	fb_devdata.regs->ol_frm_st = fb_devdata.fb_virt_start;
-	fb_devdata.regs->ol_stride = fb_devdata.display->xres * 2; // Always
+	fb_devdata.regs->ol_stride = fb_devdata.display->xres * 2; /* Always */
 	fb_devdata.regs->ol_scn_line = ENCODE_PGU_DIMS((0), (fb_devdata.display->yres-1));
 	fb_devdata.regs->ol_col_key = 0;
 
@@ -494,29 +473,12 @@ static int arc_pgu_setmode(void)
 	return 0;
 }
 
-/*--------------------------------------------------------------------------------*/
-
 static int arc_pgu_setcolreg(unsigned regno, unsigned red, unsigned green,
 			 unsigned blue, unsigned transp,
 			 struct fb_info *info)
 {
-//	struct arc_pgu_devdata* i = (struct arc_pgu_devdata *)info;
-
 	if (regno > 255)
 		return 1;
-
-#if 0
-	switch(fb_devdata.display->bpp) {
-	case 16:
-		i->fbcon_cmap16[regno] =
-			((red & 0xf800) >> 10) |
-			((green & 0xf800) >> 5) |
-			((blue & 0xf800));
-		break;
-	default:
-		break;
-	}
-#endif
 
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
 	    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
@@ -552,8 +514,6 @@ static int arc_pgu_ioctl(struct fb_info *info, unsigned int cmd, unsigned long a
 	unsigned long result, tmplong;
 	int tmpint;
 	static arc_pgu temp_pgu;
-
-	 //printk("arc_pgufb: in arc_pgufb_ioctl, cmd %d, pgu ptr is 0x%lx arg is %ld\n", cmd,  (unsigned long)fb_devdata.regs, arg);
 
 	switch (cmd)
 	{
@@ -631,7 +591,7 @@ static int arc_pgu_ioctl(struct fb_info *info, unsigned int cmd, unsigned long a
 			return 0;
 
 		case ARCPGUFB_SWITCH_YUV:
-			// Don't stop the controller for this
+			/* Don't stop the controller for this */
 			if (! copy_from_user(&result, (void *) arg, sizeof(unsigned long)))
 				return do_switch(result);
 			return -EFAULT;
@@ -793,7 +753,7 @@ static int arc_pgu_ioctl(struct fb_info *info, unsigned int cmd, unsigned long a
 			return copy_to_user((void *) arg, (void*) &(fb_devdata.regs->statctrl), sizeof(unsigned long)) ? -EFAULT : 0;
 
 		case ARCPGUFB_SET_STATCTRL:
-			// On your own head be it.
+			/* On your own head be it. */
 			down(&pgu_sem);
 			result = copy_from_user((void*) &(fb_devdata.regs->statctrl), (void *) arg, sizeof(unsigned long)) ? -EFAULT : 0;
 			for (tmpint = 0; tmpint < 1000; tmpint++);
@@ -910,7 +870,8 @@ static int arc_pgu_probe (struct platform_device *dev)
 	 */
 	fb_devdata.fb_size = fb_devdata.rgb_size + fb_devdata.yuv.yuv_size + ((CONFIG_ARCPGU_YUVBUFS) * DEFAULT_ALIGN_SIZE);
 
-	fb_devdata.fb_size += 0x200; // FIXME squelch buffer added for resolutions > VGA
+	/* FIXME squelch buffer added for resolutions > VGA */
+	fb_devdata.fb_size += 0x200;
 	printk("ARC PGU: display/RGB resolution %03ldx%03ld, YUV resolution %03dx%03d\n",
 				 fb_devdata.display->xres,fb_devdata.display->yres,
 				 arcpgu_yuv_xres, arcpgu_yuv_yres);
@@ -951,14 +912,14 @@ static int arc_pgu_probe (struct platform_device *dev)
 
 	/* FIX!!! only works for 8/16 bpp */
 	current_par.num_rgbbufs = CONFIG_ARCPGU_RGBBUFS;
-	current_par.line_length = fb_devdata.display->xres * fb_devdata.display->bpp / 8; // in bytes
+	current_par.line_length = fb_devdata.display->xres * fb_devdata.display->bpp / 8; /* in bytes */
 	current_par.main_mode = STATCTRL_PIX_FMT_RGB555;
 	current_par.overlay_mode = STATCTRL_OL_FMT_RGB555;
 	current_par.rgb_bufno = 0;
 	current_par.main_is_fb = 1;
 	current_par.cmap_len = (fb_devdata.display->bpp == 8) ? 256 : 16;
 
-	// Do stuff from encode_fix
+	/* Do stuff from encode_fix */
 	arc_pgu_fix.smem_start = fb_devdata.fb_phys;
 	arc_pgu_fix.smem_len = fb_devdata.fb_size;
 	arc_pgu_fix.mmio_start = (unsigned long)fb_devdata.regs;
@@ -987,8 +948,6 @@ static int arc_pgu_probe (struct platform_device *dev)
 	arc_vsync_init(do_switch);
 	printk(KERN_INFO "fb%d: installed\n",MINOR(fb_devdata.info.node));
 
-	/* uncomment this if your driver cannot be unloaded */
-	/* MOD_INC_USE_COUNT; */
 	return 0;
 }
 
@@ -999,10 +958,9 @@ static int arc_pgu_remove(struct platform_device *dev)
 	/* Will need to free framebuffer memory if this is ever used as a module */
 	fb_devdata.regs->statctrl = 0;
 	unregister_framebuffer(&fb_devdata.info);
-	vfree ((void *)fb_devdata.fb_virt_start);		// Free framebuffer memory
+	vfree ((void *)fb_devdata.fb_virt_start);
 	return 0;
 }
-/*--------------------------------------------------------------------------------*/
 
 static struct platform_driver arc_pgu_driver = {
 	.driver = {
@@ -1070,8 +1028,6 @@ static void __exit arc_pgu_exit(void)
 	platform_device_unregister(arc_pgu_device);
 	platform_driver_unregister(&arc_pgu_driver);
 }
-
-/*--------------------------------------------------------------------------------*/
 
 module_init(arc_pgu_init);
 module_exit(arc_pgu_exit);

@@ -76,26 +76,21 @@ volatile struct iss_priv
         unsigned int    RxEntries;
         unsigned int    RxCurrent;
         struct sk_buff  *tx_skb;
-        struct net_device      *ndev;   // This device.
-        void *          tx_buff;        // Area packets TX from
-        void *          rx_buff;        // Area packets DMA into
+        struct net_device      *ndev;
+        void *          tx_buff;
+        void *          rx_buff;
         unsigned int    rx_len;
-        struct  iss_stats phy_stats;     // PHY stats.
+        struct  iss_stats phy_stats;
 
 	};
 
 volatile unsigned int debug=0;
 
 void iss_update_stats(struct iss_priv * ap);
-volatile struct emwsim_struct *ewsim = 0xc0fc2000; // HW access
+volatile struct emwsim_struct *ewsim = 0xc0fc2000;
 
 
-extern struct sockaddr mac_addr;	/* Intialised while
-
-
-						 * processing parameters in
-						 * setup.c */
-
+extern struct sockaddr mac_addr;
 
 /****************************/
 /* ISS interrupt handler */
@@ -121,7 +116,7 @@ iss_intr(int irq, void *dev_instance)
 	if (!skb) {
 		printk ("COULDN'T ALLOCATE SKB!!\n");
 	}
-        skb_reserve(skb,NET_IP_ALIGN); // Align header
+        skb_reserve(skb,NET_IP_ALIGN);
         memcpy(skb->data, priv->rx_buff, rxlen);
         skb_put(skb,rxlen);
         skb->dev = dev_instance;
@@ -147,14 +142,8 @@ iss_open(struct net_device * dev)
 {
 
     struct iss_priv *priv = netdev_priv(dev);
-    myproc = create_proc_entry("iss_mac", 0644, NULL);
-    if (myproc)
-    {
-        myproc->read_proc = read_proc;
-        myproc->write_proc = write_proc;
-    }
 
-// Setup RX and TX buffers in device.
+	/* Setup RX and TX buffers in device. */
 
     ewsim->RX_BUFFER = priv->rx_buff;
     ewsim->TX_BUFFER = priv->tx_buff;
@@ -165,9 +154,7 @@ iss_open(struct net_device * dev)
         return(-ENODEV);
     }
 
-// Enable interrupts
-//    ewsim->INTERRUPT_CONFIGURATION=0x00010006;
-//    printk("Opened ISS MAC, Interrupt Configuration %x\n", ewsim->INTERRUPT_CONFIGURATION);
+	/* Enable interrupts */
     ewsim->CONTROL=0;
     request_irq((ewsim->INTERRUPT_CONFIGURATION & 0xff), iss_intr,0, dev->name, dev);
     ewsim->CONTROL |= EMWSIM_CONTROL_INT_ENABLE;
@@ -201,8 +188,6 @@ iss_ioctl(struct net_device * dev, struct ifreq * rq, int cmd)
 int
 iss_tx(struct sk_buff * skb, struct net_device * dev)
 {
-//printk("Transmit...\n");
-
 
     struct iss_priv *priv = netdev_priv(dev);
 #if 0
@@ -248,8 +233,6 @@ iss_set_multicast_list(struct net_device * dev)
 	return;
 }
 
-// ISS MAC address set.
-
 int
 iss_set_address(struct net_device * dev, void *p)
 {
@@ -259,7 +242,7 @@ iss_set_address(struct net_device * dev, void *p)
     unsigned int temp;
 
     memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-    memcpy(mac_addr.sa_data, addr->sa_data, dev->addr_len); // store the mac address.
+    memcpy(mac_addr.sa_data, addr->sa_data, dev->addr_len);
     printk(KERN_INFO "MAC address set to ");
     for (i = 0; i < 6; i++)
         printk("%02x:", dev->dev_addr[i]);
@@ -270,11 +253,6 @@ iss_set_address(struct net_device * dev, void *p)
 
 void iss_update_stats( struct iss_priv *ap)
 {
-//
-// Code to read the current stats from the ISS  and add to ap->stats
-//
-
-
 }
 
 struct net_device_stats *
@@ -302,8 +280,6 @@ static int __devinit iss_probe(struct platform_device *dev)
 
     printk("ARC VMAC (simulated) Probing...\n");
 
-// Setup a new netdevice
-
     ndev = alloc_etherdev(sizeof(struct iss_priv));
     if (!ndev)
     {
@@ -323,8 +299,7 @@ static int __devinit iss_probe(struct platform_device *dev)
     ndev->watchdog_timeo = (400*HZ/1000);
     ndev->flags &= ~IFF_MULTICAST;
 
-
-    // Setup RX buffer
+    /* Setup RX buffer */
     priv->rx_buff = kmalloc(65536,GFP_ATOMIC | GFP_DMA);
     priv->tx_buff = kmalloc(65536,GFP_ATOMIC | GFP_DMA);
 
@@ -370,7 +345,7 @@ extern int running_on_hw;
 int __init
 iss_module_init(void)
 {
-    // So that when running on hardware, it doesn't register
+    /* So that when running on hardware, it doesn't register */
     if (!running_on_hw)
         return platform_driver_register(&iss_driver);
     else {

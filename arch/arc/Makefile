@@ -45,8 +45,13 @@ ifeq ($(enable_small_data),n)
 KBUILD_CFLAGS  += -mno-sdata -fcall-used-gp
 endif
 
+ATLEAST_GCC_44 :=  $(call cc-ifversion, -gt, 0402, y)
+
 # vineetg Oct 2010: ARC GCC 4.4.2 supports section anchors
-KBUILD_CFLAGS		+=	$(call cc-ifversion, -gt, 0402, -fsection-anchors)
+ifeq ($(ATLEAST_GCC_44),y)
+KBUILD_CFLAGS  +=      -fsection-anchors
+endif
+
 
 # vineetg, Oct 2009
 # Low level event tracing is sort of crude, as it relies on visualisation
@@ -76,16 +81,21 @@ KBUILD_LDFLAGS		+= -EB
 endif
 
 ifndef CONFIG_ARC_USE_HW_MPY
-KBUILD_CFLAGS	+= -mno-mpy
+	KBUILD_CFLAGS	+= -mno-mpy
+
 # newlib for ARC700 assumes MPY to be always present, which is generally true
 # However, if someone really doesn't want MPY, we need to use the 600 ver
 # which coupled with -mno-mpy will use mpy emulation
-ARC_LIBGCC		:= -marc600
-# Also need to hint gcc that mpy would be extremely costly
-KBUILD_CFLAGS   += -multcost=30
+# With gcc 4.4.7, -mno-mpy is enough to make any other related adjustments,
+# e.g. increased cost of MPY. With gcc 4.2.1 this had to be explicitly hinted
+
+	ARC_LIBGCC              := -marc600
+	ifneq ($(ATLEAST_GCC_44),y)
+		KBUILD_CFLAGS   += -multcost=30
+	endif
 else
-KBUILD_CFLAGS	+= -multcost=16
-ARC_LIBGCC		:= -mA7
+	ARC_LIBGCC		:= -mA7
+	KBUILD_CFLAGS		+= -multcost=16
 endif
 
 #setup AFLAGS from CFLAGS when we are done with all the CFLAGS
@@ -132,7 +142,7 @@ objconvert:
 endif
 
 # vineetg Feb 2010:
-# We switched to -mno-long-calls for overall kernel build
+# We switched OFF -mlong-calls for overall kernel build
 # However lib/decompress_inflate.o (.init.text) calls
 # zlib_inflate_workspacethere (.text) causing relocation error.
 # Thus forcing all exten calls in this file to be long calls

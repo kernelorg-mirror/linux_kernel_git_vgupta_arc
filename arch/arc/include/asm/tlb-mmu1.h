@@ -16,8 +16,8 @@
 .macro TLB_WRITE_HEURISTICS
 
 #define JH_HACK1
-//#define JH_HACK2
-//#define JH_HACK3
+#undef JH_HACK2
+#undef JH_HACK3
 
 #ifdef JH_HACK3
     ; Calculate set index for 2-way MMU
@@ -74,9 +74,9 @@
 89:
 #endif
 #ifdef JH_HACK1
-    //
-    // Always checks whether instruction will be kicked out by dtlb miss
-    //
+;
+; Always checks whether instruction will be kicked out by dtlb miss
+;
         mov_s   r3, r1                  ; save PD0 prepared by TLB_RELOAD in r3
         lr      r0,[eret]               /* instruction address */
         and     r0,r0,PAGE_MASK         /* VPN of instruction address */

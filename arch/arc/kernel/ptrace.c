@@ -49,7 +49,6 @@ char *get_str_from_id(int id, id_to_str_tbl_t *tbl)
 }
 
 static id_to_str_tbl_t  req_names = {
-    //.num_entries = (sizeof(req_names) - sizeof(req_names.num_entries))/sizeof(req_names.entry[0]),
     .num_entries = 16,
     {
         {PTRACE_PEEKTEXT, "peek-text"},

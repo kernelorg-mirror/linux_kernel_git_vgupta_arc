@@ -23,14 +23,14 @@
 #include <linux/vmalloc.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
-#include <plat_dma_addr.h>  // Baord specific DMA <=> PHY translation
+#include <plat_dma_addr.h>
 
 extern void * dma_alloc_coherent(struct device *dev, size_t size,
                     dma_addr_t *dma_handle, gfp_t flag);
 extern void dma_free_coherent(struct device *dev, size_t size, void *kvaddr,
                     dma_addr_t dma_handle);
 
-//#define _dma_cache_maint(a,b,c) __dma_cache_maint(a,b,c,current_text_addr())
+/* #define _dma_cache_maint(a,b,c) __dma_cache_maint(a,b,c,current_text_addr()) */
 #define _dma_cache_maint(a,b,c) __dma_cache_maint(a,b,c,0)
 
 extern void __dma_cache_maint(void *start, size_t sz, int dir, void *caller);

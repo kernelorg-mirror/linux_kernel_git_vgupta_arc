@@ -5,6 +5,5 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-//
-//#include <asm-generic/mutex-dec.h>
+
 #include <asm-generic/mutex-xchg.h>

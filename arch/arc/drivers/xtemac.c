@@ -56,8 +56,6 @@ static const struct net_device_ops xtemac_netdev_ops = {
 	.ndo_tx_timeout 	= xtemac_tx_timeout,
 	.ndo_set_mac_address= xtemac_set_address,
     .ndo_get_stats      = xtemac_stats,
-    // .ndo_do_ioctl    = aa3_emac_ioctl;
-	// .ndo_change_mtu 	= aa3_emac_change_mtu, FIXME:  not allowed
 };
 
 
@@ -88,11 +86,11 @@ volatile struct xtemac_priv
         unsigned int    RxEntries;
         unsigned int    RxCurrent;
         struct sk_buff  *tx_skb;
-        struct net_device      *ndev;   // This device.
-        void *          tx_buff;        // Area packets TX from
-        void *          rx_buff;        // Area packets DMA into
+        struct net_device  *ndev;
+        void *          tx_buff;
+        void *          rx_buff;
         unsigned int    rx_len;
-        struct  xtemac_stats phy_stats;     // PHY stats.
+        struct  xtemac_stats phy_stats;
 
 	};
 
@@ -102,14 +100,7 @@ void XEMAC_mdio_write (volatile struct xtemac_ptr *,unsigned int, unsigned int ,
 void xtemac_update_stats(struct xtemac_priv * ap);
 unsigned int XEMAC_mdio_read ( volatile struct xtemac_ptr * , unsigned int, unsigned int, volatile unsigned int *);
 
-
-
-extern struct sockaddr mac_addr;	/* Intialised while
-
-
-						 * processing parameters in
-						 * setup.c */
-
+extern struct sockaddr mac_addr;
 
 /****************************/
 /* XTEMAC interrupt handler */
@@ -161,34 +152,26 @@ xtemac_emac_intr(int irq, void *dev_instance)
         arc_write_uncached_32(&xtemac->bridge.intrClrReg, INTR_STATUS_DMA_RX_ERROR_BIT_POS);
     }
 
-// RX FIFO DMA'd to main memory.
-// ack the interrupt
-// invalidate the cache line
-// setup an SKB and pass in the packet into the kernel.
-// re-enable RX interrupts to allow next packet in.
-
-
+	/* RX FIFO DMA'd to main memory.
+	 * -ack the interrupt
+	 * -invalidate the cache line
+	 * -setup an SKB and pass in the packet into the kernel.
+	 * -re-enable RX interrupts to allow next packet in.
+	 */
     if(status & INTR_STATUS_DMA_RX_COMPLETE_BIT_POS)
     {
         if(debug)
             printk("TEMAC DMA RX COMPLETE\n");
         arc_write_uncached_32(&xtemac->bridge.dmaRxClrReg, 1);
-//        arc_write_uncached_32(&xtemac->bridge.intrClrReg, INTR_STATUS_DMA_RX_COMPLETE_BIT_POS);
         arc_write_uncached_32(&xtemac->bridgeExtn.intrEnableReg,ENABLE_ALL_INTR & (~ENABLE_RX_OVERRUN_INTR));
 
         priv->stats.rx_packets++;
         priv->stats.rx_bytes += priv->rx_len;
         flush_and_inv_dcache_range(priv->rx_buff, priv->rx_buff +priv->rx_len);
-// was in
 
         skb=alloc_skb(priv->rx_len + 32, GFP_ATOMIC);
-        skb_reserve(skb,NET_IP_ALIGN);      // Align header
+        skb_reserve(skb,NET_IP_ALIGN);
         memcpy(skb->data, priv->rx_buff, priv->rx_len);
-#if 0
-        printk("RX:");
-        print_packet(priv->rx_len, priv->rx_buff);
-        printk("\n");
-#endif
         skb_put(skb,priv->rx_len);
         skb->dev = dev_instance;
         skb->protocol = eth_type_trans(skb,dev_instance);
@@ -197,10 +180,9 @@ xtemac_emac_intr(int irq, void *dev_instance)
 
     }
 
-// TX FIFO DMA'd out.
-// ack the interrupt, reset the TX buffer
-
-
+	/* TX FIFO DMA'd out.
+	 * ack the interrupt, reset the TX buffer
+	 */
      if(status & INTR_STATUS_DMA_TX_COMPLETE_BIT_POS)
     {
         if(debug)
@@ -210,16 +192,16 @@ xtemac_emac_intr(int irq, void *dev_instance)
     }
 
 
-// Receive a packet.
-// Start to DMA into a physically contiguous buffer.
-// Switch off RX interrupts until DMA complete.
+	/* Receive a packet.
+	 * Start to DMA into a physically contiguous buffer.
+	 * Switch off RX interrupts until DMA complete.
+	 */
 
     if(status & INTR_STATUS_RCV_INTR_BIT_POS )
     {
         if(debug)
             printk("TEMAC RCV INTR\n");
         arc_write_uncached_32(&xtemac->bridge.intrClrReg , INTR_STATUS_RCV_INTR_BIT_POS);
-//        arc_write_uncached_32(&xtemac->config.rxCtrl1Reg, 0); // Disable RX
         arc_write_uncached_32(&xtemac->bridgeExtn.intrEnableReg , ENABLE_ALL_INTR & (~ENABLE_PKT_RECV_INTR ) & (~ENABLE_RX_OVERRUN_INTR) );
 
         priv->rx_len = arc_read_uncached_32(&xtemac->bridgeExtn.sizeReg);
@@ -229,9 +211,10 @@ xtemac_emac_intr(int irq, void *dev_instance)
     }
 
 
-// Handle an RX FIFO overrun.
-// ack the interrupt, handle this as a regular RX and DMA
-// the packet into the RX buffer
+	/* Handle an RX FIFO overrun.
+	 * ack the interrupt, handle this as a regular RX and DMA
+	 * the packet into the RX buffer
+	 */
 
     if(status & INTR_STATUS_RX_OVRN_INTR_BIT_POS)
     {
@@ -247,10 +230,6 @@ xtemac_emac_intr(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-/***************/
-/* XTEAMC open */
-/***************/
-
 int
 xtemac_open(struct net_device * dev)
 {
@@ -258,49 +237,28 @@ xtemac_open(struct net_device * dev)
     unsigned int speed;
     unsigned int temp;
 
-// OK, now switch on the hardware.
+	/* OK, now switch on the hardware. */
     arc_write_uncached_32(&xtemac->config.rxCtrl1Reg,RESET_FIFO);
     arc_write_uncached_32(&xtemac->bridgeExtn.intrEnableReg,0);
     arc_write_uncached_32(&xtemac->bridge.intrClrReg , CLEAR_INTR_REG);
     arc_write_uncached_32(&xtemac->bridge.txFifoRxFifoRstReg, RESET_TX_RX_FIFO);
     arc_write_uncached_32(&xtemac->bridge.txFifoRxFifoRstReg,0);
     request_irq(dev->irq, xtemac_emac_intr, 0, dev->name, dev);
-    arc_write_uncached_32(&xtemac->config.rxCtrl1Reg ,  ENABLE_RX );//| HALF_DUPLEX);
-    arc_write_uncached_32(&xtemac->config.txCtrlReg ,  ENABLE_TX); // | HALF_DUPLEX);
+    arc_write_uncached_32(&xtemac->config.rxCtrl1Reg ,  ENABLE_RX );
+    arc_write_uncached_32(&xtemac->config.txCtrlReg ,  ENABLE_TX);
 
 
-//    arc_write_uncached_32(&xtemac->config.macModeConfigReg, 0x40000000); // 100mbit
-    arc_write_uncached_32(&xtemac->config.macModeConfigReg, SET_100MBPS_MODE); // 100mbit
+    arc_write_uncached_32(&xtemac->config.macModeConfigReg, SET_100MBPS_MODE);
 
 
-// Probe the Phy to see what speed is negotiated.
-printk("Setup phy\n");
+	/* Probe the Phy to see what speed is negotiated. */
      XEMAC_mdio_read(xtemac, BSP_XEMAC1_PHY_ID,MV_88E1111_STATUS2_REG, &speed);
     printk("Phy setup\n");
     print_phy_status2(speed);
 
-    myproc = create_proc_entry("temac", 0644, NULL);
-    if (myproc)
-    {
-        myproc->read_proc = read_proc;
-        myproc->write_proc = write_proc;
-    }
-printk("TEMAC Opened\n");
-
-// Enable Address Filter
-
     xtemac->addrFilter.addrFilterModeReg= ENABLE_ADDR_FILTER;
 
-    printk("XTEMAC - Address filter enabled\n");
-
-// Set the mac address
-
     xtemac_set_address(dev,&mac_addr);
-
-
-// Reset the transceiver
-
-    printk("XTEMAC - Reset the transceiver\n");
 
      XEMAC_mdio_write(xtemac,BSP_XEMAC1_PHY_ID , MV_88E1111_CTRL_REG, MV_88E1111_CTRL_RESET);
      do {
@@ -309,17 +267,14 @@ printk("TEMAC Opened\n");
 
     printk("XTEMAC - Transceiver reset\n");
 
- /* Advertise capabilities */
-
     temp = MV_88E1111_AUTONEG_ADV_100BTX_FULL | MV_88E1111_AUTONEG_ADV_100BTX |                AUTONEG_ADV_IEEE_8023;
 
     XEMAC_mdio_write(xtemac, BSP_XEMAC1_PHY_ID, MV_88E1111_AUTONEG_ADV_REG, temp);
 
     printk("XTEMAC - Advertise capabilities\n");
 
-// Autonegotiate the connection
+	/* Autonegotiate the connection */
     XEMAC_mdio_write(xtemac,BSP_XEMAC1_PHY_ID,MV_88E1111_CTRL_REG, (MV_88E1111_CTRL_AUTONEG | MV_88E1111_CTRL_RESTART_AUTO));
-// Wait for autoneg to complete
 
     do {
         XEMAC_mdio_read(xtemac,BSP_XEMAC1_PHY_ID,MV_88E1111_STATUS_REG, &temp);
@@ -333,9 +288,9 @@ printk("TEMAC Opened\n");
     else
         printk("XTEMAC - Not Full Duplex\n");
 
-// Go !
+	/* Go ! */
 
-    arc_write_uncached_32(&xtemac->bridgeExtn.intrEnableReg , ENABLE_ALL_INTR & (~ENABLE_RX_OVERRUN_INTR)); // (ENABLE_ALL_INTR & (~ENABLE_RX_OVERRUN_INTR) & (~ENABLE_MDIO_INTR)));
+    arc_write_uncached_32(&xtemac->bridgeExtn.intrEnableReg , ENABLE_ALL_INTR & (~ENABLE_RX_OVERRUN_INTR));
 
 return 0;
 }
@@ -362,28 +317,23 @@ xtemac_ioctl(struct net_device * dev, struct ifreq * rq, int cmd)
 int
 xtemac_tx(struct sk_buff * skb, struct net_device * dev)
 {
-//printk("Transmit...\n");
-
-
     struct xtemac_priv *priv = netdev_priv(dev);
     unsigned int tx_space;
 
     if(priv->tx_skb)
     {
-//        printk("Dropping due to previous TX not complete\n");
+/*        printk("Dropping due to previous TX not complete\n"); */
         return NETDEV_TX_BUSY;
     }
 
     tx_space = arc_read_uncached_32(&xtemac->bridge.macTxFIFOStatusReg);
     if(tx_space < skb->len)
     {
-//        printk("Dropping due to not enough room in the TXFIFO\n");
-        return NETDEV_TX_BUSY;   // not enough space in the TX FIFO, throw away
+/*        printk("Dropping due to not enough room in the TXFIFO\n"); */
+        return NETDEV_TX_BUSY;
     }
 
     memcpy(priv->tx_buff, skb->data, skb->len);
-//    print_packet(skb->len, priv->tx_buff);
-//    printk("\n");
     flush_and_inv_dcache_range(priv->tx_buff, priv->tx_buff + skb->len);
     arc_write_uncached_32(&xtemac->bridge.dmaTxAddrReg , priv->tx_buff);
     arc_write_uncached_32(&xtemac->bridge.dmaTxCmdReg , (skb->len <<8 | DMA_WRITE_COMMAND | DMA_START_OF_PACKET | DMA_END_OF_PACKET));
@@ -413,8 +363,6 @@ xtemac_set_multicast_list(struct net_device * dev)
 	printk("set multicast list called\n");
 	return;
 }
-
-// XTEMAC MAC address set.
 
 int
 xtemac_set_address(struct net_device * dev, void *p)
@@ -446,11 +394,6 @@ xtemac_set_address(struct net_device * dev, void *p)
 
 void xtemac_update_stats( struct xtemac_priv *ap)
 {
-//
-// Code to read the current stats from the XTEMAC and add to ap->stats
-//
-
-
 }
 
 struct net_device_stats *
@@ -480,8 +423,6 @@ static int __devinit xtemac_probe(struct platform_device *dev)
 
 printk("Probing...\n");
 
-// Setup a new netdevice
-
     ndev = alloc_etherdev(sizeof(struct xtemac_priv));
     if (!ndev)
     {
@@ -502,8 +443,6 @@ printk("Probing...\n");
     ndev->watchdog_timeo = (400*HZ/1000);
     ndev->flags &= ~IFF_MULTICAST;
 
-// Setup RX buffer
-
     priv->rx_buff = kmalloc(4096,GFP_ATOMIC | GFP_DMA);
     priv->tx_buff = kmalloc(4096,GFP_ATOMIC | GFP_DMA);
 
@@ -517,9 +456,6 @@ printk("Probing...\n");
 
     spin_lock_init(&((struct xtemac_priv *) netdev_priv(ndev))->lock);
 
-
-// Register net device with kernel, now ifconfig should see the device
-
     rc = register_netdev(ndev);
     if (rc)
     {
@@ -531,7 +467,7 @@ printk("Probing...\n");
 
 }
 
-static void xtemac_remove(struct net_device *dev)
+static void xtemac_remove(const struct net_device *dev)
 {
     struct net_device *ndev = dev_get_drvdata(dev);
     unregister_netdev(ndev);
@@ -582,7 +518,6 @@ void  XEMAC_mdio_write
     }
 
     arc_write_uncached_32(&dev_ptr->bridge.intrClrReg, INTR_STATUS_MDIO_BIT_POS);
-//    printk("Finished MDIO write\n");
 
 } /* Endbody */
 

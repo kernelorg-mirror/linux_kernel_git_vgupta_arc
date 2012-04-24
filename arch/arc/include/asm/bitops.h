@@ -230,7 +230,6 @@ test_and_set_bit(unsigned long nr, volatile unsigned long *m)
 {
     unsigned long old, temp, flags;
     m += nr >> 5;
-    // int old = *m; This is wrong, we are reading data before getting lock
 
     bitops_lock(flags);
 
@@ -515,7 +514,7 @@ static inline int __attribute__((const)) __fls(unsigned long x)
     else return fls(x) - 1;
 }
 
-// TODO does this affect uni-processor code
+/* TODO does this affect uni-processor code */
 #define smp_mb__before_clear_bit()  barrier()
 #define smp_mb__after_clear_bit()   barrier()
 

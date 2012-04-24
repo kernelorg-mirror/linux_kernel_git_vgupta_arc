@@ -39,7 +39,7 @@
 
     ld \reg_ptr, [timeline_ctr]
 
-    ; hack to detect if we are trying to overflow the circular log buffer
+    /* hack to detect if we are trying to overflow the circular log buffer */
     brne \reg_ptr, MAX_SNAPS, 1f
     flag 1
     nop
@@ -49,35 +49,24 @@
 1:
     mpyu  \reg_ptr, \reg_ptr, EVLOG_RECORD_SZ
 
-;8001821c:	ld         r6,[0x8024ba98]
-;80018228:	add1       r2,r6,r6
-;80018230:	add2       r2,r6,r2
-;80018234:	asl        r8,r2,2
-;80018238:	add        r5,r8,0x8023ea64
-;80018240:	st         r4,[r5,32]
-
-;    add1 \reg_scratch, \reg_ptr, \reg_ptr
-;    add2 \reg_scratch, \reg_ptr, \reg_scratch
-;    asl  \reg_ptr, \reg_scratch, 2
-
     add \reg_ptr, timeline_log, \reg_ptr
 
-    ;############ Common data ##########
+    /*############ Common data ##########*/
 
-    ; TIMER1 count in timeline_log[timeline_ctr].time
+    /* TIMER1 count in timeline_log[timeline_ctr].time */
     lr  \reg_scratch, [ARC_REG_TIMER1_CNT]
     st  \reg_scratch, [\reg_ptr, EVLOG_FIELD_TIME]
 
-    ; current task ptr in timeline_log[timeline_ctr].task
+    /* current task ptr in timeline_log[timeline_ctr].task */
     ld \reg_scratch, [_current_task]
     ld \reg_scratch, [\reg_scratch, TASK_TGID]
     st \reg_scratch, [\reg_ptr, EVLOG_FIELD_TASK]
 
-    ; Type of event (Intr/Excp/Trap etc)
+    /* Type of event (Intr/Excp/Trap etc) */
     mov \reg_scratch, \type
     st \reg_scratch, [\reg_ptr, EVLOG_FIELD_EVENT_ID]
 
-    ; save SP at time of exception
+    /* save SP at time of exception */
     st sp, [\reg_ptr, EVLOG_FIELD_SP]
 
     st 0, [\reg_ptr, EVLOG_FIELD_EXTRA]
@@ -89,24 +78,20 @@
 
 
 
-    ;############ Event specific data ##########
 
-    ; save additional info depending on data point
-    ;    in timeline_log[timeline_ctr].cause
-    ;
+    /* ############ Event specific data ########## */
+
     mov \reg_scratch, \type
 
     and.f 0, \reg_scratch, EVENT_CLASS_EXIT
     bz 1f
 
-    // Stuff to do for all kernel exit events
+    /* Stuff to do for all kernel exit events */
+
     ld \reg_scratch, [sp, PT_status32]
     st \reg_scratch, [\reg_ptr, EVLOG_FIELD_EXTRA]
 
-    // SP in log->sp
-    // ld \reg_scratch, [sp, PT_sp]
-
-    // preempt count in log->sp
+    /* preempt count in log->sp */
     and  \reg_scratch, sp, ~(0x2000-1)
     ld \reg_scratch, [\reg_scratch, THREAD_INFO_PREEMPT_COUNT ]
     st \reg_scratch, [\reg_ptr, EVLOG_FIELD_SP]
@@ -168,7 +153,7 @@
     j 99f
 
 9:
-    // place holder for next
+    /* place holder for next */
 
 99:
     /* increment timeline_ctr  with mode on max */

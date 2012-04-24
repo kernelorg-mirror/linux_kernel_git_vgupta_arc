@@ -98,12 +98,6 @@ asmlinkage int do_page_fault(struct pt_regs *regs, int write,
     if (expand_stack(vma, address))
         goto bad_area;
 
-	// vineetg-TODO:
-	//shady_area:
-	// Check if we ever land HERE, when address doesn't belong to vma,
-	// but it's not BAD either
-	// when we just fall thru into good_area
-
     /*
      * Ok, we have a good vm_area for this memory access, so
      * we can handle it..
@@ -111,7 +105,7 @@ asmlinkage int do_page_fault(struct pt_regs *regs, int write,
 good_area:
     info.si_code = SEGV_ACCERR;
 
-// Handle protection violation, execute on heap or stack
+    /* Handle protection violation, execute on heap or stack */
 
     if (cause == ((PROTECTION_VIOL <<16) | INST_FETCH_PROT_VIOL)) {
         goto bad_area;

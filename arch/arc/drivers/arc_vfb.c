@@ -482,16 +482,7 @@ static int __init vfb_probe(struct platform_device *dev)
 	 * For real video cards we use ioremap.
 	 */
 
-
-
-    videomemory = ioremap(CONFIG_VFB_SIM_BASE,CONFIG_VFB_SIM_SIZE); // ARC Allocate Video memory.
-/* SRS
-	if (!(videomemory = rvmalloc(videomemorysize)))
-		return retval;
-*/
-
-
-
+    videomemory = ioremap(CONFIG_VFB_SIM_BASE,CONFIG_VFB_SIM_SIZE);
 
 printk("FB0 memory at %x\n", virt_to_phys(videomemory));
 
@@ -525,7 +516,7 @@ printk("FB0 memory at %x\n", virt_to_phys(videomemory));
 	info->var = vfb_default;
 	vfb_fix.smem_start = (unsigned long) videomemory;
 	vfb_fix.smem_len = videomemorysize;
-    vfb_fix.line_length = vfb_default.xres * vfb_default.bits_per_pixel / 8; // Setup line length so that plot routines work correctly.
+    vfb_fix.line_length = vfb_default.xres * vfb_default.bits_per_pixel / 8;
 	info->fix = vfb_fix;
 	info->pseudo_palette = info->par;
 	info->par = NULL;

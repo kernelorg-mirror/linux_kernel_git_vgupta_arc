@@ -110,8 +110,10 @@ asmlinkage void __cpuinit start_kernel_secondary(void)
     current->active_mm = mm;
     cpu_set(cpu, mm->cpu_vm_mask);
 
-    // TODO-vineetg: need to implement this call
-    //enter_lazy_tlb(mm, current);
+    /* TODO-vineetg: need to implement this */
+#if 0
+    enter_lazy_tlb(mm, current);
+#endif
 
     cpu_set(cpu, cpu_online_map);
 
@@ -175,8 +177,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
        jiffies + HZ => wait for 1 sec
      */
 
-    // TODO-vineetg: workaround for 3.4 bug, replace the 3 with HZ later
-    wait_till = jiffies + 3; //HZ;
+    /* TODO-vineetg: workaround for 3.4 bug, replace the 3 with HZ later */
+    wait_till = jiffies + 3;
     while ( time_before(jiffies, wait_till)) {
         if (cpu_online(cpu))
             break;
@@ -212,7 +214,7 @@ int __init setup_profiling_timer(unsigned int multiplier)
  *
  */
 
-//TODO_rajesh investigate timer, tlb and stop message types.
+/* TODO_rajesh investigate timer, tlb and stop message types. */
 enum ipi_msg_type {
     IPI_RESCHEDULE,
     IPI_CALL_FUNC,
@@ -326,8 +328,7 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
     while (!cpus_empty(data.pending))
         barrier();
 
-    // TODO_rajesh Incase of arm, it times out,
-    // should we have to timeout? timeout value?
+    /* TODO_rajesh: should we have to timeout? timeout value? */
 
     if (wait)
         while (!cpus_empty(data.unfinished))
@@ -438,15 +439,14 @@ static struct irq_node ipi_intr[NR_CPUS];
 
 void smp_ipi_init(void)
 {
-    // Owner of the Idu Interrupt determines who is SELF
+    /* Owner of the Idu Interrupt determines who is SELF */
     int cpu = smp_processor_id();
 
-    // Check if CPU is configured for more than 16 interrupts
-    // TODO_rajesh: what error should we report at this point
+    /* Check if CPU is configured for more than 16 interrupts */
     if(NR_IRQS <=16 || get_hw_config_num_irq() <= 16)
         BUG();
 
-    // Setup the interrupt in IDU
+    /* Setup the interrupt in IDU */
     idu_disable();
 
 #ifdef CONFIG_ARCH_ARC800
@@ -462,7 +462,7 @@ void smp_ipi_init(void)
 
     idu_enable();
 
-    // Install the interrupts
+    /* Install the interrupts */
     ipi_intr[cpu].handler = do_IPI;
     ipi_intr[cpu].flags = IRQ_FLG_LOCK;
     ipi_intr[cpu].disable_depth = 0;

@@ -77,10 +77,10 @@ void take_snap(int event, unsigned int arg1, unsigned int arg2)
     timeline_log[timeline_ctr].time = read_new_aux_reg(ARC_REG_TIMER1_CNT);
     timeline_log[timeline_ctr].task = current->pid;
     timeline_log[timeline_ctr].event = event;
-    timeline_log[timeline_ctr].extra2 = read_new_aux_reg(0xa);  //status32
+    timeline_log[timeline_ctr].extra2 = read_new_aux_reg(0xa);  /* status32 */
 
-    timeline_log[timeline_ctr].cause = read_new_aux_reg(0x403);  //ecr
-    timeline_log[timeline_ctr].fault_addr = read_new_aux_reg(0x404); // efa
+    timeline_log[timeline_ctr].cause = read_new_aux_reg(0x403);  /* ecr */
+    timeline_log[timeline_ctr].fault_addr = read_new_aux_reg(0x404); /* efa */
 
     timeline_log[timeline_ctr].extra = arg1;
     timeline_log[timeline_ctr].sp = arg2;
@@ -97,7 +97,7 @@ void take_snap2(int event)
 {
     unsigned long x, flags=0, stat32;
 
-    stat32 = read_new_aux_reg(0xa);  //status32
+    stat32 = read_new_aux_reg(0xa);  /* status32 */
 
     /* In case this is for Level 1 ISR, disable further Interrupts
      * so that timeline_ctr is not clobbered
@@ -113,16 +113,16 @@ void take_snap2(int event)
     timeline_log[timeline_ctr].sp = current_thread_info()->preempt_count;
 
     if (event == SNAP_INTR_IN2 ) {
-        timeline_log[timeline_ctr].cause = read_new_aux_reg(0x40B); //icause2
-        timeline_log[timeline_ctr].extra = read_new_aux_reg(0x0C); // statsu32_l2
+        timeline_log[timeline_ctr].cause = read_new_aux_reg(0x40B); /* icause2 */
+        timeline_log[timeline_ctr].extra = read_new_aux_reg(0x0C);  /* statsu32_l2 */
         __asm__ __volatile__(
                 "mov %0, ilink2   \r\n"
                 :"=r" (x));
         timeline_log[timeline_ctr].fault_addr = x;
     }
     else if (event == SNAP_INTR_IN ) {
-        timeline_log[timeline_ctr].cause = read_new_aux_reg(0x40A); //icause1
-        timeline_log[timeline_ctr].extra = read_new_aux_reg(0x0B); // statsu32_l1
+        timeline_log[timeline_ctr].cause = read_new_aux_reg(0x40A); /* icause1 */
+        timeline_log[timeline_ctr].extra = read_new_aux_reg(0x0B);  /* statsu32_l1 */
         __asm__ __volatile__(
                 "mov %0, ilink1   \r\n"
                 :"=r" (x));
@@ -169,9 +169,7 @@ void sort_snaps(int halt_after_sort)
 
     take_snap(SNAP_SENTINEL, 0, 0);
 
-    sort(timeline_log, MAX_SNAPS, sizeof(timeline_log_t), snap_cmp, NULL
-                //click_swap
-                );
+    sort(timeline_log, MAX_SNAPS, sizeof(timeline_log_t), snap_cmp, NULL);
 
     for ( i = 0; i < MAX_SNAPS; i++) {
         memset(timeline_log[i].nm, 0, 16);
