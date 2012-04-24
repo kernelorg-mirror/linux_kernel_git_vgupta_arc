@@ -61,7 +61,7 @@ ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
 KBUILD_CFLAGS += -g
 endif
 
-MODFLAGS	+= -mlong-calls
+KBUILD_CFLAGS_MODULE	+= -mlong-calls
 
 ifdef CONFIG_ARC_STACK_UNWIND
 KBUILD_CFLAGS		+= -fasynchronous-unwind-tables
@@ -72,7 +72,7 @@ LINUXINCLUDE +=  -include ${src}/arch/arc/include/asm/defines.h \
 
 ifdef CONFIG_CPU_BIG_ENDIAN
 KBUILD_CFLAGS    	+= -mbig-endian
-LDFLAGS		+= -EB
+KBUILD_LDFLAGS		+= -EB
 endif
 
 ifndef CONFIG_ARC_USE_HW_MPY
