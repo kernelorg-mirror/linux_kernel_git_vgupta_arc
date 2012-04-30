@@ -49,7 +49,7 @@ void __init arc_irq_init(void)
 {
 	int level_mask = level_mask;
 
-	write_aux_reg(AUX_INTR_VEC_BASE, &_int_vec_base_lds);
+	write_aux_reg(AUX_INTR_VEC_BASE, _int_vec_base_lds);
 
 	/* Disable all IRQs: enable them as devices request */
 	write_aux_reg(AUX_IENABLE, 0);

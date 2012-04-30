@@ -280,7 +280,7 @@ void arc_chk_ccms(void)
 	 * DCCM can be arbit placed in hardware.
 	 * Make sure it's placement/sz matches what Linux is built with
 	 */
-	if ((unsigned int)&__arc_dccm_base != p_cpu->dccm.base_addr)
+	if ((unsigned int)__arc_dccm_base != p_cpu->dccm.base_addr)
 		panic("Linux built with incorrect DCCM Base address\n");
 
 	if (DCCM_COMPILE_SZ != p_cpu->dccm.sz)

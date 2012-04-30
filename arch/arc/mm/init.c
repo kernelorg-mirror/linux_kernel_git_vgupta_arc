@@ -14,7 +14,6 @@
 #endif
 #include <linux/swap.h>
 #include <linux/module.h>
-
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/mmapcode.h>
@@ -66,7 +65,7 @@ void __init mem_init(void)
 	int codesize, datasize, initsize, reserved_pages;
 	int tmp;
 
-	high_memory = (void *)__va((max_low_pfn) * PAGE_SIZE);
+	high_memory = (void *)end_mem;
 
 	max_mapnr = num_physpages;
 
@@ -77,29 +76,35 @@ void __init mem_init(void)
 		if (PageReserved(mem_map + tmp))
 			reserved_pages++;
 
-	codesize = (unsigned long)_etext - (unsigned long)_text;
-	datasize = (unsigned long)_end - (unsigned long)_etext;
-	initsize = (unsigned long)__init_end - (unsigned long)__init_begin;
+	codesize = _etext - _text;
+	datasize = _end - _etext;
+	initsize = __init_end - __init_begin;
 
 	pr_info("Memory: %luKB available (%dK code,%dK data, %dK init)\n",
 		(unsigned long)nr_free_pages() << (PAGE_SHIFT - 10),
 		codesize >> 10, datasize >> 10, initsize >> 10);
 }
 
-void free_initmem(void)
+static void __init free_init_pages(const char *what, unsigned long begin,
+				   unsigned long end)
 {
 	unsigned long addr;
-
-	addr = (unsigned long)(__init_begin);
-	for (; addr < (unsigned long)(__init_end); addr += PAGE_SIZE) {
+	/* need to check that the page we free is not a partial page */
+	for (addr = begin; addr + PAGE_SIZE <= end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
+		init_page_count(virt_to_page(addr));
 		free_page(addr);
 		totalram_pages++;
 	}
-	pr_info("Freeing unused kernel memory: %luk freed [%lx] TO [%lx]\n",
-		(__init_end - __init_begin) >> 10,
-		(unsigned long)__init_begin,
-		(unsigned long)__init_end);
+
+	printk(KERN_INFO "Freeing %s: %ldk freed.  [%lux] TO [%lux]\n",
+		what, (end - begin) >> 10, begin, end);
+}
+
+void free_initmem(void)
+{
+	free_init_pages("unused kernel memory", (unsigned long)__init_begin,
+			(unsigned long)__init_end);
 
 	mmapcode_space_init();
 }
@@ -107,17 +112,7 @@ void free_initmem(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-
-	int pages = 0;
-	for (; start < end; start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(start));
-		free_page(start);
-		totalram_pages++;
-		pages++;
-	}
-	pr_info("Freeing initrd memory: %luk freed\n",
-		(pages * PAGE_SIZE) >> 10);
-
+	free_init_pages("initrd memory", start, end);
 }
 #endif
 
@@ -134,12 +129,11 @@ void __init setup_arch_memory(void)
 	init_mm.end_data = (unsigned long)_edata;
 	init_mm.brk = (unsigned long)_end;
 
-	/* Make sure that "end_kernel" is page aligned in linker script
+	/*
+	 * Make sure that "_end" is page aligned in linker script
 	 * so that it points to first free page in system
-	 * Also being a linker script var, we need to do &end_kernel which
-	 * doesn't work with >> operator, hence helper "kernel_end_addr"
 	 */
-	kernel_end_addr = (unsigned long)&end_kernel;
+	kernel_end_addr = (unsigned long)_end;
 
 	/* First free page beyond kernel image */
 	first_free_pfn = PFN_DOWN(kernel_end_addr);
@@ -147,7 +141,8 @@ void __init setup_arch_memory(void)
 	/* first page of system - kernel .vector starts here */
 	min_low_pfn = PFN_DOWN(CONFIG_LINUX_LINK_BASE);
 
-	/* Last usable page of low mem (no HIGH_MEM yet for ARC port)
+	/*
+	 * Last usable page of low mem (no HIGH_MEM yet for ARC port)
 	 * -must be BASE + SIZE
 	 */
 	max_low_pfn = max_pfn = PFN_DOWN(end_mem);
@@ -157,8 +152,8 @@ void __init setup_arch_memory(void)
 	/* setup bootmem allocator */
 	bootmap_sz = init_bootmem_node(NODE_DATA(0),
 				       first_free_pfn,/* bitmap start */
-				       min_low_pfn,	/* First pg to track */
-				       max_low_pfn);	/* Last pg to track */
+				       min_low_pfn,   /* First pg to track */
+				       max_low_pfn);  /* Last pg to track */
 
 	/*
 	 * Make all mem tracked by bootmem alloc as usable,

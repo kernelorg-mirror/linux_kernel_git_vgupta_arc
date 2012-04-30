@@ -42,32 +42,7 @@ SECTIONS
 #endif
 
 
-/************************************************************************
- * vineetg: Feb 2010: Responsibe for the weird arrangement of .init stuff
- *
- *   Instead of a more intuitive arrangement as follows
- *
- *   (1a) @marker _stext
- *       .init {
- *   (2a)    @marker _init_begin
- *   (3a)    @marker _sinitext
- *          *(init.text)
- *          ...
- *   (4a)    *(.init.ramfs) => gobbled up
- *          ...
- *       }
- *
- *   we have
- *
- *   (2b) @marker _init_begin  => outside of .init { }
- *   (4b) .init.ramfs {   => seperate subsection of .init
- *       *(.init.ramfs)
- *       }
- *   (1b) @marker _stext
- *       .init {
- *   (3b)    @marker _sinitext
- *          *(init.text)
- *
+/*
  *   The reason for having a seperate subsection .init.initramfs is to
  *   prevent objump from including it in kernel dumps
  *
@@ -77,8 +52,7 @@ SECTIONS
  *   because of calls from .init.text to .text
  *   Yes such calls do exit: decompress_inflate.c:gunzip( ) -> calls
  *   zlib_inflate_workspace( )
- *
- ************************************************************************/
+ */
 
         __init_begin = .;
 
@@ -142,8 +116,6 @@ SECTIONS
     __end_unwind = .;
 
     . = ALIGN(PAGE_SIZE);
-    end_kernel = .;
-
     _end = . ;
 
     STABS_DEBUG

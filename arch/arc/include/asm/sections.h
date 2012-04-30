@@ -11,9 +11,9 @@
 
 #include <asm-generic/sections.h>
 
-extern int _int_vec_base_lds;
+extern char _int_vec_base_lds[];
 extern unsigned long end_kernel;
 extern struct tagtable __tagtable_begin, __tagtable_end;
-extern unsigned int __arc_dccm_base;
+extern char __arc_dccm_base[];
 
 #endif
