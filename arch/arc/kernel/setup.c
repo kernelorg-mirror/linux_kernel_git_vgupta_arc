@@ -72,24 +72,6 @@ char __initdata command_line[COMMAND_LINE_SIZE];
 
 struct task_struct *_current_task[NR_CPUS];	/* currently active task */
 
-/* A7 does not autoswitch stacks on interrupt or exception ,so we do it
- * manually.But we need one register for each interrupt level to play with
- * which is saved and restored from the following variable.
- */
-
-/* vineetg: Jan 10th 2008:
- * In SMP we use MMU_SCRATCH_DATA0 to save a temp reg to make the ISR
- * re-entrant. However this causes performance penalty in TLB Miss code
- * because SCRATCH_DATA0 no longer stores the PGD ptr, which now has to be
- * fetched with 3 mem accesse as follows: curr_task->active_mm->pgd
- * Thus in non SMP we retain the old scheme of using int1_saved_reg in ISR
- */
-#ifndef CONFIG_SMP
-unsigned long int1_saved_reg;
-#endif
-
-unsigned long int2_saved_reg;
-
 /*
  * CPU info code now more organised. Instead of stupid if else,
  * added tables which can be run thru
