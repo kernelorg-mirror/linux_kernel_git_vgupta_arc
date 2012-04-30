@@ -34,10 +34,9 @@ SECTIONS
         . = ALIGN(PAGE_SIZE);
     }
 
-    /* TODO: These might change depending on H/w */
 #ifdef CONFIG_ARC_USE_ICCM
     .text.arcfp : {
-        ARCFP_CCM_TEXT
+	*(.text.arcfp)
         . = ALIGN(ICCM_COMPILE_SZ);
     }
 #endif
@@ -113,7 +112,6 @@ SECTIONS
     .text : {           /* Real text segment        */
         _text = .;      /* Text and read-only data  */
             TEXT_TEXT
-            ARCFP_SDRAM_TEXT
             SCHED_TEXT
             LOCK_TEXT
             KPROBES_TEXT
@@ -133,14 +131,6 @@ SECTIONS
        2. THREAD_SIZE for init.task, must be kernel-stk sz aligned
      */
     RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
-
-    /* becasuse above RW_xxx doesn't include our .data.arcfp */
-#ifndef CONFIG_ARC_USE_DCCM
-    .data.arcfp : {
-    *(.data..shared_aligned)
-    ARCFP_SDRAM_DATA
-    }
-#endif
 
     _edata = .;
 
@@ -177,8 +167,7 @@ SECTIONS
     . = DCCM_COMPILE_BASE;
     __arc_dccm_base = .;
     .data.arcfp : {
-        *(.data..shared_aligned)
-        ARCFP_CCM_DATA
+	*(.data.arcfp)
     }
     . = ALIGN(DCCM_COMPILE_SZ);
 #endif

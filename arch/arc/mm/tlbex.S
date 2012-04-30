@@ -53,8 +53,7 @@
 ; Thus need these globals.
 ; TODO: This wont work in SMP
 ;--------------------------------------------------------------------------
-.section  .data.arcfp
-	.global ex_saved_reg1	; Holds r0-r3 for duration of TLB Refill Code
+ARCFP_DATA ex_saved_reg1	; Holds r0-r3 for duration of TLB Refill Code
 	.align 32		; IMP: Must be Cache Line aligned
 	.type   ex_saved_reg1, @object
 	.size   ex_saved_reg1, 16
@@ -224,7 +223,7 @@ ex_saved_reg1:
 	ld_s  r0, [r0]
 .endm
 
-.section .text.arcfp, "ax",@progbits    ;Fast Path Code, candidate for ICCM
+ARCFP_CODE	;Fast Path Code, candidate for ICCM
 
 ;-----------------------------------------------------------------------------
 ; I-TLB Miss Exception Handler
