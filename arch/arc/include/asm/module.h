@@ -12,7 +12,12 @@
 #ifndef _ASM_ARC_MODULE_H
 #define _ASM_ARC_MODULE_H
 
-struct mod_arch_specific {
+struct mod_arch_specific
+{
+#ifdef CONFIG_ARC_DW2_UNWIND
+	void *unw_info;
+	int unw_sec_idx;
+#endif
 };
 
 #define Elf_Shdr	Elf32_Shdr
