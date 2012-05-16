@@ -101,20 +101,10 @@ KBUILD_IMAGE := bootpImage
 
 all:	$(KBUILD_IMAGE)
 
-bootpImage uImage: objconvert vmlinux
+bootpImage uImage: vmlinux
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-
-# work around for bug 94179: force some object file to have load,alloc flags
-# set for the debug_frame section
-
-ifdef CONFIG_ARC_DW2_UNWIND
-objconvert: init/do_mounts.o
-	$(Q) $(OBJCOPY) --set-section-flags .debug_frame=load,alloc init/do_mounts.o init/do_mounts.o
-else
-objconvert:
-endif
 
 # vineetg Feb 2010:
 # We switched OFF -mlong-calls for overall kernel build
