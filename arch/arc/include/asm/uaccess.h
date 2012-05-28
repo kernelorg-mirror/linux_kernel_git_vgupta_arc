@@ -241,7 +241,7 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 			: "+r" (res), "+r"(to), "+r"(from),
 			  "=r"(tmp1), "=r"(tmp2), "=r"(tmp3), "=r"(tmp4)
 			: "ir"(n)
-			: "lp_count");
+			: "lp_count", "memory");
 		}
 		if (orig_n / 8) {
 			orig_n = orig_n % 8;
@@ -263,7 +263,9 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"	.word   15b,4b			\n"
 			"	.previous			\n"
 			: "+r" (res), "+r"(to), "+r"(from),
-			  "=r"(tmp1), "=r"(tmp2));
+			  "=r"(tmp1), "=r"(tmp2)
+			:
+			: "memory");
 		}
 		if (orig_n / 4) {
 			orig_n = orig_n % 4;
@@ -281,7 +283,9 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"	.align 4			\n"
 			"	.word   16b,4b			\n"
 			"	.previous			\n"
-			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1));
+			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1)
+			:
+			: "memory");
 		}
 		if (orig_n / 2) {
 			orig_n = orig_n % 2;
@@ -299,7 +303,9 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"	.align 4			\n"
 			"	.word   17b,4b			\n"
 			"	.previous			\n"
-			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1));
+			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1)
+			:
+			: "memory");
 		}
 		if (orig_n & 1) {
 			__asm__ __volatile__(
@@ -315,7 +321,9 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"	.align 4			\n"
 			"	.word   18b,4b			\n"
 			"	.previous			\n"
-			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1));
+			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1)
+			:
+			: "memory");
 		}
 	} else {  /* n is NOT constant, so laddered copy of 16x,8,4,2,1  */
 
@@ -372,7 +380,7 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 		: "=r" (res), "=r"(to), "=r"(from), "=r"(n), "=r"(val),
 		  "=r"(tmp1), "=r"(tmp2), "=r"(tmp3), "=r"(tmp4)
 		: "3"(n), "1"(to), "2"(from)
-		: "lp_count");
+		: "lp_count", "memory");
 	}
 
 	return res;
@@ -429,7 +437,7 @@ __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 			: "+r" (res), "+r"(to), "+r"(from),
 			  "=r"(tmp1), "=r"(tmp2), "=r"(tmp3), "=r"(tmp4)
 			: "ir"(n)
-			: "lp_count");
+			: "lp_count", "memory");
 		}
 		if (orig_n / 8) {
 			orig_n = orig_n % 8;
@@ -451,7 +459,9 @@ __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"	.word   15b,4b			\n"
 			"	.previous			\n"
 			: "+r" (res), "+r"(to), "+r"(from),
-			  "=r"(tmp1), "=r"(tmp2));
+			  "=r"(tmp1), "=r"(tmp2)
+			:
+			: "memory");
 		}
 		if (orig_n / 4) {
 			orig_n = orig_n % 4;
@@ -469,7 +479,9 @@ __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"	.align 4			\n"
 			"	.word   16b,4b			\n"
 			"	.previous			\n"
-			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1));
+			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1)
+			:
+			: "memory");
 		}
 		if (orig_n / 2) {
 			orig_n = orig_n % 2;
@@ -487,7 +499,9 @@ __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"	.align 4			\n"
 			"	.word   17b,4b			\n"
 			"	.previous			\n"
-			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1));
+			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1)
+			:
+			: "memory");
 		}
 		if (orig_n & 1) {
 			__asm__ __volatile__(
@@ -503,7 +517,9 @@ __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"	.align 4			\n"
 			"	.word   18b,4b			\n"
 			"	.previous			\n"
-			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1));
+			: "+r" (res), "+r"(to), "+r"(from), "=r"(tmp1)
+			:
+			: "memory");
 		}
 	} else {  /* n is NOT constant, so laddered copy of 16x,8,4,2,1  */
 
@@ -560,7 +576,7 @@ __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 		: "=r" (res), "=r"(to), "=r"(from), "=r"(n), "=r"(val),
 		  "=r"(tmp1), "=r"(tmp2), "=r"(tmp3), "=r"(tmp4)
 		: "3"(n), "1"(to), "2"(from)
-		: "lp_count");
+		: "lp_count", "memory");
 	}
 
 	return res;
@@ -603,7 +619,7 @@ static inline unsigned long __arc_clear_user(void __user *to, unsigned long n)
 	"	.previous			\n"
 	: "+r"(d_char), "+r"(res)
 	: "i"(0)
-	: "lp_count", "lp_start", "lp_end");
+	: "lp_count", "lp_start", "lp_end", "memory");
 
 	return res;
 }
@@ -665,7 +681,8 @@ static inline long __arc_strnlen_user(const char __user *s, long n)
 	"	.word 1b, 4b			\n"
 	"	.previous			\n"
 	: "=r"(res), "=r"(tmp1), "=r"(cnt), "=r"(val)
-	: "0"(s), "1"(n));
+	: "0"(s), "1"(n)
+	: "memory");
 
 	return res;
 }
