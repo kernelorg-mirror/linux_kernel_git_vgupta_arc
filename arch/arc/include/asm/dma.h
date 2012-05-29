@@ -8,7 +8,6 @@
  * Amit Bhor, Martin Kite
  */
 
-
 #define MAX_DMA_ADDRESS (PAGE_OFFSET + 0x01000000)
 
 /* MK: Copied in from ARM version to support modules */

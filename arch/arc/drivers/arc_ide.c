@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 
-
 /* drive's registers map in controller base address*/
 #define DRIVE_REGISTER_OFFSET 0xA0
 #define DRIVE_ALTSTAT_OFFSET 0xBC
@@ -70,15 +69,15 @@
 /* ARC IDE Controller */
 typedef volatile struct {
 
-    unsigned long ID;
-    unsigned long timing;
-    unsigned long statctrl;
+	unsigned long ID;
+	unsigned long timing;
+	unsigned long statctrl;
 
-    /* Version 2 registers */
-    unsigned long dma_timing;
-    unsigned long dma_address;
-    unsigned long dma_command;
-    unsigned long dma_status;
+	/* Version 2 registers */
+	unsigned long dma_timing;
+	unsigned long dma_address;
+	unsigned long dma_command;
+	unsigned long dma_status;
 } ARC_IDE_if;
 
 #ifdef DEBUG
@@ -88,7 +87,7 @@ typedef volatile struct {
 #endif
 
 #ifdef CONFIG_ARC_BLK_DEV_IDEDMA
-static void * bounce_buffer;
+static void *bounce_buffer;
 static int timeout_count;
 #endif
 
@@ -111,7 +110,6 @@ static int timeout_count;
 /* Convert controller addr back to kernel addr (not dma addr) */
 #define CTRL_TO_KERNEL(addr)    ((addr) << 13)
 
-
 /* Timing parameters. These are the figures taken from Joe's
  * document "Aurora IDE Interface Implementation Specification".
  * This is arranged as an array of 7 parameters for each of the
@@ -129,11 +127,11 @@ static int timeout_count;
  */
 
 static unsigned long timings[5][8] = {
-    { 600, 70, 165,  0, 60, 30, 50, 5 },
-    { 383, 50, 125,  0, 45, 20, 35, 5 },
-    { 240, 30, 100,  0, 30, 15, 20, 5 },
-    { 180, 30,  80, 70, 30, 10, 20, 5 },
-    { 120, 25,  70, 25, 20, 10, 20, 5 }
+	{600, 70, 165, 0, 60, 30, 50, 5},
+	{383, 50, 125, 0, 45, 20, 35, 5},
+	{240, 30, 100, 0, 30, 15, 20, 5},
+	{180, 30, 80, 70, 30, 10, 20, 5},
+	{120, 25, 70, 25, 20, 10, 20, 5}
 };
 
 /* We're actually only interested in these. Why did I just type the rest in ? */
@@ -142,14 +140,13 @@ static unsigned long timings[5][8] = {
 #define TIMING_T2 2
 #define TIMING_T2L 3
 
-
 /* Multi-word DMA timings
  * We rely on timing values that aren't in ide-timing.h
  */
 static unsigned long dma_timings[3][5] = {
-  { 480, 215,  50,  215,  50 },
-  { 150,  50,  50,   80,  30 },
-  { 120,  25,  25,   70,  25 }
+	{480, 215, 50, 215, 50},
+	{150, 50, 50, 80, 30},
+	{120, 25, 25, 70, 25}
 };
 
 #define DMA_TIMING_T0  0
@@ -163,7 +160,7 @@ static unsigned long dma_timings[3][5] = {
 
 static __inline__ unsigned long ns_to_cycles(unsigned long ns)
 {
-    return ns * cycles_per_usec / 1000;
+	return ns * cycles_per_usec / 1000;
 }
 
 #define TIMING_REG_FORMAT(t1,t2,t2l)  \
@@ -171,75 +168,79 @@ static __inline__ unsigned long ns_to_cycles(unsigned long ns)
 
 /* IDE Controller */
 static volatile ARC_IDE_if *controller =
-                                (volatile ARC_IDE_if *)IDE_CONTROLLER_BASE;
-
+    (volatile ARC_IDE_if *)IDE_CONTROLLER_BASE;
 
 /* PIO operations */
 
 /* routine to tune PIO mode for drives */
-static void arc_ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
+static void arc_ide_set_pio_mode(ide_hwif_t * hwif, ide_drive_t * drive)
 {
-    unsigned long t0,t1,t2,t2l;
-    const u8 pio_mode = drive->pio_mode - XFER_PIO_0;
+	unsigned long t0, t1, t2, t2l;
+	const u8 pio_mode = drive->pio_mode - XFER_PIO_0;
 
-    DBG("%s:\n",__FUNCTION__);
-    DBG("drive %s, mode %d\n", drive->name,pio_mode);
+	DBG("%s:\n", __FUNCTION__);
+	DBG("drive %s, mode %d\n", drive->name, pio_mode);
 
-    if (pio_mode > 4) {
-        printk(KERN_ERR "%s: incorrect pio_mode\n", __FUNCTION__);
-        return;
-    }
+	if (pio_mode > 4) {
+		printk(KERN_ERR "%s: incorrect pio_mode\n", __FUNCTION__);
+		return;
+	}
 
-    t0 = ns_to_cycles(timings[pio_mode][TIMING_T0]);
-    t1 = ns_to_cycles(timings[pio_mode][TIMING_T1]);
-    t2 = ns_to_cycles(timings[pio_mode][TIMING_T2]);
-    t2l = ns_to_cycles(timings[pio_mode][TIMING_T2L]);
+	t0 = ns_to_cycles(timings[pio_mode][TIMING_T0]);
+	t1 = ns_to_cycles(timings[pio_mode][TIMING_T1]);
+	t2 = ns_to_cycles(timings[pio_mode][TIMING_T2]);
+	t2l = ns_to_cycles(timings[pio_mode][TIMING_T2L]);
 
-    DBG("t0 is %lu, t1 is %lu, t2 is %lu, t2l is %lu\n",t0,t1,t2,t2l);
+	DBG("t0 is %lu, t1 is %lu, t2 is %lu, t2l is %lu\n", t0, t1, t2, t2l);
 
-    t0++; /* Lose truncation errors */
-    while ((t1+t2+t2l) < t0) {
-        DBG("Incrementing to match basic timing requirements\n");
-        t2++;
-        if ((t1+t2+t2l) < t0) t2l++;
-        if ((t1+t2+t2l) < t0) t1++;
-    }
+	t0++;			/* Lose truncation errors */
+	while ((t1 + t2 + t2l) < t0) {
+		DBG("Incrementing to match basic timing requirements\n");
+		t2++;
+		if ((t1 + t2 + t2l) < t0)
+			t2l++;
+		if ((t1 + t2 + t2l) < t0)
+			t1++;
+	}
 
-    controller->timing = TIMING_REG_FORMAT(t1,t2,t2l);
-    DBG("timing reg is set 0x%lx\n",controller->timing);
+	controller->timing = TIMING_REG_FORMAT(t1, t2, t2l);
+	DBG("timing reg is set 0x%lx\n", controller->timing);
 
-    return;
+	return;
 }
 
-
 /* routine to reset controller after a disk reset */
-static void arc_ide_reset_controller(ide_drive_t *drive)
+static void arc_ide_reset_controller(ide_drive_t * drive)
 {
-    int i;
-    unsigned char creg;
+	int i;
+	unsigned char creg;
 
-    DBG("%s\n", __FUNCTION__);
+	DBG("%s\n", __FUNCTION__);
 
-    controller->statctrl = IDE_STATCTRL_RS;
-    udelay(250);
-    controller->statctrl = 0;
-    udelay(250);
-    controller->statctrl = IDE_STATCTRL_RS;
-    udelay(250);
+	controller->statctrl = IDE_STATCTRL_RS;
+	udelay(250);
+	controller->statctrl = 0;
+	udelay(250);
+	controller->statctrl = IDE_STATCTRL_RS;
+	udelay(250);
 
-    DBG("IDE alt status reg - 0x%02x statctrl - 0x%02x\n",
-       *((volatile unsigned char*)(IDE_CONTROLLER_BASE+DRIVE_ALTSTAT_OFFSET)),
-       *((volatile unsigned char*)(IDE_CONTROLLER_BASE+DRIVE_STATCTRL_OFFSET)));
+	DBG("IDE alt status reg - 0x%02x statctrl - 0x%02x\n",
+	    *((volatile unsigned char *)(IDE_CONTROLLER_BASE +
+					 DRIVE_ALTSTAT_OFFSET)),
+	    *((volatile unsigned char *)(IDE_CONTROLLER_BASE +
+					 DRIVE_STATCTRL_OFFSET)));
 
-    for (i = 0; i < 100000; i++) {
-        creg =
-        *((volatile unsigned char*)(IDE_CONTROLLER_BASE+DRIVE_ALTSTAT_OFFSET));
+	for (i = 0; i < 100000; i++) {
+		creg =
+		    *((volatile unsigned char *)(IDE_CONTROLLER_BASE +
+						 DRIVE_ALTSTAT_OFFSET));
 
-        if ((! (creg & IDE_DRIVE_STAT_BSY)) && (creg & IDE_DRIVE_STAT_DRDY))
-            break;
+		if ((!(creg & IDE_DRIVE_STAT_BSY))
+		    && (creg & IDE_DRIVE_STAT_DRDY))
+			break;
 
-        udelay(100);
-    }
+		udelay(100);
+	}
 }
 
 /* Sets the interrupt mask bit at the IDE Controller
@@ -248,77 +249,74 @@ static void arc_ide_reset_controller(ide_drive_t *drive)
 
 int arc_ide_enable_irq(void)
 {
-    DBG("%s:\n",__FUNCTION__);
-    controller->statctrl |= IDE_STATCTRL_IE;
-    return 0;
+	DBG("%s:\n", __FUNCTION__);
+	controller->statctrl |= IDE_STATCTRL_IE;
+	return 0;
 }
 
-
-int arc_ide_ack_irq(ide_hwif_t *hwif)
+int arc_ide_ack_irq(ide_hwif_t * hwif)
 {
-    DBG("%s:\n",__FUNCTION__);
-    controller->statctrl |= IDE_STATCTRL_IC;
-    return 1;
+	DBG("%s:\n", __FUNCTION__);
+	controller->statctrl |= IDE_STATCTRL_IC;
+	return 1;
 }
 
 /* DMA mode operations */
-void arc_ide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t * drive)
+void arc_ide_set_dma_mode(ide_hwif_t * hwif, ide_drive_t * drive)
 {
-    unsigned long t0,tkw,tkr,td,tm;
-    int dma_mode;
-    const u8 speed = drive->dma_mode;
+	unsigned long t0, tkw, tkr, td, tm;
+	int dma_mode;
+	const u8 speed = drive->dma_mode;
 
-    DBG("%s:\n", __FUNCTION__);
+	DBG("%s:\n", __FUNCTION__);
 
-    switch(speed)
-    {
-        case XFER_MW_DMA_0:
-            dma_mode = 0;
-            break;
+	switch (speed) {
+	case XFER_MW_DMA_0:
+		dma_mode = 0;
+		break;
 
-        case XFER_MW_DMA_1:
-            dma_mode = 1;
-            break;
+	case XFER_MW_DMA_1:
+		dma_mode = 1;
+		break;
 
-        case XFER_MW_DMA_2:
-            dma_mode = 2;
-            break;
+	case XFER_MW_DMA_2:
+		dma_mode = 2;
+		break;
 
-        default:
-            dma_mode = 2;
-            break;
+	default:
+		dma_mode = 2;
+		break;
 
-    }
+	}
 
-    DBG("mode: %d\n",dma_mode);
+	DBG("mode: %d\n", dma_mode);
 
-    t0 = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_T0]);
-    tkw = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_TKW]);
-    tkr = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_TKR]);
-    td = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_TD]);
-    tm = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_TM]);
+	t0 = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_T0]);
+	tkw = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_TKW]);
+	tkr = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_TKR]);
+	td = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_TD]);
+	tm = ns_to_cycles(dma_timings[dma_mode][DMA_TIMING_TM]);
 
-    DBG("t0 is %lu, tkw is %lu, tkr is %lu, td is %lu, tm is %lu\n",
-                                                            t0,tkw,tkr,td,tm);
+	DBG("t0 is %lu, tkw is %lu, tkr is %lu, td is %lu, tm is %lu\n",
+	    t0, tkw, tkr, td, tm);
 
-    t0++; /* Lose truncation errors */
+	t0++;			/* Lose truncation errors */
 
-    while ((tkw + td) < t0) {
-        DBG("Incrementing tkw++ to match basic write timing requirements\n");
-        tkw++;
-    }
+	while ((tkw + td) < t0) {
+		DBG("Incrementing tkw++ to match basic write timing requirements\n");
+		tkw++;
+	}
 
-    while ((tkr + td) < t0) {
-        DBG("Incrementing tkr to match basic write timing requirements\n");
-        tkr++;
-    }
+	while ((tkr + td) < t0) {
+		DBG("Incrementing tkr to match basic write timing requirements\n");
+		tkr++;
+	}
 
-    controller->dma_timing = ((tkw & 0xff) << 24) | ((tkr & 0xff) << 16) |
-                                  ((td & 0xff) << 8) | (tm & 0xff);
+	controller->dma_timing = ((tkw & 0xff) << 24) | ((tkr & 0xff) << 16) |
+	    ((td & 0xff) << 8) | (tm & 0xff);
 
-    DBG("DMA timing reg is now 0x%lx\n", controller->dma_timing);
+	DBG("DMA timing reg is now 0x%lx\n", controller->dma_timing);
 }
-
 
 #ifdef CONFIG_ARC_BLK_DEV_IDEDMA
 
@@ -328,160 +326,155 @@ void arc_ide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t * drive)
  *    An IDE DMA transfer timed out. In the event of an error we ask
  *    the driver to resolve the problem, if a DMA transfer is still
  *    in progress we continue to wait (arguably we need to add a
- *    secondary 'I dont care what the drive thinks' timeout here)
+ *    secondary 'I don't care what the drive thinks' timeout here)
  *    Finally if we have an interrupt we let it complete the I/O.
  *    But only one time - we clear expiry and if it's still not
  *    completed after WAIT_CMD, we error and retry in PIO.
  *    This can occur if an interrupt is lost or due to hang or bugs.
  */
 
-static int arc_ide_dma_timer_expiry(ide_drive_t *drive)
+static int arc_ide_dma_timer_expiry(ide_drive_t * drive)
 {
-    unsigned long dma_stat = controller->dma_status;
+	unsigned long dma_stat = controller->dma_status;
 
-    DBG("%s:\n", __FUNCTION__);
+	DBG("%s:\n", __FUNCTION__);
 
-    DBG("%s: DSR 0x%08lx DCR 0x%08lx PAR 0x%08lx drive at 0x%p, name %s\n",
-              drive->name, dma_stat, controller->dma_command,
-              CTRL_TO_KERNEL(controller->dma_address), drive , drive->name);
+	DBG("%s: DSR 0x%08lx DCR 0x%08lx PAR 0x%08lx drive at 0x%p, name %s\n",
+	    drive->name, dma_stat, controller->dma_command,
+	    CTRL_TO_KERNEL(controller->dma_address), drive, drive->name);
 
-    timeout_count++;
+	timeout_count++;
 
-    /* BUSY Stupid Early Timer !! */
-    if ((dma_stat & IDE_DSR_BUSY) && (timeout_count < 2))    {
-        DBG("reset the timer dma_stat 0x%x, timeout_count %d\n", dma_stat, timeout_count);
-        return WAIT_CMD;
-    }
+	/* BUSY Stupid Early Timer !! */
+	if ((dma_stat & IDE_DSR_BUSY) && (timeout_count < 2)) {
+		DBG("reset the timer dma_stat 0x%x, timeout_count %d\n",
+		    dma_stat, timeout_count);
+		return WAIT_CMD;
+	}
 
-    do {
-        controller->dma_command = 0;
-        udelay(10);
-        dma_stat = controller->dma_status;
-    } while (dma_stat & IDE_DSR_BUSY);
+	do {
+		controller->dma_command = 0;
+		udelay(10);
+		dma_stat = controller->dma_status;
+	} while (dma_stat & IDE_DSR_BUSY);
 
-    if (dma_stat & IDE_DSR_ERROR)  /* ERROR */
-        return -1;
+	if (dma_stat & IDE_DSR_ERROR)	/* ERROR */
+		return -1;
 
-    return 0;    /* Unknown status -- reset the bus */
+	return 0;		/* Unknown status -- reset the bus */
 }
 
 /* returns 1 if dma irq issued, 0 otherwise */
-int arc_ide_dma_test_irq(ide_drive_t *drive)
+int arc_ide_dma_test_irq(ide_drive_t * drive)
 {
-    DBG("%s:\n", __FUNCTION__);
+	DBG("%s:\n", __FUNCTION__);
 
-    DBG("statctrl %ld\n", controller->statctrl);
+	DBG("statctrl %ld\n", controller->statctrl);
 
-    /* return 1 if IRQ asserted */
-    if (controller->statctrl & IDE_STATCTRL_IS)
-        return 1;
+	/* return 1 if IRQ asserted */
+	if (controller->statctrl & IDE_STATCTRL_IS)
+		return 1;
 
-    return 0;
+	return 0;
 }
 
-void arc_ide_dma_host_off(ide_drive_t *drive)
+void arc_ide_dma_host_off(ide_drive_t * drive)
 {
-    DBG("%s:\n", __FUNCTION__);
+	DBG("%s:\n", __FUNCTION__);
 
-    controller->dma_command = 0;
+	controller->dma_command = 0;
 }
 
-
-void arc_ide_dma_host_on(ide_drive_t *drive)
+void arc_ide_dma_host_on(ide_drive_t * drive)
 {
-    DBG("%s:\n", __FUNCTION__);
+	DBG("%s:\n", __FUNCTION__);
 
-    if (drive->dma)
-        controller->dma_command |= IDE_DCR_ENABLE;
+	if (drive->dma)
+		controller->dma_command |= IDE_DCR_ENABLE;
 }
 
-void arc_ide_dma_host_set(ide_drive_t *drive, int on)
+void arc_ide_dma_host_set(ide_drive_t * drive, int on)
 {
-    if(on)
-        arc_ide_dma_host_on(drive);
-    else
-        arc_ide_dma_host_off(drive);
+	if (on)
+		arc_ide_dma_host_on(drive);
+	else
+		arc_ide_dma_host_off(drive);
 }
 
-
-static void arc_ide_dma_start(ide_drive_t *drive)
+static void arc_ide_dma_start(ide_drive_t * drive)
 {
-    DBG("%s:\n", __FUNCTION__);
+	DBG("%s:\n", __FUNCTION__);
 
-    /* start DMA */
-    controller->dma_command |= IDE_DCR_ENABLE;
-    timeout_count = 0;
+	/* start DMA */
+	controller->dma_command |= IDE_DCR_ENABLE;
+	timeout_count = 0;
 }
-
 
 /*
  * Teardown mappings after DMA has completed.
  * returns 1 on error, 0 otherwise
  */
-static int arc_ide_dma_end(ide_drive_t *drive)
+static int arc_ide_dma_end(ide_drive_t * drive)
 {
-    unsigned long dma_stat = 0;
-    struct scatterlist *sg = drive->hwif->sg_table;
+	unsigned long dma_stat = 0;
+	struct scatterlist *sg = drive->hwif->sg_table;
 
-    DBG("DMA End %x %d\n", sg_virt(sg), sg_dma_len(sg));
+	DBG("DMA End %x %d\n", sg_virt(sg), sg_dma_len(sg));
 
-    controller->dma_command = 0;        /* stop DMA */
-    dma_stat = controller->dma_status;  /* get DMA status */
+	controller->dma_command = 0;	/* stop DMA */
+	dma_stat = controller->dma_status;	/* get DMA status */
 
 #ifdef DEBUG
-    if (dma_stat & IDE_DSR_ERROR)
-        printk("%s : DMA error DSR=0x%08lx", __FUNCTION__, dma_stat);
+	if (dma_stat & IDE_DSR_ERROR)
+		printk("%s : DMA error DSR=0x%08lx", __FUNCTION__, dma_stat);
 #endif
 
-    timeout_count = 0;
+	timeout_count = 0;
 
-    /* If driver bounced the DMA off a temp buffer,
-     * need to move the contents back to orig block layer buffer
-     * NOTE: This only needs to be done for DMA FROM DEVICE case
-     *
-     * To determine that this is a "bounced dma" instance, there are 3 ways
-     *  (1) compare
-     *      -addr of buf used for actual dma (controller->dma_address) with
-     *      -addr of buf passed by block layer (sg_virt(sg))
-     *
-     *  (2) Check if orig buffer passed by block layer sg_virt(sg) was aligned
-     *      in first place. If not implies bouncing.
-     *
-     * However both of above use sg_virt ( ) whcih is a bit heavy as it makes
-     * a function call and also few branches to get to pointed page.
-     * So defer its usage until abs must and instead use less costly measure
-     * such as sg_dma_address which is a simple ptr access. And use the fact
-     * that if orig buffer was not page aligned, it's dma addr (not contr addr)
-     * won't either and hence would have required bouncing
-     */
+	/* If driver bounced the DMA off a temp buffer,
+	 * need to move the contents back to orig block layer buffer
+	 * NOTE: This only needs to be done for DMA FROM DEVICE case
+	 *
+	 * To determine that this is a "bounced dma" instance, there are 3 ways
+	 *  (1) compare
+	 *      -addr of buf used for actual dma (controller->dma_address) with
+	 *      -addr of buf passed by block layer (sg_virt(sg))
+	 *
+	 *  (2) Check if orig buffer passed by block layer sg_virt(sg) was aligned
+	 *      in first place. If not implies bouncing.
+	 *
+	 * However both of above use sg_virt ( ) whcih is a bit heavy as it makes
+	 * a function call and also few branches to get to pointed page.
+	 * So defer its usage until abs must and instead use less costly measure
+	 * such as sg_dma_address which is a simple ptr access. And use the fact
+	 * that if orig buffer was not page aligned, it's dma addr (not contr addr)
+	 * won't either and hence would have required bouncing
+	 */
 
-    if (sg_dma_address(sg) % 8192) {
+	if (sg_dma_address(sg) % 8192) {
 
-        if (rq_data_dir(drive->hwif->rq) == READ) {
+		if (rq_data_dir(drive->hwif->rq) == READ) {
 
-            DBG("Finalize bouncing FROM DEV: src %x Dst %x, sz %d\n",
-                  bounce_buffer, sg_virt(sg), sg_dma_len(sg));
+			DBG("Finalize bouncing FROM DEV: src %x Dst %x, sz %d\n", bounce_buffer, sg_virt(sg), sg_dma_len(sg));
 
-            memcpy(sg_virt(sg), bounce_buffer, sg_dma_len(sg));
-        }
-
+			memcpy(sg_virt(sg), bounce_buffer, sg_dma_len(sg));
+		}
 #if 0
-        /* Since this is bounced dma finalisation, to be good linux citizens
-         * we need to call dma_unmap_single(bounce_buffer)
-         * But we don't because
-         * (i) It is a NOP on ARC
-         * (ii) calling it causes a unncessary volatile read
-         */
-        dma_unmap_single(HWIF(drive)->dev,
-                        CTRL_TO_BUS_ADDR(controller->dma_address),
-                        sg_dma_len(sg), DMA_FROM_DEVICE);
+		/* Since this is bounced dma finalisation, to be good linux citizens
+		 * we need to call dma_unmap_single(bounce_buffer)
+		 * But we don't because
+		 * (i) It is a NOP on ARC
+		 * (ii) calling it causes a unncessary volatile read
+		 */
+		dma_unmap_single(HWIF(drive)->dev,
+				 CTRL_TO_BUS_ADDR(controller->dma_address),
+				 sg_dma_len(sg), DMA_FROM_DEVICE);
 #endif
-    }
+	}
 
-    /* verify good DMA status */
-    return (dma_stat & IDE_DSR_ERROR) ? 1 : 0;
+	/* verify good DMA status */
+	return (dma_stat & IDE_DSR_ERROR) ? 1 : 0;
 }
-
 
 /* Check if bounce buffer is large enough for request on hand and
  * try to grow it if need be
@@ -489,135 +482,133 @@ static int arc_ide_dma_end(ide_drive_t *drive)
 
 static unsigned long grow_bounce_buffer(unsigned long size)
 {
-    /* allocated sz could be more than the sz requested */
-    static unsigned long alloc_buf_sz;
-    static void *alloc_buf;
+	/* allocated sz could be more than the sz requested */
+	static unsigned long alloc_buf_sz;
+	static void *alloc_buf;
 
-    if (size > alloc_buf_sz) {
-        free_pages((unsigned long)alloc_buf, get_order(alloc_buf_sz));
+	if (size > alloc_buf_sz) {
+		free_pages((unsigned long)alloc_buf, get_order(alloc_buf_sz));
 
-        /* IDE DMA wants 8k aligned bufs, which poses issue with 4k MMU pages.
-         * So we allocate an extra page and align the buffer
-         * The +1, originally for for gaurd page(s), helps ensure that the driver can
-         * align 4k pages based buffer allocations to 8k.
-         */
-        alloc_buf = (void *)__get_dma_pages(GFP_ATOMIC,get_order(size) + 1);
-        if (alloc_buf) {
-            alloc_buf_sz = (get_order(size) + 1) * PAGE_SIZE;
-            bounce_buffer = (void *)((unsigned int)(alloc_buf) & ~8191);
-            DBG("DMA bounce buffer alloc [0x%lx] usable [0x%lx]\n",
-                            alloc_buf, bounce_buffer);
-        }
-        else {
-            alloc_buf_sz = 0;
-            printk("DMA bounce buffer cannot grow to size of %lu\n", size);
-        }
-    }
+		/* IDE DMA wants 8k aligned bufs, which poses issue with 4k MMU pages.
+		 * So we allocate an extra page and align the buffer
+		 * The +1, originally for for gaurd page(s), helps ensure that the driver can
+		 * align 4k pages based buffer allocations to 8k.
+		 */
+		alloc_buf =
+		    (void *)__get_dma_pages(GFP_ATOMIC, get_order(size) + 1);
+		if (alloc_buf) {
+			alloc_buf_sz = (get_order(size) + 1) * PAGE_SIZE;
+			bounce_buffer =
+			    (void *)((unsigned int)(alloc_buf) & ~8191);
+			DBG("DMA bounce buffer alloc [0x%lx] usable [0x%lx]\n",
+			    alloc_buf, bounce_buffer);
+		} else {
+			alloc_buf_sz = 0;
+			printk("DMA bounce buffer cannot grow to size of %lu\n",
+			       size);
+		}
+	}
 
-    return (unsigned long) bounce_buffer;
+	return (unsigned long)bounce_buffer;
 }
 
-
-static int arc_ide_setup_dma_from_dev(ide_drive_t *drive)
+static int arc_ide_setup_dma_from_dev(ide_drive_t * drive)
 {
-    ide_hwif_t *hwif    = drive->hwif;
-    struct scatterlist *sg = hwif->sg_table;
-    dma_addr_t real_dma_buf = sg_dma_address(sg);
+	ide_hwif_t *hwif = drive->hwif;
+	struct scatterlist *sg = hwif->sg_table;
+	dma_addr_t real_dma_buf = sg_dma_address(sg);
 
-    DBG("<- DMA FROM %x %d\n", sg_virt(sg), sg_dma_len(sg));
+	DBG("<- DMA FROM %x %d\n", sg_virt(sg), sg_dma_len(sg));
 
-    if (real_dma_buf % 8192) {  /* ctlr wants non 8k aligned buf */
+	if (real_dma_buf % 8192) {	/* ctlr wants non 8k aligned buf */
 
-        DBG("%s, non page-aligned FROM DEV\n", __FUNCTION__);
+		DBG("%s, non page-aligned FROM DEV\n", __FUNCTION__);
 
-        if (grow_bounce_buffer(sg_dma_len(sg)) == 0) {
-            return 1; /* No bounce buffer, go to PIO */
-        }
+		if (grow_bounce_buffer(sg_dma_len(sg)) == 0) {
+			return 1;	/* No bounce buffer, go to PIO */
+		}
 
-        /* DMA into bounce buffer instead of block layer buffer
-         * DMA Map this buffer so that proper cache synch can be done
-         */
-        real_dma_buf = dma_map_single(hwif->dev, bounce_buffer,
-                                            sg_dma_len(sg),
-                                            DMA_FROM_DEVICE);
-    }
+		/* DMA into bounce buffer instead of block layer buffer
+		 * DMA Map this buffer so that proper cache synch can be done
+		 */
+		real_dma_buf = dma_map_single(hwif->dev, bounce_buffer,
+					      sg_dma_len(sg), DMA_FROM_DEVICE);
+	}
 
-    controller->dma_address = BUS_ADDR_TO_CTRL(real_dma_buf);
-    controller->dma_command = ((sg_dma_len(sg) >> 9) << 8);
-                                  /* 9 is the sector size shift (512B) */
+	controller->dma_address = BUS_ADDR_TO_CTRL(real_dma_buf);
+	controller->dma_command = ((sg_dma_len(sg) >> 9) << 8);
+	/* 9 is the sector size shift (512B) */
 
-    return 0;
+	return 0;
 }
 
-static int arc_ide_setup_dma_to_dev(ide_drive_t *drive)
+static int arc_ide_setup_dma_to_dev(ide_drive_t * drive)
 {
-    ide_hwif_t *hwif    = drive->hwif;
-    struct scatterlist *sg = hwif->sg_table;
-    dma_addr_t real_dma_buf = sg_dma_address(sg);
+	ide_hwif_t *hwif = drive->hwif;
+	struct scatterlist *sg = hwif->sg_table;
+	dma_addr_t real_dma_buf = sg_dma_address(sg);
 
-    DBG("-> DMA TO %x %d\n",sg_virt(sg), sg_dma_len(sg));
+	DBG("-> DMA TO %x %d\n", sg_virt(sg), sg_dma_len(sg));
 
-    if (real_dma_buf % 8192) {
+	if (real_dma_buf % 8192) {
 
-        DBG("non aligned buffer TO DEV\n");
-        if (grow_bounce_buffer(sg_dma_len(sg)) == 0) {
-            return 1;
-        }
+		DBG("non aligned buffer TO DEV\n");
+		if (grow_bounce_buffer(sg_dma_len(sg)) == 0) {
+			return 1;
+		}
 
-        /* Copy block layer buffer into bounce buffer */
-        memcpy(bounce_buffer, sg_virt(sg), sg_dma_len(sg));
+		/* Copy block layer buffer into bounce buffer */
+		memcpy(bounce_buffer, sg_virt(sg), sg_dma_len(sg));
 
-        /* DMA From bounce buffer, but map it so that cache sync can be done */
-        real_dma_buf = dma_map_single(hwif->dev, bounce_buffer,
-                                            sg_dma_len(sg),
-                                            DMA_TO_DEVICE);
-    }
+		/* DMA From bounce buffer, but map it so that cache sync can be done */
+		real_dma_buf = dma_map_single(hwif->dev, bounce_buffer,
+					      sg_dma_len(sg), DMA_TO_DEVICE);
+	}
 
-    controller->dma_address = BUS_ADDR_TO_CTRL(real_dma_buf);
-    controller->dma_command = ((sg_dma_len(sg) >> 9) << 8) | IDE_DCR_WRITE;
+	controller->dma_address = BUS_ADDR_TO_CTRL(real_dma_buf);
+	controller->dma_command = ((sg_dma_len(sg) >> 9) << 8) | IDE_DCR_WRITE;
 
-    return 0;
+	return 0;
 }
 
-
-static int arc_ide_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
+static int arc_ide_dma_setup(ide_drive_t * drive, struct ide_cmd *cmd)
 {
-    struct request *rq = drive->hwif->rq;
-    int result=1;    /* False */
+	struct request *rq = drive->hwif->rq;
+	int result = 1;		/* False */
 
-    DBG("%s:\n",__FUNCTION__);
+	DBG("%s:\n", __FUNCTION__);
 
-    if (rq_data_dir(rq) == WRITE)
-        result = arc_ide_setup_dma_to_dev(drive);
-    else
-        result = arc_ide_setup_dma_from_dev(drive);
+	if (rq_data_dir(rq) == WRITE)
+		result = arc_ide_setup_dma_to_dev(drive);
+	else
+		result = arc_ide_setup_dma_from_dev(drive);
 
-    return result;
+	return result;
 }
 
-int arc_ide_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
+int arc_ide_dma_init(ide_hwif_t * hwif, const struct ide_port_info *d)
 {
-    DBG("%s:\n", __FUNCTION__);
+	DBG("%s:\n", __FUNCTION__);
 
-    if ( IDE_REV(controller->ID) >= ARC_IDE_FIRST_DMA_VERSION)
-    {
-        printk("Enabling DMA...\n");
+	if (IDE_REV(controller->ID) >= ARC_IDE_FIRST_DMA_VERSION) {
+		printk("Enabling DMA...\n");
 
-        if((grow_bounce_buffer(PAGE_SIZE)) == 0)
-            return -1;
+		if ((grow_bounce_buffer(PAGE_SIZE)) == 0)
+			return -1;
 
-        hwif->dmatable_cpu = dma_alloc_coherent(hwif->dev,
-                                                PRD_ENTRIES * PRD_BYTES,
-                                                & hwif->dmatable_dma,
-                                                GFP_KERNEL);
+		hwif->dmatable_cpu = dma_alloc_coherent(hwif->dev,
+							PRD_ENTRIES * PRD_BYTES,
+							&hwif->dmatable_dma,
+							GFP_KERNEL);
 
-        hwif->sg_table = kmalloc(sizeof(struct scatterlist) * ARC_IDE_NUM_SG,
-                    GFP_KERNEL);
+		hwif->sg_table =
+		    kmalloc(sizeof(struct scatterlist) * ARC_IDE_NUM_SG,
+			    GFP_KERNEL);
 
-        hwif->sg_max_nents = ARC_IDE_NUM_SG;
-    }
+		hwif->sg_max_nents = ARC_IDE_NUM_SG;
+	}
 
-    return 0;
+	return 0;
 }
 
 /*  Hooking arc_ide_ack_irq to the hwif->ack_intr will work but results in two
@@ -629,132 +620,127 @@ int arc_ide_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 */
 
 static const struct ide_dma_ops arc_ide_dma_ops = {
-    .dma_host_set     = arc_ide_dma_host_set,
-    .dma_setup        = arc_ide_dma_setup,
-    .dma_start        = arc_ide_dma_start,
-    .dma_end          = arc_ide_dma_end,
-    .dma_test_irq     = arc_ide_dma_test_irq,
-    .dma_timer_expiry = arc_ide_dma_timer_expiry,
+	.dma_host_set = arc_ide_dma_host_set,
+	.dma_setup = arc_ide_dma_setup,
+	.dma_start = arc_ide_dma_start,
+	.dma_end = arc_ide_dma_end,
+	.dma_test_irq = arc_ide_dma_test_irq,
+	.dma_timer_expiry = arc_ide_dma_timer_expiry,
 };
 #endif
 
-static const struct ide_port_ops arc_ide_port_ops =
-{
-    .set_pio_mode   = arc_ide_set_pio_mode,
-    .set_dma_mode   = arc_ide_set_dma_mode,
+static const struct ide_port_ops arc_ide_port_ops = {
+	.set_pio_mode = arc_ide_set_pio_mode,
+	.set_dma_mode = arc_ide_set_dma_mode,
 };
-
 
 u8 arc_ide_read_status(struct hwif_s *hwif)
 {
-    u8 ret = ide_read_status(hwif);
-    arc_ide_ack_irq(NULL);
-    return ret;
+	u8 ret = ide_read_status(hwif);
+	arc_ide_ack_irq(NULL);
+	return ret;
 }
 
 const struct ide_tp_ops arc_ide_tp_ops = {
-    .exec_command = ide_exec_command,
-    .read_status = arc_ide_read_status,
-    .read_altstatus = ide_read_altstatus,
-    .write_devctl = ide_write_devctl,
+	.exec_command = ide_exec_command,
+	.read_status = arc_ide_read_status,
+	.read_altstatus = ide_read_altstatus,
+	.write_devctl = ide_write_devctl,
 
-    .dev_select = ide_dev_select,
-    .tf_load = ide_tf_load,
-    .tf_read = ide_tf_read,
+	.dev_select = ide_dev_select,
+	.tf_load = ide_tf_load,
+	.tf_read = ide_tf_read,
 
-    .input_data = ide_input_data,
-    .output_data = ide_output_data,
+	.input_data = ide_input_data,
+	.output_data = ide_output_data,
 };
 
-
 static struct ide_port_info arc_ide_port_info = {
-    .port_ops = &arc_ide_port_ops,
-    .tp_ops = &arc_ide_tp_ops,
+	.port_ops = &arc_ide_port_ops,
+	.tp_ops = &arc_ide_tp_ops,
 #ifdef CONFIG_ARC_BLK_DEV_IDEDMA
-    .init_dma = arc_ide_dma_init,
-    .dma_ops  = &arc_ide_dma_ops,
+	.init_dma = arc_ide_dma_init,
+	.dma_ops = &arc_ide_dma_ops,
 #endif
-    .host_flags = 0,
-    .pio_mask = ATA_PIO4,
-    .mwdma_mask = ATA_MWDMA2,
-    .chipset = ide_unknown
-} ;
+	.host_flags = 0,
+	.pio_mask = ATA_PIO4,
+	.mwdma_mask = ATA_MWDMA2,
+	.chipset = ide_unknown
+};
 
 /* Set up a hw structure for a specified port
  */
-static void arc_ide_setup_ports(struct ide_hw *hw, int data_port, int control_port,
-                int irq)
+static void arc_ide_setup_ports(struct ide_hw *hw, int data_port,
+				int control_port, int irq)
 {
-    int i;
+	int i;
 
-    memset(hw, 0, sizeof(*hw));
+	memset(hw, 0, sizeof(*hw));
 
-    for (i = 0; i < 8; i++)
-        hw->io_ports_array[i] = data_port + i*4;
+	for (i = 0; i < 8; i++)
+		hw->io_ports_array[i] = data_port + i * 4;
 
-    hw->io_ports.ctl_addr = control_port;
-    hw->irq = irq;
+	hw->io_ports.ctl_addr = control_port;
+	hw->irq = irq;
 }
 
 int __init arc_ide_init(void)
 {
-    struct ide_hw hw, *hws[] = {&hw};
-    struct ide_host *host;
-    unsigned int id_word;
-    struct ID_REG {
-	     unsigned int id:6,reserved:2,
-				     nid:6,reserved2:2,
-				     rev:8,
-				     cfg:8;
-    }
-    * id_reg;
+	struct ide_hw hw, *hws[] = { &hw };
+	struct ide_host *host;
+	unsigned int id_word;
+	struct ID_REG {
+		unsigned int id:6, reserved:2, nid:6, reserved2:2, rev:8, cfg:8;
+	} *id_reg;
 
-    DBG("%s:\n", __FUNCTION__);
+	DBG("%s:\n", __FUNCTION__);
 
 	/* ID Register:
 	 * --------------------------------------------------------------------
-	 * | 31    	24  | 23      16 | 15 | 14 | 13       8 | 7 | 6 | 5      0|
+	 * | 31         24  | 23      16 | 15 | 14 | 13       8 | 7 | 6 | 5      0|
 	 * | CFG = 0x00 | REV = 0x1  |  1 |  1 | NID = 0x36 | 0 | 0 | ID = 0x9|
 	 * --------------------------------------------------------------------
 	 */
 
-    id_word = controller->ID;
-    id_reg = (struct ID_REG *) &id_word;
+	id_word = controller->ID;
+	id_reg = (struct ID_REG *)&id_word;
 
-    printk_init(KERN_INFO "ARC IDE interface driver, Controller ID[%d] REV[%d]\n",
-                     id_reg->id, id_reg->rev);
+	printk_init("ARC IDE interface driver, Controller ID[%d] REV[%d]\n",
+		    id_reg->id, id_reg->rev);
 
-    if ( ! ((id_reg->id == 0x9) && (id_reg->nid == 0x36 )) ) {
-        printk_init("***ARC IDE [NOT] detected, skipping IDE init\n");
-        return -1;
-    }
+	if (!((id_reg->id == 0x9) && (id_reg->nid == 0x36))) {
+		printk_init("***ARC IDE [NOT] detected, skipping IDE init\n");
+		return -1;
+	}
 
-    /* Reset the IDE Controller */
-    arc_ide_reset_controller(0);
+	/* Reset the IDE Controller */
+	arc_ide_reset_controller(0);
 
-    arc_ide_setup_ports(&hw, IDE_CONTROLLER_BASE + DRIVE_REGISTER_OFFSET,
-                   IDE_CONTROLLER_BASE + DRIVE_STATCTRL_OFFSET, IDE_IRQ);
+	arc_ide_setup_ports(&hw, IDE_CONTROLLER_BASE + DRIVE_REGISTER_OFFSET,
+			    IDE_CONTROLLER_BASE + DRIVE_STATCTRL_OFFSET,
+			    IDE_IRQ);
 
-    /* Clear the Interrupt */
-    arc_ide_ack_irq(NULL);
+	/* Clear the Interrupt */
+	arc_ide_ack_irq(NULL);
 
-    /* Enable the irq at the IDE Controller */
-    arc_ide_enable_irq();
+	/* Enable the irq at the IDE Controller */
+	arc_ide_enable_irq();
 
-    ide_host_add(&arc_ide_port_info, hws, 1, &host);
+	ide_host_add(&arc_ide_port_info, hws, 1, &host);
 
-    blk_queue_max_segments(host->ports[0]->devices[0]->queue, ARC_IDE_NUM_SG);
+	blk_queue_max_segments(host->ports[0]->devices[0]->queue,
+			       ARC_IDE_NUM_SG);
 
-    return 0;
+	return 0;
 }
 
 void __exit arc_ide_exit(void)
 {
-    /* IDE to reset state */
-    controller->statctrl = 0;
+	/* IDE to reset state */
+	controller->statctrl = 0;
 }
 
-late_initcall(arc_ide_init);    /* Call only after IDE init */
+late_initcall(arc_ide_init);	/* Call only after IDE init */
 module_exit(arc_ide_exit);
 
 MODULE_AUTHOR("ARC International");

@@ -18,7 +18,6 @@
  * (the type definitions are in asm/spinlock_types.h)
  */
 
-
 #define __raw_spin_is_locked(x)		((x)->slock == RAW_SPIN_LOCK_LOCKED)
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
@@ -26,14 +25,12 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	unsigned int tmp = RAW_SPIN_LOCK_LOCKED;
 
 	__asm__ __volatile__(
-						"1: ex	%0, [%1]\n\t"
-						   "cmp %0, %2\n\t"
-						   "beq 1b\n\t"
-						:
-						:"r"(tmp), "m"(lock->slock),"i"(RAW_SPIN_LOCK_LOCKED)
-						);
+	"1:	ex  %0, [%1]	\n"
+	"	cmp %0, %2	\n"
+	"	beq 1b		\n"
+	:
+	: "r"(tmp), "m"(lock->slock), "i"(RAW_SPIN_LOCK_LOCKED));
 }
-
 
 /*
  * It is easier for the lock validator if interrupts are not re-enabled
@@ -43,26 +40,25 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 
 #define __raw_spin_lock_flags(lock, flags)	__raw_spin_lock(lock)
 
-
 static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	unsigned int tmp = RAW_SPIN_LOCK_LOCKED;
 
-	__asm__ __volatile__("ex	%0, [%1]"
-						:"=r"(tmp)
-						:"m"(lock->slock),"0"(tmp)
-						);
+	__asm__ __volatile__(
+	"	ex   %0, [%1]	\n"
+	: "=r"(tmp)
+	: "m"(lock->slock), "0"(tmp));
 
 	return (tmp == RAW_SPIN_LOCK_UNLOCKED);
 }
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	__asm__ __volatile__("nop_s \n\t"
-                         "st	%1, [%0]"
-						: /* No output */
-						:"r"(&(lock->slock)), "i"(RAW_SPIN_LOCK_UNLOCKED)
-						);
+	__asm__ __volatile__(
+	"	nop_s			\n"
+	"	st     %1, [%0]		\n"
+	:
+	: "r"(&(lock->slock)), "i"(RAW_SPIN_LOCK_UNLOCKED));
 }
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
@@ -70,9 +66,6 @@ static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 	while (__raw_spin_is_locked(lock))
 		cpu_relax();
 }
-
-
-
 
 /*
  * Read-write spinlocks, allowing multiple readers
@@ -87,54 +80,54 @@ static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 
 static inline int __raw_read_trylock(raw_rwlock_t *rw)
 {
-	__raw_spin_lock (&(rw->lock_mutex));
+	__raw_spin_lock(&(rw->lock_mutex));
 	if (rw->lock > 0) {
 		rw->lock--;
-		__raw_spin_unlock (&(rw->lock_mutex));
+		__raw_spin_unlock(&(rw->lock_mutex));
 		return 1;
 	}
-	__raw_spin_unlock (&(rw->lock_mutex));
+	__raw_spin_unlock(&(rw->lock_mutex));
 
 	return 0;
 }
 
 static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
-	__raw_spin_lock (&(rw->lock_mutex));
+	__raw_spin_lock(&(rw->lock_mutex));
 	if (rw->lock == RW_LOCK_BIAS) {
 		rw->lock = 0;
-		__raw_spin_unlock (&(rw->lock_mutex));
+		__raw_spin_unlock(&(rw->lock_mutex));
 		return 1;
 	}
-	__raw_spin_unlock (&(rw->lock_mutex));
+	__raw_spin_unlock(&(rw->lock_mutex));
 
 	return 0;
 }
 
 static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
-	while(!__raw_read_trylock(rw))
+	while (!__raw_read_trylock(rw))
 		cpu_relax();
 }
 
 static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
-	while(!__raw_write_trylock(rw))
+	while (!__raw_write_trylock(rw))
 		cpu_relax();
 }
 
 static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
-	__raw_spin_lock (&(rw->lock_mutex));
+	__raw_spin_lock(&(rw->lock_mutex));
 	rw->lock++;
-	__raw_spin_unlock (&(rw->lock_mutex));
+	__raw_spin_unlock(&(rw->lock_mutex));
 }
 
 static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
-	__raw_spin_lock (&(rw->lock_mutex));
+	__raw_spin_lock(&(rw->lock_mutex));
 	rw->lock = RW_LOCK_BIAS;
-	__raw_spin_unlock (&(rw->lock_mutex));
+	__raw_spin_unlock(&(rw->lock_mutex));
 }
 
 #define _raw_spin_relax(lock)	cpu_relax()

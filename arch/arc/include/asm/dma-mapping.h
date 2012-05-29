@@ -25,16 +25,15 @@
 #include <asm/io.h>
 #include <plat_dma_addr.h>
 
-extern void * dma_alloc_coherent(struct device *dev, size_t size,
-                    dma_addr_t *dma_handle, gfp_t flag);
+extern void *dma_alloc_coherent(struct device *dev, size_t size,
+				dma_addr_t *dma_handle, gfp_t flag);
 extern void dma_free_coherent(struct device *dev, size_t size, void *kvaddr,
-                    dma_addr_t dma_handle);
+			      dma_addr_t dma_handle);
 
-/* #define _dma_cache_maint(a,b,c) __dma_cache_maint(a,b,c,current_text_addr()) */
-#define _dma_cache_maint(a,b,c) __dma_cache_maint(a,b,c,0)
+/* Can possibly use __dma_cache_maint(a,b,c,current_text_addr()) */
+#define _dma_cache_maint(a, b, c) __dma_cache_maint(a, b, c, 0)
 
 extern void __dma_cache_maint(void *start, size_t sz, int dir, void *caller);
-
 
 /*******************************************************************
  * Streaming DMA Mapping APIs:
@@ -42,90 +41,88 @@ extern void __dma_cache_maint(void *start, size_t sz, int dir, void *caller);
 
 static inline dma_addr_t
 dma_map_single(struct device *dev, void *cpu_addr, size_t size,
-                enum dma_data_direction dir)
+	       enum dma_data_direction dir)
 {
-    _dma_cache_maint(cpu_addr, size, dir);
-    return plat_kernel_addr_to_dma(dev,cpu_addr);
+	_dma_cache_maint(cpu_addr, size, dir);
+	return plat_kernel_addr_to_dma(dev, cpu_addr);
 }
 
 static inline void
 dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
-                    enum dma_data_direction dir)
+		 enum dma_data_direction dir)
 {
-    /*Nothing to do*/
+	/*Nothing to do */
 }
 
 static inline int
 dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
-           enum dma_data_direction dir)
+	   enum dma_data_direction dir)
 {
-    int i;
+	int i;
 
-    for (i = 0; i < nents; i++, sg++ ) {
-        sg->dma_address = plat_kernel_addr_to_dma(dev,sg_virt(sg));
-        _dma_cache_maint(sg_virt(sg), sg->length, dir);
-    }
+	for (i = 0; i < nents; i++, sg++) {
+		sg->dma_address = plat_kernel_addr_to_dma(dev, sg_virt(sg));
+		_dma_cache_maint(sg_virt(sg), sg->length, dir);
+	}
 
-    return nents;
+	return nents;
 }
 
 static inline void
 dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
-                enum dma_data_direction dir)
+	     enum dma_data_direction dir)
 {
-    /*Nothing to do*/
+	/*Nothing to do */
 }
-
 
 static inline dma_addr_t
 dma_map_page(struct device *dev, struct page *page,
-            unsigned long offset, size_t size,
-            enum dma_data_direction dir)
+	     unsigned long offset, size_t size, enum dma_data_direction dir)
 {
-    return dma_map_single(dev, page_address(page) + offset, size, dir);
+	return dma_map_single(dev, page_address(page) + offset, size, dir);
 }
 
 static inline void
 dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
-           enum dma_data_direction dir)
+	       enum dma_data_direction dir)
 {
-    /*Nothing to do*/
+	/*Nothing to do */
 }
 
 static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
-                        enum dma_data_direction dir)
+			enum dma_data_direction dir)
 {
-    _dma_cache_maint((void *)plat_dma_addr_to_kernel(dev,dma_handle), size, dir);
+	_dma_cache_maint((void *)plat_dma_addr_to_kernel(dev, dma_handle), size,
+			 dir);
 }
 
 static inline void
 dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
-                            size_t size, enum dma_data_direction dir)
+			   size_t size, enum dma_data_direction dir)
 {
-    _dma_cache_maint((void *)plat_dma_addr_to_kernel(dev,dma_handle), size, dir);
+	_dma_cache_maint((void *)plat_dma_addr_to_kernel(dev, dma_handle), size,
+			 dir);
 }
 
 static inline void
 dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
-                    enum dma_data_direction dir)
+		    enum dma_data_direction dir)
 {
-    int i;
+	int i;
 
-    for (i = 0; i < nelems; i++, sg++ ) {
-        _dma_cache_maint(sg_virt(sg), sg->length, dir);
-    }
+	for (i = 0; i < nelems; i++, sg++)
+		_dma_cache_maint(sg_virt(sg), sg->length, dir);
 }
 
 static inline void
 dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
-                        enum dma_data_direction dir)
+		       enum dma_data_direction dir)
 {
-    int i;
+	int i;
 
-    for (i = 0; i < nelems; i++, sg++ ) {
-        _dma_cache_maint(sg_virt(sg), sg->length, dir);
-    }
+	for (i = 0; i < nelems; i++, sg++)
+		_dma_cache_maint(sg_virt(sg), sg->length, dir);
 }
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
@@ -134,53 +131,47 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
 
 static inline void
 dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_handle,
-                  unsigned long offset, size_t size,
-                  enum dma_data_direction dir)
+			      unsigned long offset, size_t size,
+			      enum dma_data_direction dir)
 {
-    dma_sync_single_for_cpu(dev, dma_handle+offset,
-                                size, dir);
+	dma_sync_single_for_cpu(dev, dma_handle + offset, size, dir);
 }
 
 static inline void
 dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
-                 unsigned long offset, size_t size,
-                 enum dma_data_direction dir)
+				 unsigned long offset, size_t size,
+				 enum dma_data_direction dir)
 {
-    dma_sync_single_for_device(dev, dma_handle+offset,
-                                size, dir);
+	dma_sync_single_for_device(dev, dma_handle + offset, size, dir);
 }
 
 static inline void
 dma_cache_sync(struct device *dev, void *vaddr, size_t size,
-                enum dma_data_direction dir)
+	       enum dma_data_direction dir)
 {
-    _dma_cache_maint(vaddr, size, dir);
+	_dma_cache_maint(vaddr, size, dir);
 }
 
-static inline int
-dma_error(dma_addr_t dma_addr)
+static inline int dma_error(dma_addr_t dma_addr)
 {
-    return 0;
+	return 0;
 }
 
-static inline int
-dma_supported(struct device *dev, u64 mask)
+static inline int dma_supported(struct device *dev, u64 mask)
 {
-    return 1;
+	return 1;
 }
 
-static inline int
-dma_set_mask(struct device *dev, u64 dma_mask)
+static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 {
-    BUG();
-    return 0;
+	BUG();
+	return 0;
 }
 
-static inline int
-dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
+static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-    BUG();
-    return 0;
+	BUG();
+	return 0;
 }
 
 #endif

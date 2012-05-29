@@ -37,73 +37,73 @@
  */
 
 /* User mode registers, used for core dumps. */
-struct user_regs_struct
-{
+struct user_regs_struct {
 	/* ------- from struct pt_regs --------- */
-    long    reserved1;  /* SP unncessarily hops 1 word, in SAVE_ALL_xxx macros
-                           No reason to do that, but changing this would
-                           require syncing up tools (gdb) so .....
-                        */
-	long	bta;		/* bta_l1, bta_l2, erbta */
-	long	lp_start;
-	long	lp_end;
-	long	lp_count;
-	long	status32;	/* status32_l1, status32_l2, erstatus */
-	long	ret;		/* ilink1, ilink2 or eret*/
-	long	blink;
-	long	fp;
-	long	r26;		/* gp */
-	long	r12;
-	long	r11;
-	long	r10;
-	long	r9;
-	long	r8;
-	long	r7;
-	long	r6;
-	long	r5;
-	long	r4;
-	long	r3;
-	long	r2;
-	long	r1;
-	long	r0;
-	long	orig_r0;
-	long 	orig_r8;
-	long	sp;	/* user sp or kernel sp, depending on where we came from  */
 
+	/*
+	 * 1 word gutter after reg-file has been saved
+	 * Technically not needed, Since SP always points to a "full" location
+	 * (vs. "empty"). But pt_regs is shared with tools....
+	 */
+	long reserved1;
+	long bta;	/* bta_l1, bta_l2, erbta */
+	long lp_start;
+	long lp_end;
+	long lp_count;
+	long status32;	/* status32_l1, status32_l2, erstatus */
+	long ret;	/* ilink1, ilink2 or eret */
+	long blink;
+	long fp;
+	long r26;	/* gp */
+	long r12;
+	long r11;
+	long r10;
+	long r9;
+	long r8;
+	long r7;
+	long r6;
+	long r5;
+	long r4;
+	long r3;
+	long r2;
+	long r1;
+	long r0;
+	long orig_r0;
+	long orig_r8;	/*to distinguish bet excp, sys call, int1 or int2 */
+	long sp;	/* user/ kernel sp, depending on where we came from  */
 
 	/* -------- from struct callee_regs --------- */
-	long	reserved2;
-	long	r25;
-	long	r24;
-	long	r23;
-	long	r22;
-	long	r21;
-	long	r20;
-	long 	r19;
-	long 	r18;
-	long	r17;
-	long 	r16;
-	long	r15;
-	long	r14;
-	long	r13;
+	long reserved2;
+	long r25;
+	long r24;
+	long r23;
+	long r22;
+	long r21;
+	long r20;
+	long r19;
+	long r18;
+	long r17;
+	long r16;
+	long r15;
+	long r14;
+	long r13;
 
-	long 	efa;    /* break pt addr, req for break points in delay slots */
-	long 	stop_pc;	/* give dbg stop_pc directly after checking orig_r8 */
+	long efa;	/* break pt addr, for break points in delay slots */
+	long stop_pc;	/* give dbg stop_pc directly after checking orig_r8 */
 };
 
-
 struct user {
-	struct user_regs_struct	regs;		/* entire machine state */
-	size_t		u_tsize;		/* text size (pages) */
-	size_t		u_dsize;		/* data size (pages) */
-	size_t		u_ssize;		/* stack size (pages) */
-	unsigned long	start_code;		/* text starting address */
-	unsigned long	start_data;		/* data starting address */
-	unsigned long	start_stack;		/* stack starting address */
-	long int	signal;			/* signal causing core dump */
-	struct regs *	u_ar0;			/* help gdb find registers */
-	unsigned long	magic;			/* identifies a core file */
-	char		u_comm[32];		/* user command name */
+	struct user_regs_struct regs;	/* entire machine state */
+	size_t u_tsize;			/* text size (pages) */
+	size_t u_dsize;			/* data size (pages) */
+	size_t u_ssize;			/* stack size (pages) */
+	unsigned long start_code;	/* text starting address */
+	unsigned long start_data;	/* data starting address */
+	unsigned long start_stack;	/* stack starting address */
+	long int signal;		/* signal causing core dump */
+	struct regs *u_ar0;		/* help gdb find registers */
+	unsigned long magic;		/* identifies a core file */
+	char u_comm[32];		/* user command name */
 };
 
 #define NBPG			PAGE_SIZE

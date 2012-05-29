@@ -26,32 +26,32 @@
 /*
  * Save IRQ state and disable IRQs
  */
-static inline long arch_local_irq_save(void) {
-    unsigned long temp, flags;
+static inline long arch_local_irq_save(void)
+{
+	unsigned long temp, flags;
 
-    __asm__ __volatile__ (
-        "lr  %1, [status32]\n\t"
-        "bic %0, %1, %2\n\t"
-        "and.f 0, %1, %2  \n\t"
-        "flag.nz %0\n\t"
-        :"=r" (temp), "=r" (flags)
-        :"n" ((STATUS_E1_MASK | STATUS_E2_MASK))
-        :"cc"
-    );
+	__asm__ __volatile__(
+	"	lr  %1, [status32]	\n"
+	"	bic %0, %1, %2		\n"
+	"	and.f 0, %1, %2	\n"
+	"	flag.nz %0		\n"
+	: "=r"(temp), "=r"(flags)
+	: "n"((STATUS_E1_MASK | STATUS_E2_MASK))
+	: "cc");
 
-    return flags;
+	return flags;
 }
 
 /*
  * restore saved IRQ state
  */
-static inline void arch_local_irq_restore(unsigned long flags) {
+static inline void arch_local_irq_restore(unsigned long flags)
+{
 
-    __asm__ __volatile__ (
-        "flag %0\n\t"
-        :
-        :"r" (flags)
-    );
+	__asm__ __volatile__(
+	"	flag %0			\n"
+	:
+	: "r"(flags));
 }
 
 /*
@@ -62,30 +62,30 @@ extern void arch_local_irq_enable(void);
 /*
  * Unconditionally Disable IRQs
  */
-static inline void arch_local_irq_disable(void) {
-    unsigned long temp;
+static inline void arch_local_irq_disable(void)
+{
+	unsigned long temp;
 
-    __asm__ __volatile__ (
-        "lr  %0, [status32]\n\t"
-        "and %0, %0, %1\n\t"
-        "flag %0\n\t"
-        :"=&r" (temp)
-        :"n" (~(STATUS_E1_MASK | STATUS_E2_MASK))
-    );
+	__asm__ __volatile__(
+	"	lr  %0, [status32]	\n"
+	"	and %0, %0, %1		\n"
+	"	flag %0			\n"
+	: "=&r"(temp)
+	: "n"(~(STATUS_E1_MASK | STATUS_E2_MASK)));
 }
 
 /*
  * save IRQ state
  */
-static inline long arch_local_save_flags(void) {
-    unsigned long temp;
+static inline long arch_local_save_flags(void)
+{
+	unsigned long temp;
 
-    __asm__ __volatile__ (
-        "lr  %0, [status32]\n\t"
-        :"=&r" (temp)
-    );
+	__asm__ __volatile__(
+	"	lr  %0, [status32]	\n"
+	: "=&r"(temp));
 
-    return temp;
+	return temp;
 }
 
 /*
@@ -96,43 +96,39 @@ static inline long arch_local_save_flags(void) {
  * unmask = enable IRQ = SET bit in AUX_I_ENABLE
  */
 
-#define mask_interrupt(x)  __asm__ __volatile__ (   \
-    "lr r20, [auxienable] \n\t"                     \
-    "and    r20, r20, %0 \n\t"                      \
-    "sr     r20,[auxienable] \n\t"                  \
-    :                                               \
-    :"r" (~(x))                                     \
-    :"r20", "memory")
+#define mask_interrupt(x)			\
+	__asm__ __volatile__(			\
+	"	lr  r20, [auxienable]	\n"	\
+	"	and r20, r20, %0	\n"	\
+	"	sr  r20, [auxienable]	\n"	\
+	:					\
+	: "r" (~(x))				\
+	: "r20", "memory")
 
-#define unmask_interrupt(x)  __asm__ __volatile__ ( \
-    "lr r20, [auxienable] \n\t"                     \
-    "or     r20, r20, %0 \n\t"                      \
-    "sr     r20, [auxienable] \n\t"                 \
-    :                                               \
-    :"r" (x)                                        \
-    :"r20", "memory")
+#define unmask_interrupt(x)			\
+	__asm__ __volatile__(			\
+	"	lr r20, [auxienable]	\n"	\
+	"	or r20, r20, %0		\n"	\
+	"	sr r20, [auxienable]	\n"	\
+	:					\
+	: "r" (x)				\
+	: "r20", "memory")
 
 /*
  * Query IRQ state
  */
 static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
-    return (!(flags & (STATUS_E1_MASK
+	return !(flags & (STATUS_E1_MASK
 #ifdef CONFIG_ARCH_ARC_LV2_INTR
-                        | STATUS_E2_MASK
+			| STATUS_E2_MASK
 #endif
-            )));
+		));
 }
 
 static inline int arch_irqs_disabled(void)
 {
-    unsigned long flags;
-    flags = arch_local_save_flags();
-    return (!(flags & (STATUS_E1_MASK
-#ifdef CONFIG_ARCH_ARC_LV2_INTR
-                        | STATUS_E2_MASK
-#endif
-            )));
+	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
 #endif

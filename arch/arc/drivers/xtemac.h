@@ -15,7 +15,6 @@
 #define RX_DMA_COMPLETE                         (0x1)
 #define RX_DMA_ERROR                            (0x4)
 
-
 #define MAX_TX_PKTS                             (0x0004)
 #define TX_ENABLE_BIT_POS                       (28)
 #define RX_ENABLE_BIT_POS                       (28)
@@ -34,7 +33,6 @@
 #define ENABLE_TX                               (0x10000000)
 #define RESET_FIFO                              (0x80000000)
 #define HALF_DUPLEX                             (0x04000000)
-
 
 #define MDIO_ENABLE                             (0x50)
 
@@ -59,7 +57,6 @@
 #define INTR_STATUS_RX_ERROR_BIT_POS            (0x00000004)
 #define INTR_STATUS_DMA_RX_ERROR_BIT_POS        (0x00000002)
 #define INTR_STATUS_DMA_RX_COMPLETE_BIT_POS     (0x00000001)
-
 
 #define BSP_XEMAC1_PHY_ID                           (0x7)
 
@@ -105,47 +102,47 @@
 #define MV_88E1111_STATUS2_REG              (0x11)
 
 struct xtemac_bridge {
-     volatile unsigned int idReg;
-     volatile unsigned int dmaTxCmdReg;
-     volatile unsigned int dmaTxAddrReg;
-     volatile unsigned int dmaTxStsReg;
-     volatile unsigned int dmaTxClrReg;
-     volatile unsigned int macTxFIFOStatusReg;
-     volatile unsigned int dmaRxCmdReg;
-     volatile unsigned int dmaRxAddrReg;
-     volatile unsigned int dmaRxStsReg;
-     volatile unsigned int dmaRxClrReg;
-     volatile unsigned int txFifoRxFifoRstReg;
-     volatile unsigned int intrStsReg;
-     volatile unsigned int intrClrReg;
-     volatile unsigned int pioDataCountReg;
-     volatile unsigned int arbSelReg;
-     volatile unsigned int dataReg;
- };
+	volatile unsigned int idReg;
+	volatile unsigned int dmaTxCmdReg;
+	volatile unsigned int dmaTxAddrReg;
+	volatile unsigned int dmaTxStsReg;
+	volatile unsigned int dmaTxClrReg;
+	volatile unsigned int macTxFIFOStatusReg;
+	volatile unsigned int dmaRxCmdReg;
+	volatile unsigned int dmaRxAddrReg;
+	volatile unsigned int dmaRxStsReg;
+	volatile unsigned int dmaRxClrReg;
+	volatile unsigned int txFifoRxFifoRstReg;
+	volatile unsigned int intrStsReg;
+	volatile unsigned int intrClrReg;
+	volatile unsigned int pioDataCountReg;
+	volatile unsigned int arbSelReg;
+	volatile unsigned int dataReg;
+};
 
 struct xtemac_configuration {
-    volatile unsigned int rxCtrl0Reg;
-    volatile unsigned int rxCtrl1Reg;
-    volatile unsigned int txCtrlReg;
-    volatile unsigned int flowCtrlConfigReg;
-    volatile unsigned int macModeConfigReg;
-    volatile unsigned int rgmsgmiiConfigReg;
-    volatile unsigned int mgmtConfigReg;
+	volatile unsigned int rxCtrl0Reg;
+	volatile unsigned int rxCtrl1Reg;
+	volatile unsigned int txCtrlReg;
+	volatile unsigned int flowCtrlConfigReg;
+	volatile unsigned int macModeConfigReg;
+	volatile unsigned int rgmsgmiiConfigReg;
+	volatile unsigned int mgmtConfigReg;
 };
 
 struct xtemac_address_filter {
-    volatile unsigned int unicastAddr0Reg;
-    volatile unsigned int unicastAddr1Reg;
-    volatile unsigned int genAddrTableAccess0Reg;
-    volatile unsigned int genAddrTableAccess1Reg;
-    volatile unsigned int addrFilterModeReg;
+	volatile unsigned int unicastAddr0Reg;
+	volatile unsigned int unicastAddr1Reg;
+	volatile unsigned int genAddrTableAccess0Reg;
+	volatile unsigned int genAddrTableAccess1Reg;
+	volatile unsigned int addrFilterModeReg;
 };
 
-struct xtemac_bridge_extn{
-    volatile unsigned int sizeReg;
-    volatile unsigned int phyAddrReg;
-    volatile unsigned int intrEnableReg;
-    volatile unsigned int intrRawStsReg;
-    volatile unsigned int macMDIOReg;
-    volatile unsigned int reserved[31];
+struct xtemac_bridge_extn {
+	volatile unsigned int sizeReg;
+	volatile unsigned int phyAddrReg;
+	volatile unsigned int intrEnableReg;
+	volatile unsigned int intrRawStsReg;
+	volatile unsigned int macMDIOReg;
+	volatile unsigned int reserved[31];
 };

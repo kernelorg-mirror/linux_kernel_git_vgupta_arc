@@ -11,6 +11,6 @@
 
 static void __init check_bugs(void)
 {
-  /* No known bugs in A700 yet */
+	/* No known bugs in A700 yet */
 }
-#endif	/* _ASM_ARC_BUGS_H */
+#endif /* _ASM_ARC_BUGS_H */

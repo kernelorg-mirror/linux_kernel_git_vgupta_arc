@@ -12,15 +12,9 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <asm/hardirq.h>
-#include <asm/thread_info.h>
+#include <linux/thread_info.h>
 #include <asm/page.h>
-
-/* Use marker if you need to separate the values later */
-
-#define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
+#include <linux/kbuild.h>
 
 int main(void)
 {
@@ -39,19 +33,21 @@ int main(void)
 #ifdef CONFIG_ARCH_ARC_CURR_IN_REG
 	DEFINE(THREAD_USER_R25, offsetof(struct thread_struct, user_r25));
 #endif
-	DEFINE(THREAD_FAULT_ADDR, offsetof(struct thread_struct, fault_address));
+	DEFINE(THREAD_FAULT_ADDR,
+	       offsetof(struct thread_struct, fault_address));
 
 	BLANK();
 
 	DEFINE(THREAD_INFO_FLAGS, offsetof(struct thread_info, flags));
-	DEFINE(THREAD_INFO_PREEMPT_COUNT, offsetof(struct thread_info, preempt_count));
+	DEFINE(THREAD_INFO_PREEMPT_COUNT,
+	       offsetof(struct thread_info, preempt_count));
 
 	BLANK();
 
 #ifdef CONFIG_SMP
-	DEFINE(SECONDARY_BOOT_STACK, offsetof(secondary_boot_t ,stack));
-	DEFINE(SECONDARY_BOOT_C_ENTRY, offsetof(secondary_boot_t ,c_entry));
-	DEFINE(SECONDARY_BOOT_CPU_ID, offsetof(secondary_boot_t ,cpu_id));
+	DEFINE(SECONDARY_BOOT_STACK, offsetof(secondary_boot_t, stack));
+	DEFINE(SECONDARY_BOOT_C_ENTRY, offsetof(secondary_boot_t, c_entry));
+	DEFINE(SECONDARY_BOOT_CPU_ID, offsetof(secondary_boot_t, cpu_id));
 	BLANK();
 #endif
 

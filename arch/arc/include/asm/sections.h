@@ -6,4 +6,14 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef _ASM_ARC_SECTIONS_H
+#define _ASM_ARC_SECTIONS_H
+
 #include <asm-generic/sections.h>
+
+extern int _int_vec_base_lds;
+extern unsigned long end_kernel;
+extern struct tagtable __tagtable_begin, __tagtable_end;
+extern unsigned int __arc_dccm_base;
+
+#endif

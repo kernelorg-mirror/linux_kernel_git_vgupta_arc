@@ -12,13 +12,18 @@
 #include <linux/fs.h>
 #include <asm-generic/mman.h>
 
+/*
+ * This is the ARC specific MMAP extension flag which allows user-space to
+ * "hint" that mmap is elligible to be "common" across processes, implicitly
+ * requesting the relevant hardware resources be assigned to it.
+ */
 #define MAP_SHARED_CODE 0x20000
 
 #ifdef __KERNEL__
 #define ARCH_ELF_DO_MMAP
 extern unsigned long do_mmap(struct file *file, unsigned long addr,
-	unsigned long len, unsigned long prot,
-	unsigned long flag, unsigned long offset);
+			     unsigned long len, unsigned long prot,
+			     unsigned long flag, unsigned long offset);
 #endif
 
 #endif /* __ARC_MMAN_H__ */

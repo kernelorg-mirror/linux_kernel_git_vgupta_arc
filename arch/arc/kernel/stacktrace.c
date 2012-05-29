@@ -1,11 +1,13 @@
 /*
+ *	stacktrace.c : stacktracing APIs needed by rest of kernel
+ *			(wrappers over ARC dwarf based unwinder)
+ *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- *              Stack tracing for ARC Linux
  *
  *  vineetg: aug 2009
  *  -Implemented CONFIG_STACKTRACE APIs, primarily save_stack_trace_tsk( )
@@ -30,114 +32,106 @@
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
 
-
 /*-------------------------------------------------------------------------
  *              Unwinding Core
  *-------------------------------------------------------------------------
  */
-#ifdef CONFIG_ARC_STACK_UNWIND
 
 static void seed_unwind_frame_info(struct task_struct *tsk,
-    struct pt_regs *regs, struct unwind_frame_info *frame_info)
+				   struct pt_regs *regs,
+				   struct unwind_frame_info *frame_info)
 {
-    if (tsk == NULL && regs == NULL)
-    {
-        unsigned long fp, sp, blink, ret;
-        frame_info->task = current;
+	if (tsk == NULL && regs == NULL) {
+		unsigned long fp, sp, blink, ret;
+		frame_info->task = current;
 
-        __asm__ __volatile__(
-                  "1:mov %0,r27\n\t"
-                    "mov %1,r28\n\t"
-                    "mov %2,r31\n\t"
-                    "mov %3,r63\n\t"
-                   :"=r"(fp),"=r"(sp),"=r"(blink),"=r"(ret)
-                   :
-                   );
+		__asm__ __volatile__(
+			"mov %0,r27\n\t"
+			"mov %1,r28\n\t"
+			"mov %2,r31\n\t"
+			"mov %3,r63\n\t"
+			: "=r"(fp), "=r"(sp), "=r"(blink), "=r"(ret)
+		);
 
-        frame_info->regs.r27 = fp;
-        frame_info->regs.r28 = sp;
-        frame_info->regs.r31 = blink;
-        frame_info->regs.r63 = ret;
-        frame_info->call_frame = 0;
-    }
-    else if (regs == NULL ) {
+		frame_info->regs.r27 = fp;
+		frame_info->regs.r28 = sp;
+		frame_info->regs.r31 = blink;
+		frame_info->regs.r63 = ret;
+		frame_info->call_frame = 0;
+	} else if (regs == NULL) {
 
-        frame_info->task = tsk;
+		frame_info->task = tsk;
 
-        frame_info->regs.r27 = KSTK_FP(tsk);
-        frame_info->regs.r28 = KSTK_ESP(tsk);
-        frame_info->regs.r31 = KSTK_BLINK(tsk);
-        frame_info->regs.r63 = (unsigned int )__switch_to;
+		frame_info->regs.r27 = KSTK_FP(tsk);
+		frame_info->regs.r28 = KSTK_ESP(tsk);
+		frame_info->regs.r31 = KSTK_BLINK(tsk);
+		frame_info->regs.r63 = (unsigned int)__switch_to;
 
-        /* In the prologue of __switch_to, first fp is saved on the stack and
-         * then sp is copied to fp, the dwarf assumes cfa as fp based but we
-         * didn't save fp. The value retrieved above is  the fp's state in previous
-         * frame. As a work around for this, we are unwinding from __switch_to
-         * address and adjusting the sp accordingly. The other limitaion in
-         * __switch_to macro is dwarf rules are not generated for inline
-         * assembly code
-         */
-        frame_info->regs.r27 = 0;
-        frame_info->regs.r28 += 64;
-        frame_info->call_frame = 0;
+		/* In the prologue of __switch_to, first FP is saved on stack
+		 * and then SP is copied to FP. Dwarf assumes cfa as FP based
+		 * but we didn't save FP. The value retrieved above is FP's
+		 * state in previous frame.
+		 * As a work around for this, we unwind from __switch_to start
+		 * and adjust SP accordingly. The other limitation is that
+		 * __switch_to macro is dwarf rules are not generated for inline
+		 * assembly code
+		 */
+		frame_info->regs.r27 = 0;
+		frame_info->regs.r28 += 64;
+		frame_info->call_frame = 0;
 
-    }
-    else {
-        frame_info->task = tsk;
+	} else {
+		frame_info->task = tsk;
 
-        frame_info->regs.r27 = regs->fp;
-        frame_info->regs.r28 = regs->sp;
-        frame_info->regs.r31 = regs->blink;
-        frame_info->regs.r63 = regs->ret;
-        frame_info->call_frame = 0;
-    }
+		frame_info->regs.r27 = regs->fp;
+		frame_info->regs.r28 = regs->sp;
+		frame_info->regs.r31 = regs->blink;
+		frame_info->regs.r63 = regs->ret;
+		frame_info->call_frame = 0;
+	}
 }
 
-static unsigned int noinline arc_unwind_core(struct task_struct *tsk,
-    struct pt_regs *regs, int (*consumer_fn)(unsigned int, void *), void *arg)
+static noinline unsigned int
+arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
+		int (*consumer_fn) (unsigned int, void *), void *arg)
 {
-    int ret = 0;
-    unsigned int address;
-    struct unwind_frame_info frame_info;
+#ifdef CONFIG_ARC_STACK_UNWIND
+	int ret = 0;
+	unsigned int address;
+	struct unwind_frame_info frame_info;
 
-    seed_unwind_frame_info(tsk, regs, &frame_info);
+	seed_unwind_frame_info(tsk, regs, &frame_info);
 
-    while(1)
-    {
-        address = UNW_PC(&frame_info);
+	while (1) {
+		address = UNW_PC(&frame_info);
 
-        if (address && __kernel_text_address(address )) {
-            if (consumer_fn(address, arg) == -1 )
-                break;
-        }
+		if (address && __kernel_text_address(address)) {
+			if (consumer_fn(address, arg) == -1)
+				break;
+		}
 
-        ret = arc_unwind(&frame_info);
+		ret = arc_unwind(&frame_info);
 
-        if(ret == 0) {
-            frame_info.regs.r63 = frame_info.regs.r31;
-            continue;
-        }
-        else {
-            break;
-        }
-    }
+		if (ret == 0) {
+			frame_info.regs.r63 = frame_info.regs.r31;
+			continue;
+		} else {
+			break;
+		}
+	}
 
-    return address; /* return the last address it saw */
-}
-
+	return address;		/* return the last address it saw */
 #else
-static unsigned int arc_unwind_core(struct task_struct *tsk,
-    struct pt_regs *regs, int (*fn)(unsigned int, void *),void *arg)
-{
-    /* On ARC, only Dward based unwinder works. fp based backtracing is
-     * not possible (-fno-omit-frame-pointer) because of the way function
-     * prelogue is setup (callee regs saved and then fp set and not other
-     * way around
-     */
-    printk("CONFIG_ARC_STACK_UNWIND needs to be enabled\n");
-    return 0;
-}
+	/* On ARC, only Dward based unwinder works. fp based backtracing is
+	 * not possible (-fno-omit-frame-pointer) because of the way function
+	 * prelogue is setup (callee regs saved and then fp set and not other
+	 * way around
+	 */
+	pr_warn("CONFIG_ARC_STACK_UNWIND needs to be enabled\n");
+	return 0;
+
 #endif
+}
 
 /*-------------------------------------------------------------------------
  *  iterators called by unwinding core to implement APIs expected by kernel
@@ -153,8 +147,8 @@ static unsigned int arc_unwind_core(struct task_struct *tsk,
  */
 int verbose_dump_stack(unsigned int address, void *unused)
 {
-    __print_symbol("  %s\n", address);
-    return 0;
+	__print_symbol("  %s\n", address);
+	return 0;
 }
 
 #ifdef CONFIG_STACKTRACE
@@ -164,45 +158,45 @@ int verbose_dump_stack(unsigned int address, void *unused)
  */
 int fill_backtrace(unsigned int address, void *arg)
 {
-    struct stack_trace *trace = arg;
+	struct stack_trace *trace = arg;
 
-    if (trace->skip > 0)
-        trace->skip--;
-    else
-        trace->entries[trace->nr_entries++] = address;
+	if (trace->skip > 0)
+		trace->skip--;
+	else
+		trace->entries[trace->nr_entries++] = address;
 
-    if (trace->nr_entries >= trace->max_entries)
-        return -1;
+	if (trace->nr_entries >= trace->max_entries)
+		return -1;
 
-    return 0;
+	return 0;
 }
 
 int fill_backtrace_nosched(unsigned int address, void *arg)
 {
-    struct stack_trace *trace = arg;
+	struct stack_trace *trace = arg;
 
-    if (in_sched_functions(address))
-        return 0;
+	if (in_sched_functions(address))
+		return 0;
 
-    if (trace->skip > 0)
-        trace->skip--;
-    else
-        trace->entries[trace->nr_entries++] = address;
+	if (trace->skip > 0)
+		trace->skip--;
+	else
+		trace->entries[trace->nr_entries++] = address;
 
-    if (trace->nr_entries >= trace->max_entries)
-        return -1;
+	if (trace->nr_entries >= trace->max_entries)
+		return -1;
 
-    return 0;
+	return 0;
 }
 
 #endif
 
 int get_first_nonsched_frame(unsigned int address, void *unused)
 {
-    if (in_sched_functions(address))
-        return 0;
+	if (in_sched_functions(address))
+		return 0;
 
-    return -1;
+	return -1;
 }
 
 /*-------------------------------------------------------------------------
@@ -210,26 +204,24 @@ int get_first_nonsched_frame(unsigned int address, void *unused)
  *-------------------------------------------------------------------------
  */
 
-void noinline show_stacktrace(struct task_struct *tsk, struct pt_regs *regs)
+noinline void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs)
 {
-    printk("\nStack Trace:\n");
-    arc_unwind_core(tsk, regs, verbose_dump_stack, NULL);
+	pr_info("\nStack Trace:\n");
+	arc_unwind_core(tsk, regs, verbose_dump_stack, NULL);
 }
-
 EXPORT_SYMBOL(show_stacktrace);
 
 /* Expected by sched Code */
 void show_stack(struct task_struct *tsk, unsigned long *sp)
 {
-    show_stacktrace(tsk, NULL);
+	show_stacktrace(tsk, NULL);
 }
 
 /* Expected by Rest of kernel code */
 void dump_stack(void)
 {
-    show_stacktrace(0, NULL);
+	show_stacktrace(0, NULL);
 }
-
 EXPORT_SYMBOL(dump_stack);
 
 /* Another API expected by schedular, shows up in "ps" as Wait Channel
@@ -238,22 +230,23 @@ EXPORT_SYMBOL(dump_stack);
  */
 unsigned int get_wchan(struct task_struct *tsk)
 {
-    return arc_unwind_core(tsk, NULL, get_first_nonsched_frame, NULL);
+	return arc_unwind_core(tsk, NULL, get_first_nonsched_frame, NULL);
 }
 
 #ifdef CONFIG_STACKTRACE
 
-/* API required by CONFIG_STACKTRACE, CONFIG_LATENCYTOP.
+/*
+ * API required by CONFIG_STACKTRACE, CONFIG_LATENCYTOP.
  * A typical use is when /proc/<pid>/stack is queried by userland
  * and also by LatencyTop
  */
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
-    arc_unwind_core(tsk, NULL, fill_backtrace_nosched, trace);
+	arc_unwind_core(tsk, NULL, fill_backtrace_nosched, trace);
 }
 
 void save_stack_trace(struct stack_trace *trace)
 {
-    arc_unwind_core(current, NULL, fill_backtrace, trace);
+	arc_unwind_core(current, NULL, fill_backtrace, trace);
 }
 #endif

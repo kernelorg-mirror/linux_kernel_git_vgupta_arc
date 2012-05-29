@@ -9,7 +9,7 @@
 UTS_MACHINE := arc
 PROCESSOR  := arc700
 
-KBUILD_DEFCONFIG := aa4_defconfig
+KBUILD_DEFCONFIG := 4.10_defconfig
 
 PLATFORM := AA4
 export PLATFORM
@@ -102,8 +102,6 @@ endif
 KBUILD_AFLAGS		+= $(KBUILD_CFLAGS)
 
 LIBGCC		:= $(shell $(CC) $(ARC_LIBGCC) --print-libgcc-file-name)
-
-TEXTADDR	 = 0x80002000
 
 head-y		:= arch/arc/proc/$(PROCESSOR)/head.o arch/arc/kernel/init_task.o
 core-y		+= arch/arc/kernel/ arch/arc/mm/ arch/arc/proc/$(PROCESSOR)/

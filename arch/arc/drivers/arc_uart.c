@@ -34,9 +34,7 @@
 #include <asm/irq.h>
 #include <asm/board/plat_memmap.h>
 #include <asm/board/plat_irq.h>
-
-/* workaround for ISS VUART baudh=0 bug */
-extern int running_on_hw;
+#include <asm/setup.h>
 
 /*************************************
  * ARC UART Hardware Specs
@@ -47,28 +45,28 @@ extern int running_on_hw;
  * Word aligned, but only 8 bits wide
  */
 typedef volatile struct {
-  unsigned char id0 __attribute__((aligned(4)));
-  unsigned char id1 __attribute__((aligned(4)));
-  unsigned char id2 __attribute__((aligned(4)));
-  unsigned char id3 __attribute__((aligned(4)));
-  unsigned char data __attribute__((aligned(4)));
-  unsigned char status __attribute__((aligned(4)));
-  unsigned char baudl __attribute__((aligned(4)));
-  unsigned char baudh __attribute__((aligned(4)));
+	unsigned char id0 __attribute__ ((aligned(4)));
+	unsigned char id1 __attribute__ ((aligned(4)));
+	unsigned char id2 __attribute__ ((aligned(4)));
+	unsigned char id3 __attribute__ ((aligned(4)));
+	unsigned char data __attribute__ ((aligned(4)));
+	unsigned char status __attribute__ ((aligned(4)));
+	unsigned char baudl __attribute__ ((aligned(4)));
+	unsigned char baudh __attribute__ ((aligned(4)));
 } arc_uart_registers;
 
 /* Bits for UART Status Reg (R/W) */
-#define RXIENB  0x04    /* Receive Interrupt Enable */
-#define TXIENB  0x40    /* Transmit Interrupt Enablee */
+#define RXIENB  0x04		/* Receive Interrupt Enable */
+#define TXIENB  0x40		/* Transmit Interrupt Enablee */
 
-#define RXEMPTY 0x20    /* Receive FIFO Empty: No char receivede */
-#define TXEMPTY 0x80    /* Transmit FIFO Empty, thus char can be written intoe */
+#define RXEMPTY 0x20		/* Receive FIFO Empty: No char receivede */
+#define TXEMPTY 0x80		/* Transmit FIFO Empty, thus char can be written intoe */
 
-#define RXFULL  0x08    /* Receive FIFO fulle */
-#define RXFULL1 0x10    /* Receive FIFO has space for 1 char (tot space=4)e */
+#define RXFULL  0x08		/* Receive FIFO fulle */
+#define RXFULL1 0x10		/* Receive FIFO has space for 1 char (tot space=4)e */
 
-#define RXFERR  0x01    /* Frame Error: Stop Bit not detectede */
-#define RXOERR  0x02    /* OverFlow Err: Char recv but RXFULL still sete */
+#define RXFERR  0x01		/* Frame Error: Stop Bit not detectede */
+#define RXOERR  0x02		/* OverFlow Err: Char recv but RXFULL still sete */
 
 /* Uart bit fiddling helpers: lowest level */
 #define RBASE(uart)  ((arc_uart_registers *)(uart->port.membase))
@@ -101,27 +99,25 @@ typedef volatile struct {
 
 static unsigned int arc_uart_irq[CONFIG_ARC_SERIAL_NR_PORTS] = {
 #if CONFIG_ARC_SERIAL_NR_PORTS >= 1
-    VUART_IRQ
+	VUART_IRQ
 #endif
 #if CONFIG_ARC_SERIAL_NR_PORTS >= 2
-    ,VUART1_IRQ
+	    , VUART1_IRQ
 #endif
 #if CONFIG_ARC_SERIAL_NR_PORTS >= 3
-    ,VUART2_IRQ
+	    , VUART2_IRQ
 #endif
 };
-
 
 #define ARC_SERIAL_NAME	"ttyS"
 #define ARC_SERIAL_MAJOR	4
 #define ARC_SERIAL_MINOR	64
 
 struct arc_serial_port {
-	struct uart_port	port;
+	struct uart_port port;
 };
 
 static struct arc_serial_port arc_serial_ports[CONFIG_ARC_SERIAL_NR_PORTS];
-
 
 #ifdef CONFIG_ARC_SERIAL_CONSOLE
 static struct console arc_serial_console;
@@ -137,68 +133,68 @@ static int arc_serial_probe(struct platform_device *dev);
 static int arc_serial_remove(struct platform_device *dev);
 
 static struct uart_driver arc_uart_driver = {
-	.owner			= THIS_MODULE,
-	.driver_name	= "arc-uart",
-	.dev_name		= ARC_SERIAL_NAME,
-	.major			= ARC_SERIAL_MAJOR,
-	.minor			= ARC_SERIAL_MINOR,
-	.nr			    = CONFIG_ARC_SERIAL_NR_PORTS,
-	.cons			= ARC_SERIAL_CONSOLE,
+	.owner = THIS_MODULE,
+	.driver_name = "arc-uart",
+	.dev_name = ARC_SERIAL_NAME,
+	.major = ARC_SERIAL_MAJOR,
+	.minor = ARC_SERIAL_MINOR,
+	.nr = CONFIG_ARC_SERIAL_NR_PORTS,
+	.cons = ARC_SERIAL_CONSOLE,
 };
 
 static struct platform_driver arc_platform_driver = {
-	.probe		= arc_serial_probe,
-	.remove		= arc_serial_remove,
-	.suspend        = NULL,
-	.resume         = NULL,
+	.probe = arc_serial_probe,
+	.remove = arc_serial_remove,
+	.suspend = NULL,
+	.resume = NULL,
 
-	.driver		= {
-		.name	= "arc-uart",
-		.owner	= THIS_MODULE,
-	},
+	.driver = {
+		   .name = "arc-uart",
+		   .owner = THIS_MODULE,
+		   },
 };
 
 static int arc_serial_probe(struct platform_device *dev)
 {
-    int i;
+	int i;
 
 	for (i = 0; i < CONFIG_ARC_SERIAL_NR_PORTS; i++) {
-        platform_set_drvdata(dev, &arc_serial_ports[i].port);
-        /*arc_serial_ports[i].port.dev = &dev->dev; */
-        uart_add_one_port(&arc_uart_driver, &arc_serial_ports[i].port);
-    }
+		platform_set_drvdata(dev, &arc_serial_ports[i].port);
+		/*arc_serial_ports[i].port.dev = &dev->dev; */
+		uart_add_one_port(&arc_uart_driver, &arc_serial_ports[i].port);
+	}
 
-    return 0;
+	return 0;
 }
 
 static int arc_serial_remove(struct platform_device *dev)
 {
-    int i;
+	int i;
 
 	for (i = 0; i < CONFIG_ARC_SERIAL_NR_PORTS; i++) {
-	    uart_remove_one_port(&arc_uart_driver, &arc_serial_ports[i].port);
-	    arc_serial_ports[i].port.dev = NULL;
-    }
+		uart_remove_one_port(&arc_uart_driver,
+				     &arc_serial_ports[i].port);
+		arc_serial_ports[i].port.dev = NULL;
+	}
 
-    return 0;
+	return 0;
 }
-
 
 static void arc_serial_stop_rx(struct uart_port *port)
 {
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
 
-    UART_RX_IRQ_DISABLE(uart);
+	UART_RX_IRQ_DISABLE(uart);
 }
 
 static void arc_serial_stop_tx(struct uart_port *port)
 {
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
 
-    while (!(UART_GET_STATUS(uart) & TXEMPTY))
-        cpu_relax();
+	while (!(UART_GET_STATUS(uart) & TXEMPTY))
+		cpu_relax();
 
-    UART_TX_IRQ_DISABLE(uart);
+	UART_TX_IRQ_DISABLE(uart);
 }
 
 /*
@@ -207,13 +203,13 @@ static void arc_serial_stop_tx(struct uart_port *port)
 static unsigned int arc_serial_tx_empty(struct uart_port *port)
 {
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
-    unsigned int stat;
+	unsigned int stat;
 
-    stat = UART_GET_STATUS(uart);
-    if (stat & TXEMPTY )
-        return TIOCSER_TEMT;
-    else
-        return 0;
+	stat = UART_GET_STATUS(uart);
+	if (stat & TXEMPTY)
+		return TIOCSER_TEMT;
+	else
+		return 0;
 
 }
 
@@ -229,7 +225,7 @@ int arc_cnt;
 static void arc_serial_tx_chars(struct arc_serial_port *uart)
 {
 	struct circ_buf *xmit = &uart->port.state->xmit;
-	int sent=0;
+	int sent = 0;
 	unsigned char ch;
 
 	if (unlikely(uart->port.x_char)) {
@@ -237,28 +233,26 @@ static void arc_serial_tx_chars(struct arc_serial_port *uart)
 		uart->port.icount.tx++;
 		uart->port.x_char = 0;
 		sent = 1;
-	}
-	else if ( xmit->tail != xmit->head) {  /* TODO: uart_circ_empty */
+	} else if (xmit->tail != xmit->head) {	/* TODO: uart_circ_empty */
 		ch = xmit->buf[xmit->tail];
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		uart->port.icount.tx++;
-		while( !(UART_GET_STATUS(uart) & TXEMPTY))
+		while (!(UART_GET_STATUS(uart) & TXEMPTY))
 			arc_cnt++;
 		UART_SET_DATA(uart, ch);
 		sent = 1;
 	}
 
-    /* If num chars in xmit buffer are too few, ask for more from tty layer */
-    /* By Hard ISR to schedule processing in software interrupt part */
+	/* If num chars in xmit buffer are too few, ask for more from tty layer */
+	/* By Hard ISR to schedule processing in software interrupt part */
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&uart->port);
 
-    /*if (uart_circ_chars_pending(xmit)) */
-    if (sent)
-        UART_TX_IRQ_ENABLE(uart);
+	/*if (uart_circ_chars_pending(xmit)) */
+	if (sent)
+		UART_TX_IRQ_ENABLE(uart);
 
 }
-
 
 /*
  * port is locked and interrupts are disabled
@@ -274,47 +268,46 @@ static void arc_serial_start_tx(struct uart_port *port)
 static void arc_serial_rx_chars(struct arc_serial_port *uart)
 {
 	struct tty_struct *tty = NULL;
-	unsigned int status, ch, flg=0;
+	unsigned int status, ch, flg = 0;
 
 	tty = uart->port.state->port.tty;
 
-    /* UART controller has 4 deep RX-FIFO. Driver's recongnition of this fact
-     * is very subtle. Here's how ...
-    *  Upon getting a RX-Intr, such that RX-EMPTY=0, meaning data available,
-    *  driver reads the DATA Reg and keeps doing that in a loop,
-    *  until RX-EMPTY=1. Multiple chars being avail, with a single Interrupt,
-    *  before RX-EMPTY=0, implies some sort of buffering going on in the
-    *  controller, which is indeed the Rx-FIFO.
-    */
-  while( !( (status = UART_GET_STATUS(uart)) & RXEMPTY)) {
+	/* UART controller has 4 deep RX-FIFO. Driver's recongnition of this fact
+	 * is very subtle. Here's how ...
+	 *  Upon getting a RX-Intr, such that RX-EMPTY=0, meaning data available,
+	 *  driver reads the DATA Reg and keeps doing that in a loop,
+	 *  until RX-EMPTY=1. Multiple chars being avail, with a single Interrupt,
+	 *  before RX-EMPTY=0, implies some sort of buffering going on in the
+	 *  controller, which is indeed the Rx-FIFO.
+	 */
+	while (!((status = UART_GET_STATUS(uart)) & RXEMPTY)) {
 
-	ch = UART_GET_DATA(uart);
-	uart->port.icount.rx++;
+		ch = UART_GET_DATA(uart);
+		uart->port.icount.rx++;
 
-    if (unlikely(status & (RXOERR|RXFERR))) {
-	    if (status & RXOERR) {
-		    uart->port.icount.overrun++;
-            flg = TTY_OVERRUN;
-            UART_CLR_STATUS(uart, RXOERR);
-        }
+		if (unlikely(status & (RXOERR | RXFERR))) {
+			if (status & RXOERR) {
+				uart->port.icount.overrun++;
+				flg = TTY_OVERRUN;
+				UART_CLR_STATUS(uart, RXOERR);
+			}
 
-	    if (status & RXFERR) {
-		    uart->port.icount.frame++;
-		    flg = TTY_FRAME;
-            UART_CLR_STATUS(uart, RXFERR);
-        }
-    }
-	else
-		flg = TTY_NORMAL;
+			if (status & RXFERR) {
+				uart->port.icount.frame++;
+				flg = TTY_FRAME;
+				UART_CLR_STATUS(uart, RXFERR);
+			}
+		} else
+			flg = TTY_NORMAL;
 
-	if (unlikely(uart_handle_sysrq_char(&uart->port, ch)))
-        goto done;
+		if (unlikely(uart_handle_sysrq_char(&uart->port, ch)))
+			goto done;
 
-    uart_insert_char(&uart->port, status, RXOERR, ch, flg);
+		uart_insert_char(&uart->port, status, RXOERR, ch, flg);
 
-   done:
-	    tty_flip_buffer_push(tty);
-  }
+done:
+		tty_flip_buffer_push(tty);
+	}
 }
 
 /* A note on the Interrupt handling state machine of this driver
@@ -348,68 +341,66 @@ static void arc_serial_rx_chars(struct arc_serial_port *uart)
 static irqreturn_t arc_serial_isr(int irq, void *dev_id)
 {
 	struct arc_serial_port *uart = dev_id;
-    unsigned int status;
+	unsigned int status;
 
-    status = UART_GET_STATUS(uart);
+	status = UART_GET_STATUS(uart);
 
-    /* Single IRQ for both Rx (data available) Tx (room available) Interrupt
-     * notifications from the UART Controller.
-     * To demultiplex between the two, we check the relevant bits
-     */
-    if ((status & RXIENB) && !(status & RXEMPTY)) {
+	/* Single IRQ for both Rx (data available) Tx (room available) Interrupt
+	 * notifications from the UART Controller.
+	 * To demultiplex between the two, we check the relevant bits
+	 */
+	if ((status & RXIENB) && !(status & RXEMPTY)) {
 
-	spin_lock(&uart->port.lock);  /* already in ISR, no need of xx_irqsave */
-	arc_serial_rx_chars(uart);
-	spin_unlock(&uart->port.lock);
-    }
+		spin_lock(&uart->port.lock);	/* already in ISR, no need of xx_irqsave */
+		arc_serial_rx_chars(uart);
+		spin_unlock(&uart->port.lock);
+	}
 
-    if ((status & TXIENB) && (status & TXEMPTY)) {
+	if ((status & TXIENB) && (status & TXEMPTY)) {
 
-        /* Unconditionally disable further Tx-Interrupts.
-         * will be enabled by tx_chars() if needed.
-         */
-        UART_TX_IRQ_DISABLE(uart);
+		/* Unconditionally disable further Tx-Interrupts.
+		 * will be enabled by tx_chars() if needed.
+		 */
+		UART_TX_IRQ_DISABLE(uart);
 
-	    spin_lock(&uart->port.lock);
+		spin_lock(&uart->port.lock);
 
-	    if (!uart_tx_stopped(&uart->port)) {
-		    arc_serial_tx_chars(uart);
-        }
+		if (!uart_tx_stopped(&uart->port)) {
+			arc_serial_tx_chars(uart);
+		}
 
-	    spin_unlock(&uart->port.lock);
-    }
+		spin_unlock(&uart->port.lock);
+	}
 
 	return IRQ_HANDLED;
 }
 
-
 static unsigned int arc_serial_get_mctrl(struct uart_port *port)
 {
-    /* Pretend we have a Modem status reg and following bits are
-     *  always set, to satify the serial core state machine
-     *  (DSR) Data Set Ready
-     *  (CTS) Clear To Send
-     *  (CAR) Carrier Detect
-     */
+	/* Pretend we have a Modem status reg and following bits are
+	 *  always set, to satify the serial core state machine
+	 *  (DSR) Data Set Ready
+	 *  (CTS) Clear To Send
+	 *  (CAR) Carrier Detect
+	 */
 	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 }
 
 static void arc_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-    /* MCR not present */
+	/* MCR not present */
 }
 
 /* Enable Modem Status Interrupts */
 
 static void arc_serial_enable_ms(struct uart_port *port)
 {
-    /* MSR not present */
+	/* MSR not present */
 }
-
 
 static void arc_serial_break_ctl(struct uart_port *port, int break_state)
 {
-    /* ARC UART doesn't support sendind Break signal */
+	/* ARC UART doesn't support sendind Break signal */
 }
 
 static int arc_serial_startup(struct uart_port *port)
@@ -417,25 +408,25 @@ static int arc_serial_startup(struct uart_port *port)
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
 	unsigned int tmp;
 
-    /* Edge Triggered Interrupts to eliminate Spurious Interrupts */
-    tmp = read_new_aux_reg(AUX_ITRIGGER);
-    tmp |= (1 << uart->port.irq);
-    write_new_aux_reg(AUX_ITRIGGER,tmp);
+	/* Edge Triggered Interrupts to eliminate Spurious Interrupts */
+	tmp = read_aux_reg(AUX_ITRIGGER);
+	tmp |= (1 << uart->port.irq);
+	write_aux_reg(AUX_ITRIGGER, tmp);
 
-    /* Before we hook up the ISR, Disable all UART Interrupts */
+	/* Before we hook up the ISR, Disable all UART Interrupts */
 	UART_ALL_IRQ_DISABLE(uart);
 
-    /* TODO: generic request_irq takes a difft set of flags
-     * We dont need IRQF_DISABLED since further IRQ auto-disabled
-     */
+	/* TODO: generic request_irq takes a difft set of flags
+	 * We don't need IRQF_DISABLED since further IRQ auto-disabled
+	 */
 
 	if (request_irq(uart->port.irq, arc_serial_isr, IRQ_FLG_LOCK,
-	     "ARC_UART_RX", uart)) {
-		printk(KERN_NOTICE "Unable to attach ARC UART interrupt\n");
+			"ARC_UART_RX", uart)) {
+		pr_warn("Unable to attach ARC UART interrupt\n");
 		return -EBUSY;
 	}
 
-	UART_RX_IRQ_ENABLE(uart);  /* Only Rx IRQ enabled. WHY ? */
+	UART_RX_IRQ_ENABLE(uart);	/* Only Rx IRQ enabled. WHY ? */
 
 	return 0;
 }
@@ -444,53 +435,53 @@ static int arc_serial_startup(struct uart_port *port)
 static void arc_serial_shutdown(struct uart_port *port)
 {
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
-    free_irq(uart->port.irq, uart);
+	free_irq(uart->port.irq, uart);
 }
 
 static void arc_serial_set_ldisc(struct uart_port *port)
 {
-    /* this might need implementing for the touch driver */
+	/* this might need implementing for the touch driver */
 }
 
 static void
 arc_serial_set_termios(struct uart_port *port, struct ktermios *termios,
-		   struct ktermios *old)
+		       struct ktermios *old)
 {
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
 	unsigned int baud, uartl, uarth, hw_val;
-    unsigned long flags;
+	unsigned long flags;
 
-    /* TBD : We need to support more functions */
+	/* TBD : We need to support more functions */
 
-    /* Use the generic handler so that any specially encoded baud rates
-     * such as SPD_xx flags or "%B0" can be handled
-     * Max Baud I suppose will not be more than current 115K * 4
-     * Formula for ARC UART is: hw-val = ((CLK/(BAUD*4)) -1)
-     * spread over two 8-bit registers
-     */
-     baud = uart_get_baud_rate(port, termios, old, 0, 460800);
+	/* Use the generic handler so that any specially encoded baud rates
+	 * such as SPD_xx flags or "%B0" can be handled
+	 * Max Baud I suppose will not be more than current 115K * 4
+	 * Formula for ARC UART is: hw-val = ((CLK/(BAUD*4)) -1)
+	 * spread over two 8-bit registers
+	 */
+	baud = uart_get_baud_rate(port, termios, old, 0, 460800);
 
-    hw_val = uart->port.uartclk / (baud*4) -1;
-    uartl = hw_val & 0xFF;
-    uarth = (hw_val >> 8) & 0xFF;
+	hw_val = uart->port.uartclk / (baud * 4) - 1;
+	uartl = hw_val & 0xFF;
+	uarth = (hw_val >> 8) & 0xFF;
 
-    /* ISS UART emulation has a subtle bug:
-     * A existing value of Baudh = 0 is used as a indication to startup
-     * it's internal state machine.
-     * Thus if baudh is set to 0, 2 times, it chokes.
-     * This happens with BAUD=115200 and the formaula above
-     * Until that is fixed, when runnign on ISS, we will set baudh to !0
-     */
-    if (!running_on_hw) {
-        uarth = 1;
-    }
+	/* ISS UART emulation has a subtle bug:
+	 * A existing value of Baudh = 0 is used as a indication to startup
+	 * it's internal state machine.
+	 * Thus if baudh is set to 0, 2 times, it chokes.
+	 * This happens with BAUD=115200 and the formaula above
+	 * Until that is fixed, when runnign on ISS, we will set baudh to !0
+	 */
+	if (!running_on_hw) {
+		uarth = 1;
+	}
 
 	spin_lock_irqsave(&uart->port.lock, flags);
 
 	UART_ALL_IRQ_DISABLE(uart);
 
-    UART_SET_BAUDL(uart, uartl);
-    UART_SET_BAUDH(uart, uarth);
+	UART_SET_BAUDL(uart, uartl);
+	UART_SET_BAUDH(uart, uarth);
 
 	UART_RX_IRQ_ENABLE(uart);
 
@@ -522,7 +513,6 @@ static int arc_serial_request_port(struct uart_port *port)
 	return 0;
 }
 
-
 /*
  * Verify the new serial_struct (for TIOCSSERIAL).
  */
@@ -547,9 +537,9 @@ static void arc_serial_config_port(struct uart_port *port, int flags)
 #ifdef CONFIG_CONSOLE_POLL
 static void arc_serial_poll_put_char(struct uart_port *port, unsigned char chr)
 {
-    while( !( (status = UART_GET_STATUS(uart)) & TXEMPTY)) {
+	while (!((status = UART_GET_STATUS(uart)) & TXEMPTY)) {
 		cpu_relax();
-    }
+	}
 
 	UART_SET_DATA(uart, chr);
 }
@@ -559,35 +549,35 @@ static int arc_serial_poll_get_char(struct uart_port *port)
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
 	unsigned char chr;
 
-    while( !( (status = UART_GET_STATUS(uart)) & RXEMPTY)) {
+	while (!((status = UART_GET_STATUS(uart)) & RXEMPTY)) {
 		cpu_relax();
 
-	chr = UART_GET_DATA(uart);
-	return chr;
-}
+		chr = UART_GET_DATA(uart);
+		return chr;
+	}
 #endif
 
 static struct uart_ops arc_serial_pops = {
-	.tx_empty	= arc_serial_tx_empty,
-	.set_mctrl	= arc_serial_set_mctrl,
-	.get_mctrl	= arc_serial_get_mctrl,
-	.stop_tx	= arc_serial_stop_tx,
-	.start_tx	= arc_serial_start_tx,
-	.stop_rx	= arc_serial_stop_rx,
-	.enable_ms	= arc_serial_enable_ms,
-	.break_ctl	= arc_serial_break_ctl,
-	.startup	= arc_serial_startup,
-	.shutdown	= arc_serial_shutdown,
-	.set_termios	= arc_serial_set_termios,
-	.set_ldisc	= arc_serial_set_ldisc,
-	.type		= arc_serial_type,
-	.release_port	= arc_serial_release_port,
-	.request_port	= arc_serial_request_port,
-	.config_port	= arc_serial_config_port,
-	.verify_port	= arc_serial_verify_port,
+	.tx_empty = arc_serial_tx_empty,
+	.set_mctrl = arc_serial_set_mctrl,
+	.get_mctrl = arc_serial_get_mctrl,
+	.stop_tx = arc_serial_stop_tx,
+	.start_tx = arc_serial_start_tx,
+	.stop_rx = arc_serial_stop_rx,
+	.enable_ms = arc_serial_enable_ms,
+	.break_ctl = arc_serial_break_ctl,
+	.startup = arc_serial_startup,
+	.shutdown = arc_serial_shutdown,
+	.set_termios = arc_serial_set_termios,
+	.set_ldisc = arc_serial_set_ldisc,
+	.type = arc_serial_type,
+	.release_port = arc_serial_release_port,
+	.request_port = arc_serial_request_port,
+	.config_port = arc_serial_config_port,
+	.verify_port = arc_serial_verify_port,
 #ifdef CONFIG_CONSOLE_POLL
-	.poll_put_char	= arc_serial_poll_put_char,
-	.poll_get_char	= arc_serial_poll_get_char,
+	.poll_put_char = arc_serial_poll_put_char,
+	.poll_get_char = arc_serial_poll_get_char,
 #endif
 };
 
@@ -601,44 +591,48 @@ static void __init arc_serial_init_ports(void)
 	first = 0;
 
 	for (i = 0; i < CONFIG_ARC_SERIAL_NR_PORTS; i++) {
-		arc_serial_ports[i].port.uartclk   = CONFIG_ARC700_CLK; /*get_sclk(); */
-		arc_serial_ports[i].port.fifosize  = ARC_UART_TX_FIFO_SIZE;
-		arc_serial_ports[i].port.ops       = &arc_serial_pops;
-		arc_serial_ports[i].port.line      = i;
-		arc_serial_ports[i].port.iotype    = UPIO_MEM;
-		arc_serial_ports[i].port.membase   = (void *)ARC_UART_BASE(i);
-		arc_serial_ports[i].port.mapbase   = ARC_UART_BASE(i);
-		arc_serial_ports[i].port.irq       = arc_uart_irq[i];
-		arc_serial_ports[i].port.flags     = UPF_BOOT_AUTOCONF;
 
-        /* uart_insert_char( ) uses it in decideding whether to ignore a
-         * char or not. Explicitly setting it here, removes the subtelty
-         */
-	arc_serial_ports[i].port.ignore_status_mask = 0;
+		/* TBD: get_sclk(); */
+		arc_serial_ports[i].port.uartclk = CONFIG_ARC700_CLK;
+		arc_serial_ports[i].port.fifosize = ARC_UART_TX_FIFO_SIZE;
+		arc_serial_ports[i].port.ops = &arc_serial_pops;
+		arc_serial_ports[i].port.line = i;
+		arc_serial_ports[i].port.iotype = UPIO_MEM;
+		arc_serial_ports[i].port.membase = (void *)ARC_UART_BASE(i);
+		arc_serial_ports[i].port.mapbase = ARC_UART_BASE(i);
+		arc_serial_ports[i].port.irq = arc_uart_irq[i];
+		arc_serial_ports[i].port.flags = UPF_BOOT_AUTOCONF;
+
+		/*
+		 * uart_insert_char( ) uses it in decideding whether to ignore a
+		 * char or not. Explicitly setting it here, removes the subtelty
+		 */
+		arc_serial_ports[i].port.ignore_status_mask = 0;
 	}
 }
 
-static struct platform_device *dev[CONFIG_ARC_SERIAL_NR_PORTS];
+static struct platform_device *arc_plat_dev[CONFIG_ARC_SERIAL_NR_PORTS];
 
 static int __init arc_serial_init(void)
 {
-	int ret, i=0;
+	int ret, i = 0;
 
 	pr_info("Serial: ARC serial driver: platform register\n");
 
 	arc_serial_init_ports();
 
 	ret = uart_register_driver(&arc_uart_driver);
-    if (ret)
-	    return ret;
+	if (ret)
+		return ret;
 
-    for ( i= 0; i < CONFIG_ARC_SERIAL_NR_PORTS; i++) {
-        dev[i] = platform_device_register_simple("arc-uart",i,NULL,0);
-        if (IS_ERR(dev[i])) {
-            printk("ARC serial: plat device regisn failed\n");
-            return PTR_ERR(dev[i]);
-        }
-    }
+	for (i = 0; i < CONFIG_ARC_SERIAL_NR_PORTS; i++) {
+		arc_plat_dev[i] = platform_device_register_simple("arc-uart",
+								i, NULL, 0);
+		if (IS_ERR(arc_plat_dev[i])) {
+			pr_err("ARC serial: plat device registration failed\n");
+			return PTR_ERR(arc_plat_dev[i]);
+		}
+	}
 
 	ret = platform_driver_register(&arc_platform_driver);
 	if (ret) {
@@ -649,20 +643,17 @@ static int __init arc_serial_init(void)
 	return ret;
 }
 
-static void __exit arc_serial_exit(void)
-{
+static void __exit arc_serial_exit(void) {
 	platform_driver_unregister(&arc_platform_driver);
 	uart_unregister_driver(&arc_uart_driver);
 }
-
 
 module_init(arc_serial_init);
 module_exit(arc_serial_exit);
 
 #ifdef CONFIG_ARC_SERIAL_CONSOLE
 
-static int __init
-arc_serial_console_setup(struct console *co, char *options)
+static int __init arc_serial_console_setup(struct console *co, char *options)
 {
 	struct arc_serial_port *uart;
 	int baud = CONFIG_ARC_SERIAL_BAUD;
@@ -675,18 +666,17 @@ arc_serial_console_setup(struct console *co, char *options)
 
 	uart = &arc_serial_ports[co->index];
 
-    /* Serial core will call port->ops->set_termios( )
-     * which will set the baud reg
-     */
+	/*
+	 * Serial core will call port->ops->set_termios( )
+	 * which will set the baud reg
+	 */
 	return uart_set_options(&uart->port, co, baud, parity, bits, flow);
 }
 
-
-static void arc_serial_console_putchar(struct uart_port *port, int ch)
-{
+static void arc_serial_console_putchar(struct uart_port *port, int ch) {
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
 
-    while (!(UART_GET_STATUS(uart) & TXEMPTY));
+	while (!(UART_GET_STATUS(uart) & TXEMPTY)) ;
 
 	UART_SET_DATA(uart, ch);
 }
@@ -694,8 +684,8 @@ static void arc_serial_console_putchar(struct uart_port *port, int ch)
 /*
  * Interrupts are disabled on entering
  */
-static void
-arc_serial_console_write(struct console *co, const char *s, unsigned int count)
+static void arc_serial_console_write(struct console *co, const char *s,
+				     unsigned int count)
 {
 	struct arc_serial_port *uart = &arc_serial_ports[co->index];
 	unsigned long flags;
@@ -705,15 +695,14 @@ arc_serial_console_write(struct console *co, const char *s, unsigned int count)
 	spin_unlock_irqrestore(&uart->port.lock, flags);
 }
 
-
 static struct console arc_serial_console = {
-	.name		= ARC_SERIAL_NAME,
-	.write		= arc_serial_console_write,
-	.device		= uart_console_device,
-	.setup		= arc_serial_console_setup,
-	.flags		= CON_PRINTBUFFER,
-	.index		= 0,
-	.data		= &arc_uart_driver
+	.name = ARC_SERIAL_NAME,
+	.write = arc_serial_console_write,
+	.device = uart_console_device,
+	.setup = arc_serial_console_setup,
+	.flags = CON_PRINTBUFFER,
+	.index = 0,
+	.data = &arc_uart_driver
 };
 
 static int __init arc_serial_rs_console_init(void)
@@ -732,8 +721,7 @@ static __init void early_serial_putc(struct uart_port *port, int ch)
 	unsigned timeout = 0xffff;
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
 
-    while( !(UART_GET_STATUS(uart) & TXEMPTY) &&
-	        --timeout)
+	while (!(UART_GET_STATUS(uart) & TXEMPTY) && --timeout)
 		cpu_relax();
 
 	UART_SET_DATA(uart, ch);
@@ -761,20 +749,20 @@ static int __init arc_early_serial_init(struct console *co, char *options)
 
 	uart = &arc_serial_ports[co->index];
 
-    baud = CONFIG_ARC_SERIAL_BAUD;
-    hw_val = uart->port.uartclk / (baud*4) -1;
-    uartl = hw_val & 0xFF;
-    uarth = (hw_val >> 8) & 0xFF;
+	baud = CONFIG_ARC_SERIAL_BAUD;
+	hw_val = uart->port.uartclk / (baud * 4) - 1;
+	uartl = hw_val & 0xFF;
+	uarth = (hw_val >> 8) & 0xFF;
 
-    if (!running_on_hw) {
-        uarth = 1;
-    }
+	if (!running_on_hw) {
+		uarth = 1;
+	}
 
-    UART_SET_BAUDL(uart, uartl);
-    UART_SET_BAUDH(uart, uarth);
-    UART_RX_IRQ_ENABLE(uart);
+	UART_SET_BAUDL(uart, uartl);
+	UART_SET_BAUDH(uart, uarth);
+	UART_RX_IRQ_ENABLE(uart);
 
-    return 0;
+	return 0;
 }
 
 static struct __initdata console arc_early_serial_console = {
@@ -786,9 +774,8 @@ static struct __initdata console arc_early_serial_console = {
 	.index = -1
 };
 
-void __init arc_early_serial_reg(void)
-{
-    register_console(&arc_early_serial_console);
+void __init arc_early_serial_reg(void) {
+	register_console(&arc_early_serial_console);
 }
 
 #endif /* CONFIG_EARLY_PRINTK */

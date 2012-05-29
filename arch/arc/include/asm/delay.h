@@ -8,8 +8,8 @@
  * Delay routines using pre computed loops_per_jiffy value.
  *
  * vineetg: Feb 2012
- * 	-Rewrote in "C" to avoid dealing with availability of H/w MPY
- * 	-Also reduced the num of MPY operations from 3 to 2
+ *  -Rewrote in "C" to avoid dealing with availability of H/w MPY
+ *  -Also reduced the num of MPY operations from 3 to 2
  *
  * Amit Bhor: Codito Technologies 2004
  */
@@ -17,23 +17,24 @@
 #ifndef __ASM_ARC_UDELAY_H
 #define __ASM_ARC_UDELAY_H
 
-#include <asm/param.h> /* HZ */
+#include <asm/param.h>		/* HZ */
 
-extern __inline__ void __delay(unsigned long loops)
+static inline void __delay(unsigned long loops)
 {
-      __asm__ __volatile__ ( "1: \n\t"
-			     "sub.f %0, %1, 1\n\t"
-			     "jpnz 1b"
-			     : "=r" (loops)
-			     : "0" (loops));
+	__asm__ __volatile__(
+	"1:	sub.f %0, %0, 1	\n"
+	"	jpnz 1b		\n"
+	: "+r"(loops)
+	:
+	: "cc");
 }
 
 extern void __bad_udelay(void);
 
 /*
  * Normal Math for computing loops in "N" usecs
- * 	-we have precomputed @loops_per_jiffy
- *	-1 sec has HZ jiffies
+ *  -we have precomputed @loops_per_jiffy
+ *  -1 sec has HZ jiffies
  * loops per "N" usecs = ((loops_per_jiffy * HZ / 1000000) * N)
  *
  * Approximate Division by multiplication:
@@ -56,11 +57,11 @@ static inline void __udelay(unsigned long usecs)
 	 * HZ * 4295 is pre-evaluated by gcc - hence only 2 mpy ops
 	 */
 	loops = ((long long)(usecs * 4295 * HZ) *
-				(long long)(loops_per_jiffy)) >> 32;
+		 (long long)(loops_per_jiffy)) >> 32;
 
 	__delay(loops);
 }
 
 #define udelay(n) ((n) > 20000 ? __bad_udelay() : __udelay(n))
 
-#endif	/* __ASM_ARC_UDELAY_H */
+#endif /* __ASM_ARC_UDELAY_H */

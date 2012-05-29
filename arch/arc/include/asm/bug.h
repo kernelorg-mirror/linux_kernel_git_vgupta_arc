@@ -11,11 +11,11 @@
 
 #include <asm/event-log.h>
 
-#define BUG() do {  \
-    show_stacktrace(0,0);                                       \
-    printk("Kernel BUG in file %s: function %s: line %d!\n",    \
-             __FILE__, __FUNCTION__,  __LINE__);                \
-    sort_snaps(1);                                              \
+#define BUG() do {						\
+	show_stacktrace(0,0);					\
+	pr_warn("Kernel BUG in %s: %s: %d!\n",\
+		__FILE__, __FUNCTION__,  __LINE__);		\
+	sort_snaps(1);						\
 } while(0)
 
 #define HAVE_ARCH_BUG

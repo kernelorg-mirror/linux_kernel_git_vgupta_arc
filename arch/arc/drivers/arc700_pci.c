@@ -66,7 +66,7 @@
 
 #include <asm/uaccess.h>
 
-struct device *tmp_pci_dev=NULL;
+struct device *tmp_pci_dev = NULL;
 
 #ifdef DEBUG
 #define DBG(x...) printk(x)
@@ -91,27 +91,25 @@ struct device *tmp_pci_dev=NULL;
 /* Enable if host controller byte twisting should be disabled */
 #undef BT_ENABLED 1
 
-
 typedef struct {
-    volatile unsigned int cfg_stat;
-    volatile unsigned int bar0;
-    volatile unsigned int page0;
-    volatile unsigned int bar1;
-    volatile unsigned int page1;
-    volatile unsigned int iomap;
-    volatile unsigned int stat_cmd;
+	volatile unsigned int cfg_stat;
+	volatile unsigned int bar0;
+	volatile unsigned int page0;
+	volatile unsigned int bar1;
+	volatile unsigned int page1;
+	volatile unsigned int iomap;
+	volatile unsigned int stat_cmd;
 } ARC_GRPCI_Regs_Map;
-
 
 struct arc_pci {
 
-        ARC_GRPCI_Regs_Map      *regs;
-        int                     irq;
+	ARC_GRPCI_Regs_Map *regs;
+	int irq;
 
-        struct resource         mem_resource;
-        struct resource         io_resource;
+	struct resource mem_resource;
+	struct resource io_resource;
 
-        struct pci_bus          *bus;
+	struct pci_bus *bus;
 
 };
 
@@ -120,119 +118,121 @@ struct arc_pci {
 
 struct arc_pci pcic0;
 
-
 /* Generate a Configuration Read (type 0) cycle */
 static int pcic_read_config_dword(unsigned int busno, unsigned int devfn,
-                                  int where, u32 *value)
+				  int where, u32 * value)
 {
-    struct arc_pci *pcic;
+	struct arc_pci *pcic;
 
+	pcic = &pcic0;
 
-    pcic = &pcic0;
-
-    *value = ARC_BYPASS_LOAD_PA(AHB_TO_PCI_CFG_START +
-                                        ((devfn&0xff)<<8) + (where & ~3) );
+	*value = ARC_BYPASS_LOAD_PA(AHB_TO_PCI_CFG_START +
+				    ((devfn & 0xff) << 8) + (where & ~3));
 
 #define GRPCI_CFG_CYCLE_TIMEOUT 0x100
-    if (ARC_BYPASS_LOAD_PA(&pcic->regs->cfg_stat) & GRPCI_CFG_CYCLE_TIMEOUT) {
-            *value = 0xFFFFFFFF;
-    }
-
+	if (ARC_BYPASS_LOAD_PA(&pcic->regs->cfg_stat) & GRPCI_CFG_CYCLE_TIMEOUT) {
+		*value = 0xFFFFFFFF;
+	}
 #ifdef BT_ENABLED
-    *value = flip_dword(*value);
+	*value = flip_dword(*value);
 #endif
 
-    DBG("ARC PCI READ : PCI Side=> [%2x:%2x.%d] %x - GRPCI addr: %x - val: %x\n",
-        busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where,
-        AHB_TO_PCI_CFG_START + ((devfn&0xff)<<8) + (where & ~3), *value);
+	DBG("ARC PCI READ : PCI Side=> [%2x:%2x.%d] %x - GRPCI addr: %x - val: %x\n", busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where, AHB_TO_PCI_CFG_START + ((devfn & 0xff) << 8) + (where & ~3), *value);
 
-    return 0;
+	return 0;
 }
 
 static int pcic_read_config(struct pci_bus *bus, unsigned int devfn,
-                            int where, int size, u32 *val)
+			    int where, int size, u32 * val)
 {
-    unsigned int v;
+	unsigned int v;
 
-    if (bus->number != 0) return -EINVAL;
-    /* For invalid slots return 0 (success) but value itself in invalid 0xff */
-    if (PCI_SLOT(devfn) >= 21 || PCI_SLOT(devfn) == 0) {
-        return 0;
-    }
+	if (bus->number != 0)
+		return -EINVAL;
+	/* For invalid slots return 0 (success) but value itself in invalid 0xff */
+	if (PCI_SLOT(devfn) >= 21 || PCI_SLOT(devfn) == 0) {
+		return 0;
+	}
 
-    switch (size) {
-        case 1:
-            pcic_read_config_dword(bus->number, devfn, where&~3, &v);
-            *val = 0xff & (v >> (8*(where & 3)));
-            return 0;
-        case 2:
-            if (where&1) return -EINVAL;
-            pcic_read_config_dword(bus->number, devfn, where&~3, &v);
-            *val = 0xffff & (v >> (8*(where & 3)));
-            return 0;
-        case 4:
-            if (where&3) return -EINVAL;
-            pcic_read_config_dword(bus->number, devfn, where&~3, val);
-            return 0;
-    }
-    return -EINVAL;
+	switch (size) {
+	case 1:
+		pcic_read_config_dword(bus->number, devfn, where & ~3, &v);
+		*val = 0xff & (v >> (8 * (where & 3)));
+		return 0;
+	case 2:
+		if (where & 1)
+			return -EINVAL;
+		pcic_read_config_dword(bus->number, devfn, where & ~3, &v);
+		*val = 0xffff & (v >> (8 * (where & 3)));
+		return 0;
+	case 4:
+		if (where & 3)
+			return -EINVAL;
+		pcic_read_config_dword(bus->number, devfn, where & ~3, val);
+		return 0;
+	}
+	return -EINVAL;
 }
 
 /* Generate a Configuration Write (type 0) cycle */
 static int pcic_write_config_dword(unsigned int busno, unsigned int devfn,
-                                   int where, u32 value)
+				   int where, u32 value)
 {
-    struct arc_pci *pcic;
-    u32 val;
+	struct arc_pci *pcic;
+	u32 val;
 
-    pcic = &pcic0;
+	pcic = &pcic0;
 
 #ifdef BT_ENABLED
-    val = flip_dword(value);
+	val = flip_dword(value);
 #else
-    val = value;
+	val = value;
 #endif
 
-    DBG("ARC PCI WRITE: PCI Side=> [%2x:%2x.%d] %x - GRPCI addr: %x - val: %x\n",
-        busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where,
-        AHB_TO_PCI_CFG_START + ((devfn&0xff)<<8) + (where & ~3), value);
+	DBG("ARC PCI WRITE: PCI Side=> [%2x:%2x.%d] %x - GRPCI addr: %x - val: %x\n", busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where, AHB_TO_PCI_CFG_START + ((devfn & 0xff) << 8) + (where & ~3), value);
 
-    ARC_BYPASS_STORE_PA(AHB_TO_PCI_CFG_START + ((devfn&0xff)<<8) +
-                                                            (where & ~3), val );
+	ARC_BYPASS_STORE_PA(AHB_TO_PCI_CFG_START + ((devfn & 0xff) << 8) +
+			    (where & ~3), val);
 
-
-    return 0;
+	return 0;
 }
 
 static int pcic_write_config(struct pci_bus *bus, unsigned int devfn,
-   int where, int size, u32 val)
+			     int where, int size, u32 val)
 {
-    unsigned int v;
+	unsigned int v;
 
-    if (bus->number != 0) return -EINVAL;
-    if (PCI_SLOT(devfn) >= 21) return 0;
+	if (bus->number != 0)
+		return -EINVAL;
+	if (PCI_SLOT(devfn) >= 21)
+		return 0;
 
-    switch (size) {
-        case 1:
-            pcic_read_config_dword(bus->number, devfn, where&~3, &v);
-            v = (v & ~(0xff << (8*(where&3)))) | ((0xff&val) << (8*(where&3)));
-            return pcic_write_config_dword(bus->number, devfn, where&~3, v);
-        case 2:
-            if (where&1) return -EINVAL;
-            pcic_read_config_dword(bus->number, devfn, where&~3, &v);
-            v = (v & ~(0xffff << (8*(where&3)))) |
-                                        ((0xffff&val) << (8*(where&3)));
-            return pcic_write_config_dword(bus->number, devfn, where&~3, v);
-        case 4:
-            if (where&3) return -EINVAL;
-            return pcic_write_config_dword(bus->number, devfn, where, val);
-    }
-    return -EINVAL;
+	switch (size) {
+	case 1:
+		pcic_read_config_dword(bus->number, devfn, where & ~3, &v);
+		v = (v & ~(0xff << (8 * (where & 3)))) | ((0xff & val) <<
+							  (8 * (where & 3)));
+		return pcic_write_config_dword(bus->number, devfn, where & ~3,
+					       v);
+	case 2:
+		if (where & 1)
+			return -EINVAL;
+		pcic_read_config_dword(bus->number, devfn, where & ~3, &v);
+		v = (v & ~(0xffff << (8 * (where & 3)))) |
+		    ((0xffff & val) << (8 * (where & 3)));
+		return pcic_write_config_dword(bus->number, devfn, where & ~3,
+					       v);
+	case 4:
+		if (where & 3)
+			return -EINVAL;
+		return pcic_write_config_dword(bus->number, devfn, where, val);
+	}
+	return -EINVAL;
 }
 
 static struct pci_ops pcic_ops = {
-    .read =     pcic_read_config,
-    .write =    pcic_write_config,
+	.read = pcic_read_config,
+	.write = pcic_write_config,
 };
 
 /*
@@ -240,163 +240,170 @@ static struct pci_ops pcic_ops = {
  */
 static int __init pcic_init(void)
 {
-    struct arc_pci *pcic;
-    unsigned int data;
+	struct arc_pci *pcic;
+	unsigned int data;
 
-    pcic = &pcic0;
+	pcic = &pcic0;
 
-    /* configure pci controller */
+	/* configure pci controller */
 
-    pcic->regs = (ARC_GRPCI_Regs_Map *) AHB_PCI_HOST_BRG_BASE;
+	pcic->regs = (ARC_GRPCI_Regs_Map *) AHB_PCI_HOST_BRG_BASE;
 
-    pcic->mem_resource.name  = "ARC PCI Memory space";
-    pcic->mem_resource.start = AHB_TO_PCI_MEM_START;
-    pcic->mem_resource.end   = AHB_TO_PCI_MEM_START + GRPCI_MEM_WINDOW -1; /* 256 MB */
-    pcic->mem_resource.flags = IORESOURCE_MEM;
+	pcic->mem_resource.name = "ARC PCI Memory space";
+	pcic->mem_resource.start = AHB_TO_PCI_MEM_START;
+	pcic->mem_resource.end = AHB_TO_PCI_MEM_START + GRPCI_MEM_WINDOW - 1;	/* 256 MB */
+	pcic->mem_resource.flags = IORESOURCE_MEM;
 
-    pcic->io_resource.name  = "ARC PCI IO space";
-    pcic->io_resource.start = AHB_TO_PCI_IO_START;
-    pcic->io_resource.end   = AHB_TO_PCI_IO_START + GRPCI_IO_WINDOW  -1;  /* 64 KB */
-    pcic->io_resource.flags = IORESOURCE_IO;
+	pcic->io_resource.name = "ARC PCI IO space";
+	pcic->io_resource.start = AHB_TO_PCI_IO_START;
+	pcic->io_resource.end = AHB_TO_PCI_IO_START + GRPCI_IO_WINDOW - 1;	/* 64 KB */
+	pcic->io_resource.flags = IORESOURCE_IO;
 
-    pcic->irq = PCI_IRQ;
+	pcic->irq = PCI_IRQ;
 
-    printk("Init AHB-PCI Bridge (GRPCI controller)\n");
+	printk("Init AHB-PCI Bridge (GRPCI controller)\n");
 
     /****************** AHB => PCI reachability *********************/
 
-    /* AHB requests starting at this will be translated to PCI Mem access */
-    ARC_BYPASS_STORE_PA(&pcic->regs->cfg_stat, AHB_TO_PCI_MEM_START);
+	/* AHB requests starting at this will be translated to PCI Mem access */
+	ARC_BYPASS_STORE_PA(&pcic->regs->cfg_stat, AHB_TO_PCI_MEM_START);
 
-    /* AHB requests starting at this will be translated to PCI I/O access
-     * This also implicitly defines when PCI Configuration Cycles will be
-     * generated. IO_ADDR + 64K
-     */
-    ARC_BYPASS_STORE_PA(&pcic->regs->iomap, AHB_TO_PCI_IO_START);
+	/* AHB requests starting at this will be translated to PCI I/O access
+	 * This also implicitly defines when PCI Configuration Cycles will be
+	 * generated. IO_ADDR + 64K
+	 */
+	ARC_BYPASS_STORE_PA(&pcic->regs->iomap, AHB_TO_PCI_IO_START);
 
     /******************* PCI => AHB reachability *********************/
 
-    /* Setup BAR1: for PCI -> AHB request
-     * Addresses 0x8000_0000 onwards from PCI side will be honoured
-     * by Bridge and ferried to AHB side
-     */
-    pcic_write_config_dword(0, 0xA8, PCI_BASE_ADDRESS_1, 0x80000000);
+	/* Setup BAR1: for PCI -> AHB request
+	 * Addresses 0x8000_0000 onwards from PCI side will be honoured
+	 * by Bridge and ferried to AHB side
+	 */
+	pcic_write_config_dword(0, 0xA8, PCI_BASE_ADDRESS_1, 0x80000000);
 
-    /* AHB address computed as follows
-     *  < upper 8 bits of page1 reg > << lower 24 bits of PCI addr
-     * So 0x8AAA_0000 from PCI side will become 0x0AAA_0000 on AHB side
-     */
-    ARC_BYPASS_STORE_PA(&pcic->regs->page1 , 0x00000000);
+	/* AHB address computed as follows
+	 *  < upper 8 bits of page1 reg > << lower 24 bits of PCI addr
+	 * So 0x8AAA_0000 from PCI side will become 0x0AAA_0000 on AHB side
+	 */
+	ARC_BYPASS_STORE_PA(&pcic->regs->page1, 0x00000000);
 
-    /* We dont user BAR0: still set it to non-zero
-     * (grpci considers BAR==0 as invalid) */
-    pcic_write_config_dword(0,0xA8,PCI_BASE_ADDRESS_0, 0x10000000);
+	/* We don't user BAR0: still set it to non-zero
+	 * (grpci considers BAR==0 as invalid) */
+	pcic_write_config_dword(0, 0xA8, PCI_BASE_ADDRESS_0, 0x10000000);
 #if 0
-    {
-    unsigned int for_page0;
-    unsigned int *page0;
+	{
+		unsigned int for_page0;
+		unsigned int *page0;
 
-    pcic_write_config_dword(0,0xA8,PCI_BASE_ADDRESS_0, 0x80000000);
-    pcic_read_config_dword(0, 0xA8, PCI_BASE_ADDRESS_0, &data);
-    pcic_write_config_dword(0,0xA8,PCI_BASE_ADDRESS_0, 0xFFFFFFFF);
-    pcic_read_config_dword(0, 0xA8, PCI_BASE_ADDRESS_0, &for_page0);
-    pcic_write_config_dword(0,0xA8,PCI_BASE_ADDRESS_0, data);
+		pcic_write_config_dword(0, 0xA8, PCI_BASE_ADDRESS_0,
+					0x80000000);
+		pcic_read_config_dword(0, 0xA8, PCI_BASE_ADDRESS_0, &data);
+		pcic_write_config_dword(0, 0xA8, PCI_BASE_ADDRESS_0,
+					0xFFFFFFFF);
+		pcic_read_config_dword(0, 0xA8, PCI_BASE_ADDRESS_0, &for_page0);
+		pcic_write_config_dword(0, 0xA8, PCI_BASE_ADDRESS_0, data);
 
-    for_page0 = (~for_page0+1) >> 1;
-    page0 = data + for_page0;
-    *page0 = 0x0;
-    }
+		for_page0 = (~for_page0 + 1) >> 1;
+		page0 = data + for_page0;
+		*page0 = 0x0;
+	}
 #endif
 
-    /* set as bus master and enable pci memory responses */
-    pcic_read_config_dword(0, 0xA8, PCI_COMMAND, &data);
-    pcic_write_config_dword(0, 0xA8, PCI_COMMAND,
-                data | (PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER));
+	/* set as bus master and enable pci memory responses */
+	pcic_read_config_dword(0, 0xA8, PCI_COMMAND, &data);
+	pcic_write_config_dword(0, 0xA8, PCI_COMMAND,
+				data | (PCI_COMMAND_MEMORY |
+					PCI_COMMAND_MASTER));
 
-    if (request_resource(&iomem_resource, &pcic->mem_resource) < 0)
-        goto out;
-    if (request_resource(&ioport_resource, &pcic->io_resource) < 0)
-        goto out_free_mem_resource;
+	if (request_resource(&iomem_resource, &pcic->mem_resource) < 0)
+		goto out;
+	if (request_resource(&ioport_resource, &pcic->io_resource) < 0)
+		goto out_free_mem_resource;
 
-    pcic->bus = pci_scan_bus(0, &pcic_ops, pcic);
+	pcic->bus = pci_scan_bus(0, &pcic_ops, pcic);
 
-    printk("Assigning PCI BARs.\n");
-    pci_assign_unassigned_resources();
+	printk("Assigning PCI BARs.\n");
+	pci_assign_unassigned_resources();
 
-    return 0;
+	return 0;
 
 out_free_mem_resource:
-    release_resource(&pcic->mem_resource);
-    printk(KERN_WARNING "out_free_mem_resource\n");
+	release_resource(&pcic->mem_resource);
+	printk(KERN_WARNING "out_free_mem_resource\n");
 
 out:
-    printk(KERN_WARNING "Skipping PCI bus scan due to resource conflict\n");
-    return 0;
+	printk(KERN_WARNING "Skipping PCI bus scan due to resource conflict\n");
+	return 0;
 }
-
 
 /*
  * Normally called from {do_}pci_scan_bus...
  */
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
-    struct pci_dev *dev;
-    int i, has_io, has_mem;
-    unsigned int cmd;
-    struct arc_pci *pcic;
+	struct pci_dev *dev;
+	int i, has_io, has_mem;
+	unsigned int cmd;
+	struct arc_pci *pcic;
 
-    pcic = (struct arc_pci *) bus->sysdata;
+	pcic = (struct arc_pci *)bus->sysdata;
 
-    /* Generic PCI bus probing sets these to point at
-     * &io{port,mem}_resouce which is wrong for us.
-     */
-    bus->resource[0] = &pcic->io_resource;
-    bus->resource[1] = &pcic->mem_resource;
+	/* Generic PCI bus probing sets these to point at
+	 * &io{port,mem}_resouce which is wrong for us.
+	 */
+	bus->resource[0] = &pcic->io_resource;
+	bus->resource[1] = &pcic->mem_resource;
 
-    if (bus->number != 0) {
-        printk("pcibios_fixup_bus: nonzero bus 0x%x\n", bus->number);
-        return;
-    }
+	if (bus->number != 0) {
+		printk("pcibios_fixup_bus: nonzero bus 0x%x\n", bus->number);
+		return;
+	}
 
-    list_for_each_entry(dev, &bus->devices, bus_list) {
+	list_for_each_entry(dev, &bus->devices, bus_list) {
 
-    /*
-     * Comment from i386 branch:
-     *     There are buggy BIOSes that forget to enable I/O and memory
-     *     access to PCI devices. We try to fix this, but we need to
-     *     be sure that the BIOS didn't forget to assign an address
-     *     to the device. [mj]
-     * OBP is a case of such BIOS :-)
-     */
-     has_io = has_mem = 0;
-     for(i=0; i<6; i++) {
-        unsigned long f = dev->resource[i].flags;
-        if (f & IORESOURCE_IO) {
-            has_io = 1;
-        } else if (f & IORESOURCE_MEM)
-            has_mem = 1;
-        }
-        pcic_read_config(dev->bus, dev->devfn, PCI_COMMAND, 2, &cmd);
-        if (has_io && !(cmd & PCI_COMMAND_IO)) {
-            printk("PCIC: Enabling I/O for device [%2x:%2x.%d]\n",
-                dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
-            cmd |= PCI_COMMAND_IO;
-            pcic_write_config(dev->bus, dev->devfn, PCI_COMMAND, 2, cmd);
-        }
-        if (has_mem && !(cmd & PCI_COMMAND_MEMORY)) {
-            printk("PCIC: Enabling memory for device [%2x:%2x.%d]\n",
-                dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
-            cmd |= PCI_COMMAND_MEMORY;
-            pcic_write_config(dev->bus, dev->devfn, PCI_COMMAND, 2, cmd);
-        }
+		/*
+		 * Comment from i386 branch:
+		 *     There are buggy BIOSes that forget to enable I/O and memory
+		 *     access to PCI devices. We try to fix this, but we need to
+		 *     be sure that the BIOS didn't forget to assign an address
+		 *     to the device. [mj]
+		 * OBP is a case of such BIOS :-)
+		 */
+		has_io = has_mem = 0;
+		for (i = 0; i < 6; i++) {
+			unsigned long f = dev->resource[i].flags;
+			if (f & IORESOURCE_IO) {
+				has_io = 1;
+			} else if (f & IORESOURCE_MEM)
+				has_mem = 1;
+		}
+		pcic_read_config(dev->bus, dev->devfn, PCI_COMMAND, 2, &cmd);
+		if (has_io && !(cmd & PCI_COMMAND_IO)) {
+			printk("PCIC: Enabling I/O for device [%2x:%2x.%d]\n",
+			       dev->bus->number, PCI_SLOT(dev->devfn),
+			       PCI_FUNC(dev->devfn));
+			cmd |= PCI_COMMAND_IO;
+			pcic_write_config(dev->bus, dev->devfn, PCI_COMMAND, 2,
+					  cmd);
+		}
+		if (has_mem && !(cmd & PCI_COMMAND_MEMORY)) {
+			printk
+			    ("PCIC: Enabling memory for device [%2x:%2x.%d]\n",
+			     dev->bus->number, PCI_SLOT(dev->devfn),
+			     PCI_FUNC(dev->devfn));
+			cmd |= PCI_COMMAND_MEMORY;
+			pcic_write_config(dev->bus, dev->devfn, PCI_COMMAND, 2,
+					  cmd);
+		}
 
-        /* All slots routed to one irq.
-        * vineetg: We are only updating pci_dev->irq and not setting PCI_INT_LINE
-        *           If the driver is using pci_dev->irq to request IRQ then ok
-        *           if it tries to read the PCI_INT_LINE it's gonna fail
-        */
-        dev->irq = pcic->irq;
-    }
+		/* All slots routed to one irq.
+		 * vineetg: We are only updating pci_dev->irq and not setting PCI_INT_LINE
+		 *           If the driver is using pci_dev->irq to request IRQ then ok
+		 *           if it tries to read the PCI_INT_LINE it's gonna fail
+		 */
+		dev->irq = pcic->irq;
+	}
 }
 
 /*
@@ -414,87 +421,87 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
  */
 void
 pcibios_align_resource(void *data, struct resource *res,
-               resource_size_t size, resource_size_t align)
+		       resource_size_t size, resource_size_t align)
 {
-    struct pci_dev *dev = data;
-    struct arc_pci *pcic = dev->sysdata;
-    unsigned long start = res->start;
+	struct pci_dev *dev = data;
+	struct arc_pci *pcic = dev->sysdata;
+	unsigned long start = res->start;
 
-    if (res->flags & IORESOURCE_IO) {
-        /* Make sure we start at our min on all hoses */
-        if (start < PCIBIOS_MIN_IO + pcic->io_resource.start)
-            start = PCIBIOS_MIN_IO + pcic->io_resource.start;
+	if (res->flags & IORESOURCE_IO) {
+		/* Make sure we start at our min on all hoses */
+		if (start < PCIBIOS_MIN_IO + pcic->io_resource.start)
+			start = PCIBIOS_MIN_IO + pcic->io_resource.start;
 
-        /*
-         * Put everything into 0x00-0xff region modulo 0x400
-         */
-        if (start & 0x300)
-            start = (start + 0x3ff) & ~0x3ff;
-    } else if (res->flags & IORESOURCE_MEM) {
-        /* Make sure we start at our min on all hoses */
-        if (start < PCIBIOS_MIN_MEM + pcic->mem_resource.start)
-            start = PCIBIOS_MIN_MEM + pcic->mem_resource.start;
-    }
+		/*
+		 * Put everything into 0x00-0xff region modulo 0x400
+		 */
+		if (start & 0x300)
+			start = (start + 0x3ff) & ~0x3ff;
+	} else if (res->flags & IORESOURCE_MEM) {
+		/* Make sure we start at our min on all hoses */
+		if (start < PCIBIOS_MIN_MEM + pcic->mem_resource.start)
+			start = PCIBIOS_MIN_MEM + pcic->mem_resource.start;
+	}
 
-    res->start = start;
+	res->start = start;
 }
-
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
-    u16 cmd, old_cmd;
-    int idx;
-    struct resource *r;
+	u16 cmd, old_cmd;
+	int idx;
+	struct resource *r;
 
-    pci_read_config_word(dev, PCI_COMMAND, &cmd);
-    old_cmd = cmd;
-    for(idx=0; idx<6; idx++) {
-        /* Only set up the requested stuff */
-        if (!(mask & (1<<idx)))
-            continue;
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	old_cmd = cmd;
+	for (idx = 0; idx < 6; idx++) {
+		/* Only set up the requested stuff */
+		if (!(mask & (1 << idx)))
+			continue;
 
-        r = &dev->resource[idx];
-        if (!r->start && r->end) {
-            printk(KERN_ERR "PCI: Device %s not available because of resource collisions\n", pci_name(dev));
-            return -EINVAL;
-        }
-        if (r->flags & IORESOURCE_IO)
-            cmd |= PCI_COMMAND_IO;
-        if (r->flags & IORESOURCE_MEM)
-            cmd |= PCI_COMMAND_MEMORY;
-    }
-    if (dev->resource[PCI_ROM_RESOURCE].start)
-        cmd |= PCI_COMMAND_MEMORY;
-    if (cmd != old_cmd) {
-        printk("PCI: Enabling device %s (%04x -> %04x)\n", pci_name(dev), old_cmd, cmd);
-        pci_write_config_word(dev, PCI_COMMAND, cmd);
-    }
-    return 0;
+		r = &dev->resource[idx];
+		if (!r->start && r->end) {
+			printk(KERN_ERR
+			       "PCI: Device %s not available because of resource collisions\n",
+			       pci_name(dev));
+			return -EINVAL;
+		}
+		if (r->flags & IORESOURCE_IO)
+			cmd |= PCI_COMMAND_IO;
+		if (r->flags & IORESOURCE_MEM)
+			cmd |= PCI_COMMAND_MEMORY;
+	}
+	if (dev->resource[PCI_ROM_RESOURCE].start)
+		cmd |= PCI_COMMAND_MEMORY;
+	if (cmd != old_cmd) {
+		printk("PCI: Enabling device %s (%04x -> %04x)\n",
+		       pci_name(dev), old_cmd, cmd);
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+	}
+	return 0;
 }
 
 int pcibios_assign_resource(struct pci_dev *pdev, int resource)
 {
-    return -ENXIO;
+	return -ENXIO;
 }
-
-
 
 void __init pcibios_update_irq(struct pci_dev *dev, int irq)
 {
-        pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
+	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
 /*
  * Other archs parse arguments here.
  */
-char * __devinit pcibios_setup(char *str)
+char *__devinit pcibios_setup(char *str)
 {
-    return str;
+	return str;
 }
 
 int pcic_present(void)
 {
-    return 1;
+	return 1;
 }
 
 subsys_initcall(pcic_init);

@@ -8,9 +8,6 @@
  * Vineetg: Feb 2008
  *  -Remove local_irq_count( ) from irq_stat no longer required by
  *  generic code
- *
- * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
- *  -Taken from m68knommu
  */
 
 #ifndef _ASM_ARC_HARDIRQ_H
@@ -20,9 +17,9 @@
 #include <linux/irq.h>
 
 typedef struct {
-    unsigned int __softirq_pending;
+	unsigned int __softirq_pending;
 } ____cacheline_aligned irq_cpustat_t;
 
-#include <linux/irq_cpustat.h>  /* Standard mappings for irq_cpustat_t above */
+#include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */
 
 #endif /* _ASM_ARC_HARDIRQ_H */

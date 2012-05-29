@@ -10,7 +10,7 @@
 #define __ASM_SPINLOCK_TYPES_H
 
 #ifndef __LINUX_SPINLOCK_TYPES_H
-# error "please don't include this file directly"
+#error "please don't include this file directly"
 #endif
 
 typedef struct {
@@ -30,10 +30,10 @@ typedef struct {
 */
 
 typedef struct {
-	raw_spinlock_t 			lock_mutex;
-	volatile unsigned int 	lock;
+	raw_spinlock_t lock_mutex;
+	volatile unsigned int lock;
 } raw_rwlock_t;
 
-#define __RAW_RW_LOCK_UNLOCKED		{ __RAW_SPIN_LOCK_UNLOCKED, RW_LOCK_BIAS }
+#define __RAW_RW_LOCK_UNLOCKED	{ __RAW_SPIN_LOCK_UNLOCKED, RW_LOCK_BIAS }
 
 #endif

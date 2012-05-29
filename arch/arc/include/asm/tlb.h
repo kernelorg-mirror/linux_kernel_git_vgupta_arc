@@ -27,33 +27,32 @@
  * New Cmds because of MMU Changes
  *************************************/
 
-#if (CONFIG_ARC_MMU_VER >=2)
+#if (CONFIG_ARC_MMU_VER >= 2)
 
-#define TLBWriteNI  0x5     /* JH special -- write JTLB without inv uTLBs */
-#define TLBIVUTLB   0x6     /*JH special -- explicitly inv uTLBs */
+#define TLBWriteNI  0x5		/* JH special -- write JTLB without inv uTLBs */
+#define TLBIVUTLB   0x6		/*JH special -- explicitly inv uTLBs */
 
-#elif (METAL_FIX==1)   /* Metal Fix: Old MMU but a new Cmd */
+#elif (METAL_FIX == 1)		/* Metal Fix: Old MMU but a new Cmd */
 
-#define TLBWriteNI  TLBWrite    /* WriteNI doesn't exist on this H/w */
-#define TLBIVUTLB   0x5         /* This is the only additional cmd */
+#define TLBWriteNI  TLBWrite	/* WriteNI doesn't exist on this H/w */
+#define TLBIVUTLB   0x5		/* This is the only additional cmd */
 
 #else /* MMU V1 */
 
-#undef TLBWriteNI       /* These cmds don't exist on older MMU */
+#undef TLBWriteNI		/* These cmds don't exist on older MMU */
 #undef TLBIVUTLB
 
 #endif
 
-#define PTE_BITS_IN_PD0    (_PAGE_GLOBAL | _PAGE_VALID)
-#define PTE_BITS_IN_PD1    (PAGE_MASK | \
-                             _PAGE_CACHEABLE | \
-                             _PAGE_EXECUTE | _PAGE_WRITE | _PAGE_READ | \
-                             _PAGE_K_EXECUTE | _PAGE_K_WRITE | _PAGE_K_READ)
+#define PTE_BITS_IN_PD0		(_PAGE_GLOBAL | _PAGE_VALID)
+#define PTE_BITS_IN_PD1		(PAGE_MASK | _PAGE_CACHEABLE | \
+				_PAGE_EXECUTE | _PAGE_WRITE | _PAGE_READ | \
+				_PAGE_K_EXECUTE | _PAGE_K_WRITE | _PAGE_K_READ)
 
 #ifndef __ASSEMBLY__
 
 void arc_mmu_init(void);
-void tlb_find_asid(unsigned int asid);
+extern char *arc_mmu_mumbojumbo(int cpu_id, char *buf);
 void __init read_decode_mmu_bcr(void);
 
 #define tlb_flush(tlb) local_flush_tlb_mm((tlb)->mm)
@@ -71,9 +70,7 @@ void __init read_decode_mmu_bcr(void);
 #define tlb_start_vma(tlb, vma)
 #define tlb_end_vma(tlb, vma)
 
-
-static inline void enter_lazy_tlb(struct mm_struct *mm,
-                    struct task_struct *tsk)
+static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }
 
@@ -84,7 +81,12 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 #include <asm/tlb-mmu1.h>
 #endif
 
+#ifdef CONFIG_ARC_TLB_PARANOIA
+void tlb_paranoid_check(unsigned int pid_sw, unsigned long address);
+#else
+#define tlb_paranoid_check(a, b)
+#endif
 
 #endif
 
-#endif  /* _ASM_ARC_TLB_H */
+#endif /* _ASM_ARC_TLB_H */

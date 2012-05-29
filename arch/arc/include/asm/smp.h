@@ -13,20 +13,15 @@
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
-/*
- * Setup the SMP cpu_possible_map
- */
-extern void smp_init_cpus(void);
-
-/* TODO-vineetg
- shd have hard_smp_processor_id as well in case we need it
-*/
-
 typedef struct {
-    void *stack;
-    void *c_entry;
-    int cpu_id;
-}
-secondary_boot_t;
+	void *stack;
+	void *c_entry;
+	int cpu_id;
+} secondary_boot_t;
+
+extern void smp_ipi_init(void);
+void __init smp_init_cpus(void)
+extern void wakeup_secondary(void);
+extern void first_lines_of_secondary(void);
 
 #endif

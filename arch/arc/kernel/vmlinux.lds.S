@@ -81,7 +81,7 @@ SECTIONS
  *
  ************************************************************************/
 
-        _init_begin = .;
+        __init_begin = .;
 
     .init.ramfs : {
         INIT_RAM_FS
@@ -108,7 +108,7 @@ SECTIONS
     }
 
     . = ALIGN(PAGE_SIZE);
-    _init_end = .;
+    __init_end = .;
 
     .text : {           /* Real text segment        */
         _text = .;      /* Text and read-only data  */

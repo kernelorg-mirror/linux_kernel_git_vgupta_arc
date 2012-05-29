@@ -33,7 +33,6 @@
 
 #include <asm-generic/ide_iops.h>
 
-
 #endif /* __KERNEL__ */
 
 #endif

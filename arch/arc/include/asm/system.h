@@ -41,47 +41,10 @@
 #ifdef __KERNEL__
 
 /******************************************************************
- * Atomically Exchange memory with a register
- ******************************************************************/
-
-static inline unsigned long __xchg_32(unsigned long with, volatile void *ptr)
-{
-    /* On ARC700, "ex" is inherently atomic so don't need IRQ disabling */
-
-    __asm__ __volatile__ (
-                " ex  %0, [%1]"
-                  : "+r" (with)
-                  : "r"(ptr)
-                  : "memory" );
-
-    return (with);
-}
-
-/* This function doesn't exist, so that for non supported xchg (64 bits)
- * we will get link errors.
- * shamelessly copied from MIPS
- */
-extern void __xchg_bad_pointer(void);
-
-static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
-                                        int size)
-{
-    switch (size) {
-        case 4:
-            return __xchg_32(val, ptr);
-    }
-    __xchg_bad_pointer();
-    return val;
-}
-
-#define xchg(ptr, with) \
-  ((__typeof__ (*(ptr)))__xchg ((unsigned long)(with), (ptr), sizeof (*(ptr))))
-
-/******************************************************************
  * Barriers
  ******************************************************************/
 
-/* TODO-vineetg: Need to see what this does, dont we need sync anywhere */
+/* TODO-vineetg: Need to see what this does, don't we need sync anywhere */
 #define mb() __asm__ __volatile__ ("" : : : "memory")
 #define rmb() mb()
 #define wmb() mb()
@@ -99,17 +62,17 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 #define smp_wmb()       barrier()
 #endif
 
-#define smp_read_barrier_depends()      do { } while(0)
+#define smp_read_barrier_depends()      do { } while (0)
 
 /******************************************************************
  * Arch Depenedent Context Switch Macro  called by sched
  * This in turn calls the regfile switching macro __switch_to ( )
  ******************************************************************/
-struct task_struct; /* to prevent cyclic dependencies */
+struct task_struct;		/* to prevent cyclic dependencies */
 
 /* switch_to macro based on the ARM implementaion */
 extern struct task_struct *__switch_to(struct task_struct *prev,
-                                    struct task_struct *next);
+				       struct task_struct *next);
 
 #ifdef CONFIG_ARCH_ARC_FPU
 
@@ -117,38 +80,36 @@ extern struct task_struct *__switch_to(struct task_struct *prev,
 
 #ifdef HW_BUG_101581
 
-extern void fpu_save_restore(struct task_struct *prev, struct task_struct *next);
+extern void fpu_save_restore(struct task_struct *prev,
+			     struct task_struct *next);
 
-#define ARC_FPU_PREV(p,n)   fpu_save_restore(p,n)
+#define ARC_FPU_PREV(p, n)	fpu_save_restore(p, n)
 #define ARC_FPU_NEXT(t)
 
-#else  /* !HW_BUG_101581 */
+#else /* !HW_BUG_101581 */
 
-extern void inline fpu_save(struct task_struct *tsk);
-extern void inline fpu_restore(struct task_struct *tsk);
+extern inline void fpu_save(struct task_struct *tsk);
+extern inline void fpu_restore(struct task_struct *tsk);
 
-#define ARC_FPU_PREV(p,n)   fpu_save(p)
-#define ARC_FPU_NEXT(t)     fpu_restore(t)
+#define ARC_FPU_PREV(p, n)	fpu_save(p)
+#define ARC_FPU_NEXT(t)		fpu_restore(t)
 
-#endif  /* !HW_BUG_101581 */
+#endif /* !HW_BUG_101581 */
 
-#else  /* !CONFIG_ARCH_ARC_FPU */
+#else /* !CONFIG_ARCH_ARC_FPU */
 
-#define ARC_FPU_PREV(p,n)
-#define ARC_FPU_NEXT(t)
+#define ARC_FPU_PREV(p, n)
+#define ARC_FPU_NEXT(n)
 
-#endif   /* !CONFIG_ARCH_ARC_FPU */
+#endif /* !CONFIG_ARCH_ARC_FPU */
 
-#define switch_to(prev, next, last)         \
-{                                           \
-    do {                                    \
-        ARC_FPU_PREV(prev, next);           \
-        last = __switch_to( prev, next);    \
-        ARC_FPU_NEXT(next);                 \
-        mb();                               \
-                                            \
-    }while (0);                             \
-}
+#define switch_to(prev, next, last)	\
+do {					\
+	ARC_FPU_PREV(prev, next);	\
+	last = __switch_to(prev, next);\
+	ARC_FPU_NEXT(next);		\
+	mb();				\
+} while (0);
 
 /* Hook into Schedular to be invoked prior to Context Switch
  *  -If ARC H/W profiling enabled it does some stuff
@@ -160,39 +121,27 @@ extern void inline fpu_restore(struct task_struct *tsk);
 
 /* Things to do for event logging prior to Context switch */
 #ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
-#define PREP_ARCH_SWITCH_ACT1(next)                                 \
-do {                                                                \
-    if (next->mm)                                                   \
-        take_snap(SNAP_PRE_CTXSW_2_U,                               \
-                      (unsigned int) __builtin_return_address(0),   \
-                      current_thread_info()->preempt_count);        \
-    else                                                            \
-        take_snap(SNAP_PRE_CTXSW_2_K,                               \
-                      (unsigned int) __builtin_return_address(0),   \
-                      current_thread_info()->preempt_count);        \
-}                                                                   \
-while(0)
+#define PREP_ARCH_SWITCH_ACT1(next)					\
+do {									\
+	if (next->mm)							\
+		take_snap(SNAP_PRE_CTXSW_2_U,				\
+			 (unsigned int) __builtin_return_address(0),	\
+			 current_thread_info()->preempt_count);		\
+	else								\
+		take_snap(SNAP_PRE_CTXSW_2_K,				\
+			 (unsigned int) __builtin_return_address(0),	\
+			 current_thread_info()->preempt_count);		\
+}									\
+while (0)
 #else
 #define PREP_ARCH_SWITCH_ACT1(next)
 #endif
 
-
-/* Things to do for hardware based profiling prior to Context Switch */
-#ifdef CONFIG_ARC_PROFILING
-extern void arc_ctx_callout(struct task_struct *next);
-#define PREP_ARCH_SWITCH_ACT2(next)    arc_ctx_callout(next)
-#else
-#define PREP_ARCH_SWITCH_ACT2(next)
-#endif
-
 /* This def is the one used by schedular */
-#define prepare_arch_switch(next)   \
-do {                                \
-    PREP_ARCH_SWITCH_ACT1(next);     \
-    PREP_ARCH_SWITCH_ACT2(next);    \
-}                                   \
-while(0)
-
+#define prepare_arch_switch(next)		\
+do {						\
+	PREP_ARCH_SWITCH_ACT1(next);		\
+} while (0)
 
 /******************************************************************
  * Miscll stuff
@@ -211,22 +160,22 @@ static inline void sched_cacheflush(void)
 static inline unsigned long arch_align_stack(unsigned long sp)
 {
 #ifdef CONFIG_ARCH_ARC_SPACE_RND
-    /* ELF loader sets this flag way early.
-     * So no need to check for multiple things like
-     *   !(current->personality & ADDR_NO_RANDOMIZE)
-     *   randomize_va_space
-     */
-    if (current->flags & PF_RANDOMIZE) {
+	/* ELF loader sets this flag way early.
+	 * So no need to check for multiple things like
+	 *   !(current->personality & ADDR_NO_RANDOMIZE)
+	 *   randomize_va_space
+	 */
+	if (current->flags & PF_RANDOMIZE) {
 
-        /* Stack grows down for ARC */
+		/* Stack grows down for ARC */
 		sp -= get_random_int() & ~PAGE_MASK;
-    }
+	}
 #endif
 
-    /* always align stack to 16 bytes */
-    sp &= ~0xF;
+	/* always align stack to 16 bytes */
+	sp &= ~0xF;
 
-    return sp;
+	return sp;
 }
 
 /******************************************************************
@@ -236,41 +185,35 @@ static inline unsigned long arch_align_stack(unsigned long sp)
  *     eventlog.h in that file
  ******************************************************************/
 
-
-#include <plat_memmap.h>    /* Peripherals Memory Map */
-#include <asm/event-log.h>  /* event log from "C" */
+#include <plat_memmap.h>	/* Peripherals Memory Map */
+#include <asm/event-log.h>	/* event log from "C" */
 
 void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs);
-void raw_printk(const char *str, unsigned int num);
-void raw_printk5(const char *str, unsigned int n1, unsigned int n2,
-                    unsigned int n3, unsigned int n4);
 
 /******************************************************************
  * printk calls in __init code, so that their literal strings go into
  * .init.rodata (which gets reclaimed) instead of in .rodata
  ******************************************************************/
-#define INIT_PRINT 0
+#define INIT_PRINT 2
 
 #if (INIT_PRINT == 2)
-#define printk_init(fmt, args...)   printk(fmt, ## args)
+#define printk_init(fmt, ...)   pr_info(fmt, ##__VA_ARGS__)
 #elif (INIT_PRINT == 1)
-#define printk_init(fmt, args...)
+#define printk_init(fmt, ...)
 #else
-#define printk_init(fmt, args...)                   \
-({                                                  \
-    static const __initconst char __fmt[] = fmt;    \
-    printk(__fmt, ## args);                         \
+#define printk_init(fmt, ...)			\
+({							\
+	static const __initconst char __fmt[] = fmt;	\
+	pr_info(__fmt, ##__VA_ARGS__);				\
 })
 #endif
 
 #endif /*__KERNEL__*/
 
-#else  /* !__ASSEMBLY__ */
+#else /* !__ASSEMBLY__ */
 
-#include <asm/event-log.h>  /* event log from Assembly */
-
+#include <asm/event-log.h>	/* event log from Assembly */
 
 #endif /* __ASSEMBLY__ */
-
 
 #endif /* ASM_ARC_SYSTEM_H */

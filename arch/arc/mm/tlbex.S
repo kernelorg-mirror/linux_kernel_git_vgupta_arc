@@ -1,35 +1,35 @@
 /*
+ * TLB Exception Handling for ARC
+ *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * TLB Exception Handling Code for A700
- *
- * vineetg: April 2011 :
+ * Vineetg: April 2011 :
  *  -MMU v1: moved out legacy code into a seperate file
  *  -MMU v3: PD{0,1} bits layout changed: They don't overlap anymore,
-        helps avoid a shift when preparing PD0 from PTE
+ *      helps avoid a shift when preparing PD0 from PTE
  *  -CONFIG_ARC_MMU_SASID: support for ARC MMU Shared Address spaces
  *      CONV_PTE_TO_TLB can create shared TLB entries now.
  *
  * Vineetg: July 2009
- *  - For MMU V2, we need not do heuristics at the time of commiting a D-TLB
- *      entry, so that it doesn't knock out it's I-TLB entry
- *  - Some more fine tuning:
- *      bmsk instead of add, asl.cc instead of branch, delay slot utilise etc
+ *  -For MMU V2, we need not do heuristics at the time of commiting a D-TLB
+ *   entry, so that it doesn't knock out it's I-TLB entry
+ *  -Some more fine tuning:
+ *   bmsk instead of add, asl.cc instead of branch, delay slot utilise etc
  *
  * Vineetg: July 2009
- *  - Practically rewrote the I/D TLB Miss handlers
- *    Now 40 and 135 instructions a peice as compared to 131 and 449 resp.
- *    Hence Leaner by 1.5 K
- *    Used Conditional arithmetic to replace excessive branching
- *    Also used short instructions wherever possible
+ *  -Practically rewrote the I/D TLB Miss handlers
+ *   Now 40 and 135 instructions a peice as compared to 131 and 449 resp.
+ *   Hence Leaner by 1.5 K
+ *   Used Conditional arithmetic to replace excessive branching
+ *   Also used short instructions wherever possible
  *
  * Vineetg: Aug 13th 2008
- *  - Passing ECR (Exception Cause REG) to do_page_fault( ) for printing
- *    more information in case of a Fatality
+ *  -Passing ECR (Exception Cause REG) to do_page_fault( ) for printing
+ *   more information in case of a Fatality
  *
  * Vineetg: March 25th Bug #92690
  *  -Added Debug Code to check if sw-ASID == hw-ASID
@@ -37,14 +37,14 @@
  * Rahul Trivedi, Amit Bhor: Codito Technologies 2004
  */
 
-    .cpu A7
+	.cpu A7
 
 #include <linux/linkage.h>
 #include <asm/entry.h>
 #include <asm/tlb.h>
-#include <asm/traps.h>
 #include <asm/pgtable.h>
 #include <asm/event-log-asm.h>
+#include <asm/arcregs.h>
 
 ;--------------------------------------------------------------------------
 ; Temporary Variables used to Free UP a REG at the entry of Exception
@@ -54,12 +54,12 @@
 ; TODO: This wont work in SMP
 ;--------------------------------------------------------------------------
 .section  .data.arcfp
-    .global ex_saved_reg1       ; Holds r0-r3 for duration of TLB Refill Code
-    .align 32                   ; IMP: Must be Cache Line aligned
-    .type   ex_saved_reg1, @object
-    .size   ex_saved_reg1, 16
+	.global ex_saved_reg1	; Holds r0-r3 for duration of TLB Refill Code
+	.align 32		; IMP: Must be Cache Line aligned
+	.type   ex_saved_reg1, @object
+	.size   ex_saved_reg1, 16
 ex_saved_reg1:
-    .zero 4
+	.zero 4
 
 ;============================================================================
 ;  Troubleshooting Stuff
@@ -76,70 +76,38 @@ ex_saved_reg1:
 
 #ifdef CONFIG_ARC_TLB_PARANOIA
 
-    ; make sure h/w ASID is same as s/w ASID
+	; make sure h/w ASID is same as s/w ASID
 
-    GET_CURR_TASK_ON_CPU  r0
-    ld r0, [r0, TASK_ACT_MM]
-    ld r0, [r0, MM_CTXT+MM_CTXT_ASID]
+	GET_CURR_TASK_ON_CPU  r0
+	ld r0, [r0, TASK_ACT_MM]
+	ld r0, [r0, MM_CTXT+MM_CTXT_ASID]
 
-    lr r1, [ARC_REG_PID]
-    and r1, r1, 0xFF
-    cmp r1, r0
-    beq 5f
+	lr r1, [ARC_REG_PID]
+	and r1, r1, 0xFF
+	cmp r1, r0
+	beq 5f
 
-    ; H/w and S/w ASId don't match, but we maybe in kernel
-    lr  r0, [erstatus]
-    and.f   0, r0, STATUS_U_MASK
-    bz  5f  ;In kernel so not error
+	; H/w and S/w ASId don't match, but we maybe in kernel
+	lr  r0, [erstatus]
+	and.f   0, r0, STATUS_U_MASK
+	bz  5f  ;In kernel so not error
 
-    ; We sure are in troubled waters, Flag the error, but to do so
-    ; need to switch to kernel mode stack to call error routine
-    GET_CURR_TASK_ON_CPU  sp
-    ld  sp, [sp, TASK_THREAD_INFO]
-    add sp, sp, ( THREAD_SIZE - 4 )
+	; We sure are in troubled waters, Flag the error, but to do so
+	; need to switch to kernel mode stack to call error routine
+	GET_CURR_TASK_ON_CPU  sp
+	ld  sp, [sp, TASK_THREAD_INFO]
+	add sp, sp, ( THREAD_SIZE - 4 )
 
-    ; Call printk to shoutout aloud
-    mov r0, 1
-    j print_asid_mismatch
+	; Call printk to shoutout aloud
+	mov r0, 1
+	j print_asid_mismatch
 
 5:   ; ASIDs match so proceed normally
-    nop
+	nop
 
 #endif
 
 .endm
-
-;-----------------------------------------------------------------
-; Linux keeps Page Directory Pointer in task->active_mm->pdg
-; To save the 3 dependent loads, we cache it in MMU_SCRATCH Reg
-;
-; This code verifies the SW and HW PGD are same for current task.
-
-.macro DBG_PDG_MISMATCH
-
-#ifdef CONFIG_ARC_TLB_PARANOIA
-
-    lr r0, [ARC_REG_SCRATCH_DATA0]
-    GET_CURR_TASK_ON_CPU  r1
-    ld r1, [r1, TASK_ACT_MM]
-    ld r1, [r1, MM_PGD]
-    cmp  r1, r0
-    beq  59f
-
-    ; We sure are in troubled waters, Flag the error, but to do so
-    ; need to switch to kernel mode stack to call error routine
-    GET_CURR_TASK_ON_CPU  sp
-    ld  sp, [sp, TASK_THREAD_INFO]
-    add sp, sp, ( THREAD_SIZE - 4 )
-
-    j print_pgd_mismatch
-
-59:
-
-#endif
-
-.endm
-
 
 ;============================================================================
 ;TLB Miss handling Code
@@ -150,38 +118,37 @@ ex_saved_reg1:
 ; OUT: r0 = PTE faulted on, r1 = ptr to PTE, r2 = Faulting V-address
 .macro LOAD_FAULT_PTE
 
-    lr  r2, [efa]
+	lr  r2, [efa]
 
 #ifndef CONFIG_SMP
-    lr  r1, [ARC_REG_SCRATCH_DATA0] ; current pgd
+	lr  r1, [ARC_REG_SCRATCH_DATA0] ; current pgd
 #else
-    GET_CURR_TASK_ON_CPU  r1
-    ld  r1, [r1, TASK_ACT_MM]
-    ld  r1, [r1, MM_PGD]
+	GET_CURR_TASK_ON_CPU  r1
+	ld  r1, [r1, TASK_ACT_MM]
+	ld  r1, [r1, MM_PGD]
 #endif
 
-    lsr     r0, r2, PGDIR_SHIFT     ; Bits for indexing into PGD
-    ld.as   r1, [r1, r0]            ; PGD entry corresp to faulting addr
-    and.f   r1, r1, PAGE_MASK       ; Ignoring protection and other flags
-                                    ;   contains Ptr to Page Table
-    bz.d    do_slow_path_pf         ; if no Page Table, do page fault
+	lsr     r0, r2, PGDIR_SHIFT     ; Bits for indexing into PGD
+	ld.as   r1, [r1, r0]            ; PGD entry corresp to faulting addr
+	and.f   r1, r1, PAGE_MASK       ; Ignoring protection and other flags
+	;   contains Ptr to Page Table
+	bz.d    do_slow_path_pf         ; if no Page Table, do page fault
 
-    ; Get the PTE entry: The idea is
-    ; (1) x = addr >> PAGE_SHIFT  => to mask out page offset bits from @fault-addr
-    ; (2) y = x & (PTRS_IN_PGD - 1) = > to get index
-    ; (3) z = pgtbl[y]
-    ; To avoid the multiply by in end, we do the -2, <<2 below
+	; Get the PTE entry: The idea is
+	; (1) x = addr >> PAGE_SHIFT 	-> masks page-off bits from @fault-addr
+	; (2) y = x & (PTRS_IN_PGD - 1) -> to get index
+	; (3) z = pgtbl[y]
+	; To avoid the multiply by in end, we do the -2, <<2 below
 
-    lsr     r0, r2, (PAGE_SHIFT - 2)
-    and     r0, r0, ( (PTRS_PER_PTE-1) << 2)
-    ld.aw   r0, [r1, r0]            ; get the pte entry and pte ptr corresp to
-                                    ;    faulted addr
+	lsr     r0, r2, (PAGE_SHIFT - 2)
+	and     r0, r0, ( (PTRS_PER_PTE-1) << 2)
+	ld.aw   r0, [r1, r0]            ; get PTE and PTE ptr for fault addr
 #ifdef CONFIG_ARC_TLB_PROFILE
-    and.f 0, r0, _PAGE_PRESENT
-    bz   1f
-    ld   r2, [num_pte_not_present]
-    add  r2, r2, 1
-    st   r2, [num_pte_not_present]
+	and.f 0, r0, _PAGE_PRESENT
+	bz   1f
+	ld   r2, [num_pte_not_present]
+	add  r2, r2, 1
+	st   r2, [num_pte_not_present]
 1:
 #endif
 
@@ -193,28 +160,28 @@ ex_saved_reg1:
 ; IN: r0 = PTE, r1 = ptr to PTE
 
 .macro CONV_PTE_TO_TLB
-    and r3, r0, PTE_BITS_IN_PD1 ; Extract permission flags+PFN from PTE
-    sr  r3, [ARC_REG_TLBPD1]    ; these go in PD1
+	and r3, r0, PTE_BITS_IN_PD1 ; Extract permission flags+PFN from PTE
+	sr  r3, [ARC_REG_TLBPD1]    ; these go in PD1
 
-    and r2, r0, PTE_BITS_IN_PD0 ; Extract other PTE flags: (V)alid, (G)lb
+	and r2, r0, PTE_BITS_IN_PD0 ; Extract other PTE flags: (V)alid, (G)lb
 #if (CONFIG_ARC_MMU_VER <= 2)   /* Neednot be done with v3 onwards */
-    lsr r2, r2                  ; shift PTE flags to match layout in PD0
+	lsr r2, r2                  ; shift PTE flags to match layout in PD0
 #endif
 
-    lr  r3,[ARC_REG_TLBPD0]     ; MMU prepares PD0 with vaddr and asid
+	lr  r3,[ARC_REG_TLBPD0]     ; MMU prepares PD0 with vaddr and asid
 
 #ifdef CONFIG_ARC_MMU_SASID
-    and.f 0, r0, _PAGE_SHARED_CODE
-    bz  1f
+	and.f 0, r0, _PAGE_SHARED_CODE
+	bz  1f
 
-    ld.as r1, [r1, PTRS_PER_PTE]       ; sasid
-    or    r2, r2, _PAGE_SHARED_CODE_H  ; S | V
-    bic   r3, r3, 0xFF                 ; vaddr | ---
-    or    r3, r3, r1                   ; vaddr | sasid
+	ld.as r1, [r1, PTRS_PER_PTE]       ; sasid
+	or    r2, r2, _PAGE_SHARED_CODE_H  ; S | V
+	bic   r3, r3, 0xFF                 ; vaddr | ---
+	or    r3, r3, r1                   ; vaddr | sasid
 1:
 #endif
-    or  r3, r3, r2              ; S | vaddr | {sasid|asid}
-    sr  r3,[ARC_REG_TLBPD0]     ; rewrite PD0
+	or  r3, r3, r2              ; S | vaddr | {sasid|asid}
+	sr  r3,[ARC_REG_TLBPD0]     ; rewrite PD0
 .endm
 
 ;-----------------------------------------------------------------
@@ -222,44 +189,39 @@ ex_saved_reg1:
 
 .macro COMMIT_ENTRY_TO_MMU
 
-    /* Get free TLB slot: Set = computed from vaddr, way = random */
-    sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
+	/* Get free TLB slot: Set = computed from vaddr, way = random */
+	sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
 
-    /* Commit the Write */
+	/* Commit the Write */
 #if (CONFIG_ARC_MMU_VER >= 2)   /* introduced in v2 */
-    sr TLBWriteNI, [ARC_REG_TLBCOMMAND]
+	sr TLBWriteNI, [ARC_REG_TLBCOMMAND]
 #else
-    sr TLBWrite, [ARC_REG_TLBCOMMAND]
+	sr TLBWrite, [ARC_REG_TLBCOMMAND]
 #endif
 .endm
 
 .macro FREEUP_SCRATCH_REGS
-    st    r0, [ex_saved_reg1]
-    mov_s r0, ex_saved_reg1
-    st_s  r1, [r0, 4]
-    st_s  r2, [r0, 8]
-    st_s  r3, [r0, 12]
+	st    r0, [ex_saved_reg1]
+	mov_s r0, ex_saved_reg1
+	st_s  r1, [r0, 4]
+	st_s  r2, [r0, 8]
+	st_s  r3, [r0, 12]
 
-    ; take a snapshot of upon entering FAST Path TLB Hdlr
-    TAKE_SNAP_ASM r0, r1, SNAP_EXCP_IN
+	; take a snapshot of upon entering FAST Path TLB Hdlr
+	TAKE_SNAP_ASM r0, r1, SNAP_EXCP_IN
 
-    ; VERIFY if the ASID in MMU-PID Reg is same as
-    ; one in Linux data structures
+	; VERIFY if the ASID in MMU-PID Reg is same as
+	; one in Linux data structures
 
-    DBG_ASID_MISMATCH
-
-    ; VERIFY if the cached PGD ptr in MMU-SCRATCH Reg is same as
-    ; one in Linux data structures
-
-    DBG_PDG_MISMATCH
+	DBG_ASID_MISMATCH
 .endm
 
 .macro RESTORE_SCRATCH_REGS
-    mov_s r0, ex_saved_reg1
-    ld_s  r3, [r0,12]
-    ld_s  r2, [r0, 8]
-    ld_s  r1, [r0, 4]
-    ld_s  r0, [r0]
+	mov_s r0, ex_saved_reg1
+	ld_s  r3, [r0,12]
+	ld_s  r2, [r0, 8]
+	ld_s  r1, [r0, 4]
+	ld_s  r0, [r0]
 .endm
 
 .section .text.arcfp, "ax",@progbits    ;Fast Path Code, candidate for ICCM
@@ -270,36 +232,36 @@ ex_saved_reg1:
 
 ARC_ENTRY EV_TLBMissI
 
-    FREEUP_SCRATCH_REGS
+	FREEUP_SCRATCH_REGS
 
 #ifdef CONFIG_ARC_TLB_PROFILE
-    ld  r0, [numitlb]
-    add r0, r0, 1
-    st  r0, [numitlb]
+	ld  r0, [numitlb]
+	add r0, r0, 1
+	st  r0, [numitlb]
 #endif
 
-    ;----------------------------------------------------------------
-    ; Get the PTE corresponding to V-addr accessed
-    LOAD_FAULT_PTE
+	;----------------------------------------------------------------
+	; Get the PTE corresponding to V-addr accessed
+	LOAD_FAULT_PTE
 
-    ;----------------------------------------------------------------
-    ; VERIFY_PTE: Check if PTE permissions approp for executing code
-    cmp_s   r2, VMALLOC_START
-    mov.lo  r2, (_PAGE_PRESENT | _PAGE_READ | _PAGE_EXECUTE)
-    mov.hs  r2, (_PAGE_PRESENT | _PAGE_K_READ | _PAGE_K_EXECUTE)
+	;----------------------------------------------------------------
+	; VERIFY_PTE: Check if PTE permissions approp for executing code
+	cmp_s   r2, VMALLOC_START
+	mov.lo  r2, (_PAGE_PRESENT | _PAGE_READ | _PAGE_EXECUTE)
+	mov.hs  r2, (_PAGE_PRESENT | _PAGE_K_READ | _PAGE_K_EXECUTE)
 
-    and     r3, r0, r2  ; Mask out NON Flag bits from PTE
-    xor.f   r3, r3, r2  ; check ( ( pte & flags_test ) == flags_test )
-    bnz     do_slow_path_pf
+	and     r3, r0, r2  ; Mask out NON Flag bits from PTE
+	xor.f   r3, r3, r2  ; check ( ( pte & flags_test ) == flags_test )
+	bnz     do_slow_path_pf
 
-    ; Let Linux VM know that the page was accessed
-    or      r0, r0, (_PAGE_PRESENT | _PAGE_ACCESSED)  ; set Accessed Bit
-    st_s    r0, [r1]                                ; Write back PTE
+	; Let Linux VM know that the page was accessed
+	or      r0, r0, (_PAGE_PRESENT | _PAGE_ACCESSED)  ; set Accessed Bit
+	st_s    r0, [r1]                                  ; Write back PTE
 
-    CONV_PTE_TO_TLB
-    COMMIT_ENTRY_TO_MMU
-    RESTORE_SCRATCH_REGS
-    rtie
+	CONV_PTE_TO_TLB
+	COMMIT_ENTRY_TO_MMU
+	RESTORE_SCRATCH_REGS
+	rtie
 
 ARC_EXIT EV_TLBMissI
 
@@ -309,106 +271,104 @@ ARC_EXIT EV_TLBMissI
 
 ARC_ENTRY EV_TLBMissD
 
-    FREEUP_SCRATCH_REGS
+	FREEUP_SCRATCH_REGS
 
 #ifdef CONFIG_ARC_TLB_PROFILE
-    ld  r0, [numdtlb]
-    add r0, r0, 1
-    st  r0, [numdtlb]
+	ld  r0, [numdtlb]
+	add r0, r0, 1
+	st  r0, [numdtlb]
 #endif
 
-    ;----------------------------------------------------------------
-    ; Get the PTE corresponding to V-addr accessed
-    ; If PTE exists, it will setup, r0 = PTE, r1 = Ptr to PTE
-    LOAD_FAULT_PTE
+	;----------------------------------------------------------------
+	; Get the PTE corresponding to V-addr accessed
+	; If PTE exists, it will setup, r0 = PTE, r1 = Ptr to PTE
+	LOAD_FAULT_PTE
 
-    ;----------------------------------------------------------------
-    ; VERIFY_PTE: Check if PTE permissions approp for data access type (R/W/R+W)
-    ; IN r0 = PTE
+	;----------------------------------------------------------------
+	; VERIFY_PTE: Chk if PTE permissions approp for data access (R/W/R+W)
 
-    mov_s   r2, 0
-    lr      r3, [ecr]
-    btst_s  r3, DTLB_LD_MISS_BIT
-    or.nz   r2, r2, _PAGE_READ      ; If Read access, check for Read flag in PTE
-    btst_s  r3, DTLB_ST_MISS_BIT
-    or.nz   r2, r2, _PAGE_WRITE     ; If Write access, chk if Write flag in PTE
-                                    ; Above laddering takes care of XCHG access
-                                    ;   which is both Read and Write
+	mov_s   r2, 0
+	lr      r3, [ecr]
+	btst_s  r3, ECR_C_BIT_DTLB_LD_MISS	; Read Access
+	or.nz   r2, r2, _PAGE_READ      	; chk for Read flag in PTE
+	btst_s  r3, ECR_C_BIT_DTLB_ST_MISS	; Write Access
+	or.nz   r2, r2, _PAGE_WRITE     	; chk for Write flag in PTE
+	; Above laddering takes care of XCHG access
+	;   which is both Read and Write
 
-    ; If kernel mode access, ; make _PAGE_xx flags as _PAGE_K_xx
-    ; This code doesn't hit, when exception happens in kernel mode, when
-    ; doing copy_to_user( ), as EFA would still have the user mode address
-    ; ( < 0x7000_0000) where kernel faulted.
-    ; This is correct, since there is nothing in user mode which kernel can't access.
-    ; What this checks for is faults in vmalloc region (0x7000_0000 to 0x7FFF_FFFF)
+	; If kernel mode access, ; make _PAGE_xx flags as _PAGE_K_xx
+	; For copy_(to|from)_user, despite exception taken in kernel mode,
+	; this code is not hit, because EFA would still be the user mode
+	; address (EFA < 0x6000_0000).
+	; This code is for legit kernel mode faults, vmalloc specifically
+	; (EFA: 0x7000_0000 to 0x7FFF_FFFF)
 
-    lr      r3, [efa]
-    cmp     r3, VMALLOC_START - 1   ; If kernel mode access
-    asl.hi  r2, r2, 3               ; make _PAGE_xx flags as _PAGE_K_xx
-    or      r2, r2, _PAGE_PRESENT   ; Common flag for K/U mode
+	lr      r3, [efa]
+	cmp     r3, VMALLOC_START - 1   ; If kernel mode access
+	asl.hi  r2, r2, 3               ; make _PAGE_xx flags as _PAGE_K_xx
+	or      r2, r2, _PAGE_PRESENT   ; Common flag for K/U mode
 
-    ; By now, r2 setup with all the Flags we need to check in PTE
-    and     r3, r0, r2              ; Mask out NON Flag bits from PTE
-    brne.d  r3, r2, do_slow_path_pf ; check ( ( pte & flags_test ) == flags_test )
+	; By now, r2 setup with all the Flags we need to check in PTE
+	and     r3, r0, r2              ; Mask out NON Flag bits from PTE
+	brne.d  r3, r2, do_slow_path_pf ; is ((pte & flags_test) == flags_test)
 
-    ;----------------------------------------------------------------
-    ; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
-    ; IN: r0 = PTE, r1 = ptr to PTE
-    lr      r3, [ecr]
-    or      r0, r0, (_PAGE_PRESENT | _PAGE_ACCESSED)  ; Set Accessed bit for all
-    btst_s  r3, DTLB_ST_MISS_BIT          ; See if it was a Write Access ?
-    or.nz   r0, r0, _PAGE_MODIFIED        ; if Write, set Dirty bit as well
-    st_s    r0, [r1]                      ; Write back PTE
+	;----------------------------------------------------------------
+	; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
+	lr      r3, [ecr]
+	or      r0, r0, (_PAGE_PRESENT | _PAGE_ACCESSED) ; Accessed bit always
+	btst_s  r3,  ECR_C_BIT_DTLB_ST_MISS   ; See if it was a Write Access ?
+	or.nz   r0, r0, _PAGE_MODIFIED        ; if Write, set Dirty bit as well
+	st_s    r0, [r1]                      ; Write back PTE
 
-    CONV_PTE_TO_TLB
+	CONV_PTE_TO_TLB
 
 #if (METAL_FIX || (CONFIG_ARC_MMU_VER == 1))
-    ; MMU with 2 way set assoc J-TLB, needs some help in pathetic case of
-    ; memcpy where 3 parties contend for 2 ways, ensuing a livelock.
-    ; But only for old MMU or one with Metal Fix
-    TLB_WRITE_HEURISTICS
+	; MMU with 2 way set assoc J-TLB, needs some help in pathetic case of
+	; memcpy where 3 parties contend for 2 ways, ensuing a livelock.
+	; But only for old MMU or one with Metal Fix
+	TLB_WRITE_HEURISTICS
 #endif
 
-    COMMIT_ENTRY_TO_MMU
-    RESTORE_SCRATCH_REGS
-    rtie
+	COMMIT_ENTRY_TO_MMU
+	RESTORE_SCRATCH_REGS
+	rtie
 
 ;-------- Common routine to call Linux Page Fault Handler -----------
 do_slow_path_pf:
-    RESTORE_SCRATCH_REGS
-    st  r9, [SYMBOL_NAME(ex_saved_reg1)]
+	RESTORE_SCRATCH_REGS
+	st  r9, [@ex_saved_reg1]
 
-    ; take a snapshot of upon entering SLOW Path TLB Hdlr
-    TAKE_SNAP_ASM r8, r9, SNAP_DO_PF_ENTER
+	; take a snapshot of upon entering SLOW Path TLB Hdlr
+	TAKE_SNAP_ASM r8, r9, SNAP_DO_PF_ENTER
 
-    lr  r9, [erstatus]
+	lr  r9, [erstatus]
 
-    SWITCH_TO_KERNEL_STK
-    SAVE_ALL_SYS
+	SWITCH_TO_KERNEL_STK
+	SAVE_ALL_SYS
 
-    ; ------- setup args for Linux Page fault Hanlder ---------
-    mov_s r0, sp
-    lr  r2, [efa]
-    lr  r3, [ecr]
+	; ------- setup args for Linux Page fault Hanlder ---------
+	mov_s r0, sp
+	lr  r2, [efa]
+	lr  r3, [ecr]
 
-    ; Both st and ex imply WRITE access of some sort, hence do_page_fault( )
-    ; invoked with write=1 for DTLB-st/ex Miss and write=0 for ITLB miss or
-    ; DTLB-ld Miss
-    ; DTLB Miss Cause code is ld = 0x01 , st = 0x02, ex = 0x03
-    ; Following code cunningly uses that fact that st/ex have one bit in common
+	; Both st and ex imply WRITE access of some sort, hence do_page_fault( )
+	; invoked with write=1 for DTLB-st/ex Miss and write=0 for ITLB miss or
+	; DTLB-ld Miss
+	; DTLB Miss Cause code is ld = 0x01 , st = 0x02, ex = 0x03
+	; Following code uses that fact that st/ex have one bit in common
 
-    btst_s r3, DTLB_ST_MISS_BIT
-    mov.z  r1, 0
-    mov.nz r1, 1
+	btst_s r3,  ECR_C_BIT_DTLB_ST_MISS
+	mov.z  r1, 0
+	mov.nz r1, 1
 
-    ; We dont want exceptions to be disabled while the fault is handled.
-    ; Now that we have saved the context we return from exception hence
-    ; exceptions get re-enable
+	; We don't want exceptions to be disabled while the fault is handled.
+	; Now that we have saved the context we return from exception hence
+	; exceptions get re-enable
 
-    FAKE_RET_FROM_EXCPN  r9
+	FAKE_RET_FROM_EXCPN  r9
 
-    bl  do_page_fault
-    b   ret_from_exception
+	bl  do_page_fault
+	b   ret_from_exception
 
 ARC_EXIT EV_TLBMissD
 

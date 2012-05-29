@@ -48,8 +48,8 @@ static void *rvmalloc(unsigned long size)
 	if (!mem)
 		return NULL;
 
-	memset(mem, 0, size); /* Clear the ram out, no junk to the user */
-	adr = (unsigned long) mem;
+	memset(mem, 0, size);	/* Clear the ram out, no junk to the user */
+	adr = (unsigned long)mem;
 	while (size > 0) {
 		SetPageReserved(vmalloc_to_page((void *)adr));
 		adr += PAGE_SIZE;
@@ -66,8 +66,8 @@ static void rvfree(void *mem, unsigned long size)
 	if (!mem)
 		return;
 
-	adr = (unsigned long) mem;
-	while ((long) size > 0) {
+	adr = (unsigned long)mem;
+	while ((long)size > 0) {
 		ClearPageReserved(vmalloc_to_page((void *)adr));
 		adr += PAGE_SIZE;
 		size -= PAGE_SIZE;
@@ -76,19 +76,19 @@ static void rvfree(void *mem, unsigned long size)
 }
 
 static struct fb_var_screeninfo vfb_default __initdata = {
-	.xres =		CONFIG_VFB_SIM_XRES,
-	.yres =		CONFIG_VFB_SIM_YRES,
-	.xres_virtual =	CONFIG_VFB_SIM_XRES,
-	.yres_virtual =	CONFIG_VFB_SIM_YRES,
+	.xres = CONFIG_VFB_SIM_XRES,
+	.yres = CONFIG_VFB_SIM_YRES,
+	.xres_virtual = CONFIG_VFB_SIM_XRES,
+	.yres_virtual = CONFIG_VFB_SIM_YRES,
 	.bits_per_pixel = CONFIG_VFB_SIM_BPP,
 #if (CONFIG_VFB_SIM_BPP == 24)
-    .red = {0,8,0},
-    .green = {0,8,0},
-    .blue = {0,8,0},
+	.red = {0, 8, 0},
+	.green = {0, 8, 0},
+	.blue = {0, 8, 0},
 #else
-    .red = {0,5,0},
-    .green = {0,6,0},
-    .blue = {0,5,0},
+	.red = {0, 5, 0},
+	.green = {0, 6, 0},
+	.blue = {0, 5, 0},
 #endif
 
 /*
@@ -108,39 +108,36 @@ static struct fb_var_screeninfo vfb_default __initdata = {
 };
 
 static struct fb_fix_screeninfo vfb_fix __initdata = {
-	.id =		"Virtual FB",
-	.type =		FB_TYPE_PACKED_PIXELS,
-	.visual =	FB_VISUAL_PSEUDOCOLOR,
-	.xpanstep =	1,
-	.ypanstep =	1,
-	.ywrapstep =0/*1*/	,
-	.accel =	FB_ACCEL_NONE,
+	.id = "Virtual FB",
+	.type = FB_TYPE_PACKED_PIXELS,
+	.visual = FB_VISUAL_PSEUDOCOLOR,
+	.xpanstep = 1,
+	.ypanstep = 1,
+	.ywrapstep = 0 /*1 */ ,
+	.accel = FB_ACCEL_NONE,
 };
 
 static int vfb_enable __initdata = 0;	/* disabled by default */
 module_param(vfb_enable, bool, 0);
 
-static int vfb_check_var(struct fb_var_screeninfo *var,
-			 struct fb_info *info);
+static int vfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info);
 static int vfb_set_par(struct fb_info *info);
 static int vfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			 u_int transp, struct fb_info *info);
-static int vfb_pan_display(struct fb_var_screeninfo *var,
-			   struct fb_info *info);
-static int vfb_mmap(struct fb_info *info,
-		    struct vm_area_struct *vma);
+static int vfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info);
+static int vfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 
 static struct fb_ops vfb_ops = {
-	.fb_read        = fb_sys_read,
-	.fb_write       = fb_sys_write,
-	.fb_check_var	= vfb_check_var,
-	.fb_set_par	= vfb_set_par,
-	.fb_setcolreg	= vfb_setcolreg,
-	.fb_pan_display	= vfb_pan_display,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
-	.fb_mmap	= vfb_mmap,
+	.fb_read = fb_sys_read,
+	.fb_write = fb_sys_write,
+	.fb_check_var = vfb_check_var,
+	.fb_set_par = vfb_set_par,
+	.fb_setcolreg = vfb_setcolreg,
+	.fb_pan_display = vfb_pan_display,
+	.fb_fillrect = cfb_fillrect,
+	.fb_copyarea = cfb_copyarea,
+	.fb_imageblit = cfb_imageblit,
+	.fb_mmap = vfb_mmap,
 };
 
     /*
@@ -165,8 +162,7 @@ static u_long get_line_length(int xres_virtual, int bpp)
      *  data from it to check this var.
      */
 
-static int vfb_check_var(struct fb_var_screeninfo *var,
-			 struct fb_info *info)
+static int vfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	u_long line_length;
 
@@ -213,8 +209,7 @@ static int vfb_check_var(struct fb_var_screeninfo *var,
 	/*
 	 *  Memory limit
 	 */
-	line_length =
-	    get_line_length(var->xres_virtual, var->bits_per_pixel);
+	line_length = get_line_length(var->xres_virtual, var->bits_per_pixel);
 	if (line_length * var->yres_virtual > videomemorysize)
 		return -ENOMEM;
 
@@ -314,8 +309,7 @@ static int vfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	/* grayscale works only partially under directcolor */
 	if (info->var.grayscale) {
 		/* grayscale = 0.30*R + 0.59*G + 0.11*B */
-		red = green = blue =
-		    (red * 77 + green * 151 + blue * 28) >> 8;
+		red = green = blue = (red * 77 + green * 151 + blue * 28) >> 8;
 	}
 
 	/* Directcolor:
@@ -390,13 +384,11 @@ static int vfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
      *  This call looks only at xoffset, yoffset and the FB_VMODE_YWRAP flag
      */
 
-static int vfb_pan_display(struct fb_var_screeninfo *var,
-			   struct fb_info *info)
+static int vfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	if (var->vmode & FB_VMODE_YWRAP) {
 		if (var->yoffset < 0
-		    || var->yoffset >= info->var.yres_virtual
-		    || var->xoffset)
+		    || var->yoffset >= info->var.yres_virtual || var->xoffset)
 			return -EINVAL;
 	} else {
 		if (var->xoffset + var->xres > info->var.xres_virtual ||
@@ -416,8 +408,7 @@ static int vfb_pan_display(struct fb_var_screeninfo *var,
      *  Most drivers don't need their own mmap function
      */
 
-static int vfb_mmap(struct fb_info *info,
-		    struct vm_area_struct *vma)
+static int vfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	unsigned long start = vma->vm_start;
 	unsigned long size = vma->vm_end - vma->vm_start;
@@ -433,7 +424,7 @@ static int vfb_mmap(struct fb_info *info,
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);
 		if (remap_pfn_range(vma, start, page, PAGE_SIZE,
-            vma->vm_page_prot)) {
+				    vma->vm_page_prot)) {
 			return -EAGAIN;
 		}
 		start += PAGE_SIZE;
@@ -467,7 +458,7 @@ static int __init vfb_setup(char *options)
 	}
 	return 1;
 }
-#endif  /*  MODULE  */
+#endif /*  MODULE  */
 
     /*
      *  Initialisation
@@ -482,9 +473,9 @@ static int __init vfb_probe(struct platform_device *dev)
 	 * For real video cards we use ioremap.
 	 */
 
-    videomemory = ioremap(CONFIG_VFB_SIM_BASE,CONFIG_VFB_SIM_SIZE);
+	videomemory = ioremap(CONFIG_VFB_SIM_BASE, CONFIG_VFB_SIM_SIZE);
 
-printk("FB0 memory at %x\n", virt_to_phys(videomemory));
+	printk("FB0 memory at %x\n", virt_to_phys(videomemory));
 
 	/*
 	 * VFB must clear memory to prevent kernel info
@@ -494,7 +485,6 @@ printk("FB0 memory at %x\n", virt_to_phys(videomemory));
 	 */
 	memset(videomemory, 0, videomemorysize);
 
-
 	info = framebuffer_alloc(sizeof(u32) * 256, &dev->dev);
 	if (!info)
 		goto err;
@@ -502,21 +492,18 @@ printk("FB0 memory at %x\n", virt_to_phys(videomemory));
 	info->screen_base = (char __iomem *)videomemory;
 	info->fbops = &vfb_ops;
 
-	retval = fb_find_mode(&info->var, info, NULL,
-			      NULL, 0, NULL, 8);
+	retval = fb_find_mode(&info->var, info, NULL, NULL, 0, NULL, 8);
 
-	if (!retval || (retval == 4))
-    {
-        printk("Setting vfb_default\n");
+	if (!retval || (retval == 4)) {
+		printk("Setting vfb_default\n");
 		info->var = vfb_default;
-    }
-    else
-        printk("didn't set vfb_default\n");
+	} else
+		printk("didn't set vfb_default\n");
 
 	info->var = vfb_default;
-	vfb_fix.smem_start = (unsigned long) videomemory;
+	vfb_fix.smem_start = (unsigned long)videomemory;
 	vfb_fix.smem_len = videomemorysize;
-    vfb_fix.line_length = vfb_default.xres * vfb_default.bits_per_pixel / 8;
+	vfb_fix.line_length = vfb_default.xres * vfb_default.bits_per_pixel / 8;
 	info->fix = vfb_fix;
 	info->pseudo_palette = info->par;
 	info->par = NULL;
@@ -557,11 +544,11 @@ static int vfb_remove(struct platform_device *dev)
 }
 
 static struct platform_driver vfb_driver = {
-	.probe	= vfb_probe,
+	.probe = vfb_probe,
 	.remove = vfb_remove,
 	.driver = {
-		.name	= "vfb",
-	},
+		   .name = "vfb",
+		   },
 };
 
 static struct platform_device *vfb_device;
@@ -612,4 +599,4 @@ static void __exit vfb_exit(void)
 module_exit(vfb_exit);
 
 MODULE_LICENSE("GPL");
-#endif				/* MODULE */
+#endif /* MODULE */

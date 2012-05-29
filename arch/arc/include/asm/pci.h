@@ -25,7 +25,6 @@
 
 #include <linux/scatterlist.h>
 #include <asm/io.h>
-/* generic pci stuff */
 #include <asm-generic/pci.h>
 #include <asm-generic/pci-dma-compat.h>
 
@@ -39,7 +38,6 @@ static inline void pcibios_penalize_isa_irq(int irq)
 	/* We don't do dynamic PCI IRQ allocation */
 }
 
-#define pci_dac_dma_supported(pci_dev, mask)	(0)
 #define pci_controller_num(PDEV)	(0)
 
 #endif

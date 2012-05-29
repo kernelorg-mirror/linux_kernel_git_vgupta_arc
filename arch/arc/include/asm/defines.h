@@ -48,4 +48,4 @@
  */
 #undef  NONINLINE_MEMSET
 
-#endif  /* __ARC_ASM_DEFINES_H__ */
+#endif /* __ARC_ASM_DEFINES_H__ */

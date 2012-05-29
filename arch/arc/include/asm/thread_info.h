@@ -13,11 +13,6 @@
  * Sameer Dhavale: Codito Technologies 2004
  */
 
-/*
- * Copyright (C) 2002  David Howells (dhowells@redhat.com)
- * - Incorporating suggestions made by Linus Torvalds and Dave Miller
- */
-
 #ifndef _ASM_THREAD_INFO_H
 #define _ASM_THREAD_INFO_H
 
@@ -36,9 +31,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/thread_info.h>
-
-
-typedef unsigned long mm_segment_t;     /* domain register  */
+#include <asm/segment.h>
 
 /*
  * low level task data that entry.S needs immediate access to
@@ -48,14 +41,14 @@ typedef unsigned long mm_segment_t;     /* domain register  */
  *   must also be changed
  */
 struct thread_info {
-    unsigned long           flags;      /* low level flags */
-    int                     preempt_count;  /* 0 => preemptable, <0 => BUG */
-    struct task_struct      *task;      /* main task structure */
-    mm_segment_t            addr_limit; /* thread address space */
-    struct exec_domain      *exec_domain;   /* execution domain */
-    __u32                   cpu;        /* current CPU */
-    unsigned long           thr_ptr;    /* TLS ptr */
-    struct restart_block    restart_block;
+	unsigned long flags;		/* low level flags */
+	int preempt_count;		/* 0 => preemptable, <0 => BUG */
+	struct task_struct *task;	/* main task structure */
+	mm_segment_t addr_limit;	/* thread address space */
+	struct exec_domain *exec_domain;/* execution domain */
+	__u32 cpu;			/* current CPU */
+	unsigned long thr_ptr;		/* TLS ptr */
+	struct restart_block restart_block;
 };
 
 /*
@@ -63,17 +56,17 @@ struct thread_info {
  *
  * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
-#define INIT_THREAD_INFO(tsk)           \
-{                       \
-    .task       = &tsk,         \
-    .exec_domain    = &default_exec_domain, \
-    .flags      = 0,            \
-    .cpu        = 0,            \
-    .preempt_count  = 1,            \
-    .addr_limit = KERNEL_DS,        \
-    .restart_block  = {         \
-        .fn = do_no_restart_syscall,    \
-    },                  \
+#define INIT_THREAD_INFO(tsk)			\
+{						\
+	.task       = &tsk,			\
+	.exec_domain    = &default_exec_domain,	\
+	.flags      = 0,			\
+	.cpu        = 0,			\
+	.preempt_count  = 1,			\
+	.addr_limit = KERNEL_DS,		\
+	.restart_block  = {			\
+		.fn = do_no_restart_syscall,	\
+		},					\
 }
 
 #define init_thread_info    (init_thread_union.thread_info)
@@ -81,12 +74,11 @@ struct thread_info {
 
 static inline __attribute_const__ struct thread_info *current_thread_info(void)
 {
-    register unsigned long sp asm ("sp");
-    return (struct thread_info *)(sp & ~(THREAD_SIZE - 1));
+	register unsigned long sp asm("sp");
+	return (struct thread_info *)(sp & ~(THREAD_SIZE - 1));
 }
 
-#endif  /* !__ASSEMBLY__ */
-
+#endif /* !__ASSEMBLY__ */
 
 #define PREEMPT_ACTIVE      0x10000000
 
@@ -97,31 +89,34 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
  * - pending work-to-be-done flags are in LSW
  * - other flags in MSW
  */
-#define TIF_NOTIFY_RESUME   1   /* resumption notification requested */
-#define TIF_SIGPENDING      2   /* signal pending */
-#define TIF_NEED_RESCHED    3   /* rescheduling necessary */
-#define TIF_SYSCALL_AUDIT   4   /* syscall auditing active */
-#define TIF_SECCOMP     5   /* secure computing */
-#define TIF_RESTORE_SIGMASK 9   /* restore signal mask in do_signal() */
-#define TIF_USEDFPU     16  /* FPU was used by this task this quantum (SMP) */
-#define TIF_POLLING_NRFLAG  17  /* true if poll_idle() is polling TIF_NEED_RESCHED */
-#define TIF_MEMDIE      18
-#define TIF_FREEZE      19
-#define TIF_SYSCALL_TRACE   31  /* syscall trace active */
+#define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
+#define TIF_SIGPENDING		2	/* signal pending */
+#define TIF_NEED_RESCHED	3	/* rescheduling necessary */
+#define TIF_SYSCALL_AUDIT	4	/* syscall auditing active */
+#define TIF_SECCOMP		5	/* secure computing */
+#define TIF_RESTORE_SIGMASK	9	/* restore sig mask in do_signal() */
+/* FPU used by this task this quantum (SMP) */
+#define TIF_USEDFPU		16
+/* true if poll_idle() is polling TIF_NEED_RESCHED */
+#define TIF_POLLING_NRFLAG	17
+#define TIF_MEMDIE		18
+#define TIF_FREEZE		19
+#define TIF_SYSCALL_TRACE	31	/* syscall trace active */
 
-#define _TIF_SYSCALL_TRACE  (1<<TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME  (1<<TIF_NOTIFY_RESUME)
-#define _TIF_SIGPENDING     (1<<TIF_SIGPENDING)
-#define _TIF_NEED_RESCHED   (1<<TIF_NEED_RESCHED)
-#define _TIF_SYSCALL_AUDIT  (1<<TIF_SYSCALL_AUDIT)
-#define _TIF_SECCOMP        (1<<TIF_SECCOMP)
+#define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
+#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
+#define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
+#define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
+#define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
+#define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_RESTORE_SIGMASK    (1<<TIF_RESTORE_SIGMASK)
-#define _TIF_USEDFPU        (1<<TIF_USEDFPU)
-#define _TIF_POLLING_NRFLAG (1<<TIF_POLLING_NRFLAG)
-#define _TIF_FREEZE         (1<<TIF_FREEZE)
+#define _TIF_USEDFPU		(1<<TIF_USEDFPU)
+#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
+#define _TIF_FREEZE		(1<<TIF_FREEZE)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK      (0x0000ffef & ~_TIF_SECCOMP)
+
 /* work to do on any return to u-space */
 #define _TIF_ALLWORK_MASK   (0x8000ffff & ~_TIF_SECCOMP)
 

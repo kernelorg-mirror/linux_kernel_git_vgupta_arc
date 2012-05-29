@@ -67,7 +67,7 @@ static unsigned long do_csum(const unsigned char *buff, int len)
 	result = from32to16(result);
 	if (odd)
 		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
-      out:
+out:
 	return result;
 }
 

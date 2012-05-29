@@ -12,7 +12,7 @@
 #include <linux/fb.h>
 #include <linux/fs.h>
 
-typedef int (*frame_switch_cb_t)(int buf);
+typedef int (*frame_switch_cb_t) (int buf);
 
 void arc_vsync_init(frame_switch_cb_t fun);
 

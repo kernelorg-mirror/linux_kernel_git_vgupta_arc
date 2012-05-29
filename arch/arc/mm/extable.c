@@ -9,18 +9,18 @@
  */
 
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int fixup_exception(struct pt_regs *regs)
 {
-    const struct exception_table_entry *fixup;
+	const struct exception_table_entry *fixup;
 
-    fixup = search_exception_tables(instruction_pointer(regs));
-    if (fixup) {
-        regs->ret = fixup->nextinsn;
+	fixup = search_exception_tables(instruction_pointer(regs));
+	if (fixup) {
+		regs->ret = fixup->fixup;
 
-        return 1;
-    }
+		return 1;
+	}
 
-    return 0;
+	return 0;
 }

@@ -29,36 +29,36 @@
 
 #include <linux/device.h>
 
-static inline unsigned long plat_dma_addr_to_kernel(
-    struct device *dev, dma_addr_t dma_addr)
+static inline unsigned long plat_dma_addr_to_kernel(struct device *dev,
+						    dma_addr_t dma_addr)
 {
 #ifdef CONFIG_ARC_AHB_PCI_BRIDGE
-    if (dev && dev->bus && (strncmp(dev->bus->name, "pci", 3) == 0) )
-        return (unsigned long) dma_addr;
+	if (dev && dev->bus && (strncmp(dev->bus->name, "pci", 3) == 0))
+		return (unsigned long)dma_addr;
 #endif
 
-    return dma_addr + PAGE_OFFSET;
+	return dma_addr + PAGE_OFFSET;
 }
 
 static inline dma_addr_t plat_kernel_addr_to_dma(struct device *dev, void *ptr)
 {
-    unsigned long addr = (unsigned long)ptr;
-    /*
-     * To Catch buggy drivers which can call DMA map API with kernel vaddr
-     * i.e. for buffers alloc via vmalloc or ioremap which are not gaurnateed
-     * to be PHY contiguous and hence unfit for DMA anyways.
-     * On ARC kernel virtual address is 0x7000_0000 to 0x7FFF_FFFF, so
-     * ideally we want to check this range here, but our implementation is
-     * better as it checks for even worse user virtual address as well.
-     */
-    BUG_ON(addr < PAGE_OFFSET);
+	unsigned long addr = (unsigned long)ptr;
+	/*
+	 * To Catch buggy drivers which can call DMA map API with kernel vaddr
+	 * i.e. for buffers alloc via vmalloc or ioremap which are not gaurnateed
+	 * to be PHY contiguous and hence unfit for DMA anyways.
+	 * On ARC kernel virtual address is 0x7000_0000 to 0x7FFF_FFFF, so
+	 * ideally we want to check this range here, but our implementation is
+	 * better as it checks for even worse user virtual address as well.
+	 */
+	BUG_ON(addr < PAGE_OFFSET);
 
 #ifdef CONFIG_ARC_AHB_PCI_BRIDGE
-    if (dev && dev->bus && (strncmp(dev->bus->name, "pci", 3) == 0) )
-        return addr;
+	if (dev && dev->bus && (strncmp(dev->bus->name, "pci", 3) == 0))
+		return addr;
 #endif
 
-    return addr - PAGE_OFFSET;
+	return addr - PAGE_OFFSET;
 }
 
 #endif

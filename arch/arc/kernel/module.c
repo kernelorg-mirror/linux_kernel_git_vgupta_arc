@@ -17,118 +17,107 @@
 
 static inline void arc_write_me(unsigned short *addr, unsigned long value)
 {
-    *addr = (value & 0xffff0000) >> 16;
-    *(addr+1) = (value & 0xffff) ;
+	*addr = (value & 0xffff0000) >> 16;
+	*(addr + 1) = (value & 0xffff);
 }
 
 void *module_alloc(unsigned long size)
 {
-    if(size == 0)
-        return NULL;
+	if (size == 0)
+		return NULL;
 
-    return vmalloc(size);
+	return vmalloc(size);
 
 }
 
 void module_free(struct module *module, void *region)
 {
-    vfree(region);
+	vfree(region);
 }
 
-/* Sameer: Do we have any arch-specific sections? */
-int module_frob_arch_sections(Elf_Ehdr *hdr,
-                  Elf_Shdr *sechdrs,
-                  char *secstrings,
-                  struct module *mod)
+int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
+			      char *secstrings, struct module *mod)
 {
-    return 0;
+	return 0;
 }
 
 int
 apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
-           unsigned int relindex, struct module *module)
+	       unsigned int relindex, struct module *module)
 {
-    printk(KERN_ERR "module %s: SHT_REL type unsupported\n",
-           module->name);
-
-    return 0;
+	pr_err("%s: Only RELA relocations supported\n", module->name);
+	return 0;
 }
 
-int apply_relocate_add(Elf32_Shdr *sechdrs,
-           const char *strtab,
-           unsigned int symindex,
-           unsigned int relsec,
-           struct module *module)
+int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
+		       unsigned int symindex, unsigned int relsec,
+		       struct module *module)
 {
-    int i, n;
-    Elf32_Rela *rel_entry = (void *)sechdrs[relsec].sh_addr;
-    Elf32_Sym *sym_entry, *sym_sec;
-    Elf32_Addr relocation;
-    Elf32_Addr location;
-    Elf32_Addr sec_to_patch;
-    int relo_type;
+	int i, n;
+	Elf32_Rela *rel_entry = (void *)sechdrs[relsec].sh_addr;
+	Elf32_Sym *sym_entry, *sym_sec;
+	Elf32_Addr relocation;
+	Elf32_Addr location;
+	Elf32_Addr sec_to_patch;
+	int relo_type;
 
-    sec_to_patch = sechdrs[sechdrs[relsec].sh_info].sh_addr;
-    sym_sec = (Elf32_Sym *)sechdrs[symindex].sh_addr;
-    n = sechdrs[relsec].sh_size / sizeof(*rel_entry);
+	sec_to_patch = sechdrs[sechdrs[relsec].sh_info].sh_addr;
+	sym_sec = (Elf32_Sym *) sechdrs[symindex].sh_addr;
+	n = sechdrs[relsec].sh_size / sizeof(*rel_entry);
 
-    pr_debug("\n========== Module Sym reloc ==============================\n");
-    pr_debug("Section to fixup %x\n", sec_to_patch);
-    pr_debug("===========================================================\n");
-    pr_debug("rela->r_off | rela->addend | sym->st_value | ADDR | VALUE\n");
-    pr_debug("===========================================================\n");
+	pr_debug("\n========== Module Sym reloc ===========================\n");
+	pr_debug("Section to fixup %x\n", sec_to_patch);
+	pr_debug("=========================================================\n");
+	pr_debug("rela->r_off | rela->addend | sym->st_value | ADDR | VALUE\n");
+	pr_debug("=========================================================\n");
 
-    /* Loop thru entries in relocation section */
-    for (i = 0; i < n; i++) {
+	/* Loop thru entries in relocation section */
+	for (i = 0; i < n; i++) {
 
-        /* This is where to make the change */
-        location = sec_to_patch + rel_entry[i].r_offset;
+		/* This is where to make the change */
+		location = sec_to_patch + rel_entry[i].r_offset;
 
-        /* This is the symbol it is referring to.  Note that all
-           undefined symbols have been resolved.  */
-        sym_entry = sym_sec + ELF32_R_SYM(rel_entry[i].r_info);
+		/* This is the symbol it is referring to.  Note that all
+		   undefined symbols have been resolved.  */
+		sym_entry = sym_sec + ELF32_R_SYM(rel_entry[i].r_info);
 
-        relocation = sym_entry->st_value + rel_entry[i].r_addend;
+		relocation = sym_entry->st_value + rel_entry[i].r_addend;
 
-        pr_debug("\t%x\t\t%x\t\t%x  %x %x\n",
-            rel_entry[i].r_offset, rel_entry[i].r_addend,
-            sym_entry->st_value, location, relocation);
+		pr_debug("\t%x\t\t%x\t\t%x  %x %x\n",
+			 rel_entry[i].r_offset, rel_entry[i].r_addend,
+			 sym_entry->st_value, location, relocation);
 
-        /* This assumes modules are built with -mlong-calls
-        * so any branches/jumps are absolute 32 bit jmps
-        * global data access again is abs 32 bit.
-        * Both of these are handled by same relocation type
-        */
-        relo_type = ELF32_R_TYPE(rel_entry[i].r_info);
+		/* This assumes modules are built with -mlong-calls
+		 * so any branches/jumps are absolute 32 bit jmps
+		 * global data access again is abs 32 bit.
+		 * Both of these are handled by same relocation type
+		 */
+		relo_type = ELF32_R_TYPE(rel_entry[i].r_info);
 
-        if (likely(R_ARC_32_ME == relo_type)) {
-            arc_write_me((unsigned short *)location, relocation);
-        }
-        else if (R_ARC_32 == relo_type) {
-            *((Elf32_Addr *)location) = relocation;
-        }
-        else
-            goto relo_err;
+		if (likely(R_ARC_32_ME == relo_type))
+			arc_write_me((unsigned short *)location, relocation);
+		else if (R_ARC_32 == relo_type)
+			*((Elf32_Addr *) location) = relocation;
+		else
+			goto relo_err;
 
-    }
-    return 0;
+	}
+	return 0;
 
 relo_err:
-            printk(KERN_ERR "%s: unknown relocation: %u\n",
-                   module->name, ELF32_R_TYPE(rel_entry[i].r_info));
-            return -ENOEXEC;
+	pr_err("%s: unknown relocation: %u\n",
+		module->name, ELF32_R_TYPE(rel_entry[i].r_info));
+	return -ENOEXEC;
 
 }
-
 
 int
 module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
-        struct module *module)
+		struct module *module)
 {
-    return 0;
+	return 0;
 }
 
-void
-module_arch_cleanup(struct module *mod)
+void module_arch_cleanup(struct module *mod)
 {
 }

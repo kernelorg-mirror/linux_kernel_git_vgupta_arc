@@ -9,8 +9,8 @@
  *  -Support single cycle endian-swap insn in ARC700 4.10
  *
  * vineetg: June 2009
- * 	-Better htonl implementation (5 instead of 9 ALU instructions)
- * 	-Hardware assisted single cycle bswap (Use Case of ARC custom instrn)
+ *  -Better htonl implementation (5 instead of 9 ALU instructions)
+ *  -Hardware assisted single cycle bswap (Use Case of ARC custom instrn)
  */
 
 #ifndef __ASM_ARC_SWAB_H
@@ -21,14 +21,14 @@
 /* Native single cycle endian swap insn */
 #ifdef CONFIG_ARC_HAS_SWAPE
 
-#define __arch_swab32(x)  		\
-({								\
-	unsigned int tmp=x;			\
-	__asm__  (					\
-		"swape	%0, %1\n\t"		\
-		:"=r" (tmp)				\
-		:"r" (tmp));			\
-	tmp;						\
+#define __arch_swab32(x)		\
+({					\
+	unsigned int tmp = x;		\
+	__asm__(			\
+	"	swape	%0, %1	\n"	\
+	: "=r" (tmp)			\
+	: "r" (tmp));			\
+	tmp;				\
 })
 
 #else
@@ -43,7 +43,7 @@
 #if (ARC_BSWAP_TYPE == 1)		/******* Software only ********/
 
 /* The kernel default implementation of htonl is
- * 	return  x<<24 | x>>24 |
+ *		return  x<<24 | x>>24 |
  *		 (x & (__u32)0x0000ff00UL)<<8 | (x & (__u32)0x00ff0000UL)>>8;
  *
  * This generates 9 instructions on ARC (excluding the ld/st)
@@ -56,8 +56,8 @@
  * 8051fdac:	and    r3,r3,0x00ff0000
  * 8051fdb4:	or     r2,r2,r5		; combine 0th and 3rd Bytes
  * 8051fdb8:	lsr    r3,r3,8		; 2nd Byte at correct place in Dst Reg
- * 8051fdbc:	or     r2,r2,r4		; combine 0th and 3rd Bytes with 1st Byte
- * 8051fdc0:	or     r2,r2,r3		; combine 0th, 3rd, 1st Bytes with 2nd Byte
+ * 8051fdbc:	or     r2,r2,r4		; combine 0,3 Bytes with 1st Byte
+ * 8051fdc0:	or     r2,r2,r3		; combine 0,3,1 Bytes with 2nd Byte
  * 8051fdc4:	st     r2,[r1,20]	; Mem op : save result back to mem
  *
  * Joern suggested a better "C" algorithm which is great since
@@ -65,26 +65,26 @@
  * (2) At the same time it takes advantage of ARC ISA (rotate intrns)
  */
 
-#define __arch_swab32(x) __extension__										\
-({ 	unsigned long __swab32_in = (x), __swab32_tmp; 								\
-	__swab32_tmp = __swab32_in << 8 | __swab32_in >> 24; /* ror tmp,in,24 */\
-	__swab32_in = __swab32_in << 24 | __swab32_in >> 8; /* ror in,in,8 */	\
-	__swab32_tmp ^= __swab32_in; 											\
-	__swab32_tmp &= 0xff00ff; 												\
-	__swab32_tmp ^ __swab32_in; 											\
+#define __arch_swab32(x) __extension__				\
+({	unsigned long __in = (x), __tmp;			\
+	__tmp = __in << 8 | __in >> 24; /* ror tmp,in,24 */	\
+	__in = __in << 24 | __in >> 8; /* ror in,in,8 */	\
+	__tmp ^= __in;						\
+	__tmp &= 0xff00ff;					\
+	__tmp ^ __in;						\
 })
 
 #elif (ARC_BSWAP_TYPE == 2)	/* Custom single cycle bwap instruction */
 
-#define __arch_swab32(x)  		\
-({								\
-	unsigned int tmp=x;			\
-	__asm__  (					\
-		".extInstruction	bswap,  7, 0x00, SUFFIX_NONE, SYNTAX_2OP \n\t"	\
-		"bswap	%0, %1\n\t"		\
-		:"=r" (tmp)				\
-		:"r" (tmp));			\
-	tmp;						\
+#define __arch_swab32(x)						\
+({									\
+	unsigned int tmp = x;						\
+	__asm__(							\
+	"	.extInstruction	bswap, 7, 0x00, SUFFIX_NONE, SYNTAX_2OP	\n"\
+	"	bswap  %0, %1						\n"\
+	: "=r" (tmp)							\
+	: "r" (tmp));							\
+	tmp;								\
 })
 
 #endif /* ARC_BSWAP_TYPE=zzz */
@@ -92,9 +92,8 @@
 #endif /* CONFIG_ARC_HAS_SWAPE */
 
 #if !defined(__STRICT_ANSI__) || defined(__KERNEL__)
-#  define __BYTEORDER_HAS_U64__
-#  define __SWAB_64_THRU_32__
+#define __BYTEORDER_HAS_U64__
+#define __SWAB_64_THRU_32__
 #endif
-
 
 #endif

@@ -24,25 +24,18 @@
 #include <linux/slab.h>
 #include <linux/a.out.h>
 #include <linux/reboot.h>
-#include <linux/sys.h>      /* for NR_SYSCALS */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/elf.h>
+#include <linux/tick.h>
+#include <linux/random.h>
+#include <linux/vmalloc.h>
+#include <linux/bug.h>
 #include <asm/system.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
-#include <asm/elf.h>
-#include <asm/ptrace.h>
 #include <asm/pgalloc.h>
-#include <linux/vmalloc.h>
 #include <asm/arcregs.h>
-#include <linux/tick.h>
-#include <asm/bug.h>
-#include <linux/random.h>
-
-/* Sameer: We don't have small-data support yet.
-           I am trying to fix it by defining here. */
-unsigned long volatile jiffies;
 
 /*
  * The idle thread. There's no useful work to be
@@ -50,125 +43,92 @@ unsigned long volatile jiffies;
  * low exit latency (ie sit in a loop waiting for
  * somebody to say that they'd like to reschedule)
  */
-static void inline arch_idle(void)
+static inline void arch_idle(void)
 {
-    __asm__ ("sleep");
+	__asm__("sleep");
 }
 
 void cpu_idle(void)
 {
 
-    /* vineetg May 23 2008: Merge from SMP branch to Mainline
-     *
-     * In the mainline kernel, To conserve power when idle, we "sleep"
-     * in arch_idle and thus don't poll the need resched flag.
-     * But the TIF_POLLING flag is enabled.
-     *
-     * This is fine in UNI, since nobody is looking at the TIF_POLLING flag
-     * but in SMP, this is an indication to other CPU that "hey I'm polling,
-     * don't waste time sending Inter Processor Interrupt (IPI) to
-     * resched me. Conseq other CPU's sched sets my resched flag, which
-     * I can't see immediately since I'm sleeping. Only when I get a local
-     * local interrupt such as TIMER, I break out of sleep, check the
-     * resched flag. This will work but not precisely what we want.
-     *
-     * Thus it is IMP to NOT set the TIF_POLLING flag in SMP and use
-     * IPIs to resched.
-     */
+	/* vineetg May 23 2008: Merge from SMP branch to Mainline
+	 *
+	 * In the mainline kernel, To conserve power when idle, we "sleep"
+	 * in arch_idle and thus don't poll the need resched flag.
+	 * But the TIF_POLLING flag is enabled.
+	 *
+	 * This is fine in UNI, since nobody is looking at the TIF_POLLING flag
+	 * but in SMP, this is an indication to other CPU that "hey I'm polling,
+	 * don't waste time sending Inter Processor Interrupt (IPI) to
+	 * resched me. Conseq other CPU's sched sets my resched flag, which
+	 * I can't see immediately since I'm sleeping. Only when I get a local
+	 * local interrupt such as TIMER, I break out of sleep, check the
+	 * resched flag. This will work but not precisely what we want.
+	 *
+	 * Thus it is IMP to NOT set the TIF_POLLING flag in SMP and use
+	 * IPIs to resched.
+	 */
 
-#if defined (CONFIG_SMP) && !defined(ARC_SLEEP_WHEN_IDLE)
-    set_tsk_thread_flag(current, TIF_POLLING_NRFLAG);
+#if defined(CONFIG_SMP) && !defined(ARC_SLEEP_WHEN_IDLE)
+	set_tsk_thread_flag(current, TIF_POLLING_NRFLAG);
 #endif
 
-    /* endless idle loop with no priority at all */
-    while (1) {
-        tick_nohz_stop_sched_tick(1);
+	/* endless idle loop with no priority at all */
+	while (1) {
+		tick_nohz_stop_sched_tick(1);
 
-        /* Test the need-resced "flag" of current task "idle"
-           A local ISR or peer CPU may want resched
-           If not set, go to low power friendly "sleep"
-         */
+		/* Test the need-resced "flag" of current task "idle"
+		   A local ISR or peer CPU may want resched
+		   If not set, go to low power friendly "sleep"
+		 */
 
-        while(!need_resched())
-            arch_idle();
+		while (!need_resched())
+			arch_idle();
 
-        tick_nohz_restart_sched_tick();
+		tick_nohz_restart_sched_tick();
 
-        preempt_enable_no_resched();
-        schedule();
-        preempt_disable();
-    }
-}
-
-void machine_restart(char *__unused)
-{
-    /* Soft reset : jump to reset vector */
-printk("Restart handlers are board specific, put your restart handler code\n");
-printk("in arch/arc/proc/arc700/process.c in the machine_restart() function\n");
-
-    machine_halt();
-}
-
-void machine_halt(void)
-{
-    /* Halt the processor */
-    __asm__ __volatile__("flag  %0"::"i"(STATUS_H_MASK));
-}
-
-void machine_power_off(void)
-{
-    /* FIXME ::  power off ??? */
-
-    /* Halt the processor */
-    __asm__ __volatile__("flag  %0"::"i"(STATUS_H_MASK));
+		preempt_enable_no_resched();
+		schedule();
+		preempt_disable();
+	}
 }
 
 void kernel_thread_helper(void)
 {
-    __asm__ __volatile__("mov   r0, r2 \n\t"
-                 "mov   r1, r3 \n\t" "j     [r1] "::);
+	__asm__ __volatile__(
+		"mov   r0, r2	\n\t"
+		"mov   r1, r3	\n\t"
+		"j     [r1]	\n\t");
 }
 
-/* Sameer: Linux-2.6 has every arch specific process file defining
-           its own version of kernel_thread instead of it being in
-           fork.c. We need to define our own version of kernel_thread
-           and call do_fork() Currently I am writing temporary definition
-       which needs to be verified later. But this is an imp issue
-       to be tackled */
 int kernel_thread(int (*fn) (void *), void *arg, unsigned long flags)
 {
-    struct pt_regs regs;
-    unsigned long status32;
+	struct pt_regs regs;
 
-    memset(&regs, 0, sizeof(regs));
+	memset(&regs, 0, sizeof(regs));
 
-    regs.r2 = (unsigned long)arg;
-    regs.r3 = (unsigned long)fn;
-    regs.blink = (unsigned long)do_exit;
-    regs.ret = (unsigned long)kernel_thread_helper;
-    __asm__ __volatile__("lr  r9,[status32] \n\t"
-        "mov %0, r9":"=r"(status32)::"r9");
+	regs.r2 = (unsigned long)arg;
+	regs.r3 = (unsigned long)fn;
+	regs.blink = (unsigned long)do_exit;
+	regs.ret = (unsigned long)kernel_thread_helper;
+	regs.status32 = read_aux_reg(0xa);
 
-    regs.status32 = status32;
-
-
-    /* Sameer: Fixme. Put values into pr_regs registers here */
-    /* Ok, create the new process.. */
-    return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL,
-               NULL);
+	/* Ok, create the new process.. */
+	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL,
+		       NULL);
 
 }
 EXPORT_SYMBOL(kernel_thread);
 
 asmlinkage int sys_fork(struct pt_regs *regs)
 {
-    return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
+	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
 }
 
 asmlinkage int sys_vfork(struct pt_regs *regs)
 {
-    return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs, 0,
-               NULL, NULL);
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs, 0,
+		       NULL, NULL);
 }
 
 /* Per man, C-lib clone( ) is as follows
@@ -183,12 +143,13 @@ asmlinkage int sys_vfork(struct pt_regs *regs)
  * task_pt_regs() can be called anywhere to get that.
  */
 asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-            int __user *parent_tidptr, void *tls, int __user *child_tidptr,
-            struct pt_regs *regs)
+			 int __user *parent_tidptr, void *tls,
+			 int __user *child_tidptr, struct pt_regs *regs)
 {
-    if (!newsp)
-        newsp = regs->sp;
-    return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
+	if (!newsp)
+		newsp = regs->sp;
+	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr,
+		       child_tidptr);
 }
 
 asmlinkage void ret_from_fork(void);
@@ -200,213 +161,159 @@ asmlinkage void ret_from_fork(void);
  * |    unused      |
  * |                |
  * ------------------  <==== top of Stack (thread.ksp)
- * |     r13        |
- * |                |
- * |    --to--.     |   (CALLEE Regs)
- * |                |
+ * |   UNUSED 1 word|
+ * ------------------
  * |     r25        |
+ * ~                ~	CALLEE Regs
+ * |     r13        |
  * ------------------
  * |     fp         |
  * |    blink       |   @ret_from_fork
  * ------------------
- * |     r0         |
  * |                |
- * |    --to--.     |   (CALLER Regs)
+ * ~                ~
+ * ~                ~
  * |                |
+ * ------------------
  * |     r12        |
+ * ~                ~	CALLER Regs
+ * |     r0         |
  * ------------------
  * |   UNUSED 1 word|
  * ------------------  <===== END of PAGE
  */
 int copy_thread(unsigned long clone_flags,
-        unsigned long usp, unsigned long topstk,
-        struct task_struct *p, struct pt_regs *regs)
+		unsigned long usp, unsigned long topstk,
+		struct task_struct *p, struct pt_regs *regs)
 {
-    struct pt_regs *child_ptregs;
-    struct callee_regs *child_cregs, *parent_cregs;
-    unsigned long *childksp;
+	struct pt_regs *child_ptregs;
+	struct callee_regs *child_cregs, *parent_cregs;
+	unsigned long *childksp;
 
-    /* Note that parent's pt_regs are passed to this function.
-     * They may not be same as one returned by task_pt_regs(current)
-     * _IF_ we are starting a kernel thread, because it doesn't have a
-     * parent in true sense
-     * BUG_ON(regs != task_pt_regs(current));
-     */
-
-    if (user_mode(regs))
-        BUG_ON(regs != task_pt_regs(current));
+	/* Note that parent's pt_regs are passed to this function.
+	 * They may not be same as one returned by task_pt_regs(current)
+	 * _IF_ we are starting a kernel thread, because it doesn't have a
+	 * parent in true sense
+	 */
+	if (user_mode(regs))
+		BUG_ON(regs != task_pt_regs(current));
 
     /****************************************************************
      * setup Child for its first ever return to user land
      * by making its pt_regs same as its parent
      ****************************************************************/
 
-    /* Copy parents pt regs on child's kernel mode stack
-     */
-    child_ptregs = task_pt_regs(p);
-    *child_ptregs = *regs;
+	/* Copy parents pt regs on child's kernel mode stack
+	 */
+	child_ptregs = task_pt_regs(p);
+	*child_ptregs = *regs;
 
-    /* its kernel mode SP is now @ start of pt_regs */
-    childksp = (unsigned long *)child_ptregs;
+	/* its kernel mode SP is now @ start of pt_regs */
+	childksp = (unsigned long *)child_ptregs;
 
-    /* fork return value 0 for the child */
-    child_ptregs->r0 = 0;
+	/* fork return value 0 for the child */
+	child_ptregs->r0 = 0;
 
-    /* IF the parent is a kernel thread then we change the stack pointer
-     * of the child its kernel stack
-     */
-    if (!user_mode(regs)) {
-        /* Arc gcc stack adjustment */
-        child_ptregs->sp = (unsigned long)task_thread_info(p) +(THREAD_SIZE - 4);
-    } else
-        child_ptregs->sp = usp;
+	/* IF the parent is a kernel thread then we change the stack pointer
+	 * of the child its kernel stack
+	 */
+	if (!user_mode(regs)) {
+		/* Arc gcc stack adjustment */
+		child_ptregs->sp =
+		    (unsigned long)task_thread_info(p) + (THREAD_SIZE - 4);
+	} else
+		child_ptregs->sp = usp;
 
     /****************************************************************
      * setup Child for its first ever execution in kernel mode, when
      * schedular( ) picks it up for the first time, in switch_to( )
      ****************************************************************/
 
-    /* push frame pointer and return address (blink) as expected by
-     * __switch_to on top of pt_regs
-     */
+	/* push frame pointer and return address (blink) as expected by
+	 * __switch_to on top of pt_regs
+	 */
 
-    *(--childksp) = (unsigned long)ret_from_fork;   /* push blink */
-    *(--childksp) = 0;  /* push fp */
+	*(--childksp) = (unsigned long)ret_from_fork;	/* push blink */
+	*(--childksp) = 0;	/* push fp */
 
-    /* copy CALLEE regs now, on top of above 2 and pt_regs */
-    child_cregs = ((struct callee_regs *)childksp) - 1;
+	/* copy CALLEE regs now, on top of above 2 and pt_regs */
+	child_cregs = ((struct callee_regs *)childksp) - 1;
 
-    /* Don't copy for kernel threads because we didn't even save
-     *  them in first place
-     */
-    if (user_mode(regs)) {
-        parent_cregs = ((struct callee_regs *)regs) - 1;
-        *child_cregs = *parent_cregs;
-    }
+	/* Don't copy for kernel threads because we didn't even save
+	 *  them in first place
+	 */
+	if (user_mode(regs)) {
+		parent_cregs = ((struct callee_regs *)regs) - 1;
+		*child_cregs = *parent_cregs;
+	}
 
-    /* The kernel SP for child has grown further up, now it is
-     * at the start of where CALLEE Regs were copied.
-     * When child is passed to schedule( ) for the very first time,
-     * it unwinds stack, loading CALLEE Regs from top and goes it's
-     * merry way
-     */
-    p->thread.ksp = (unsigned long)child_cregs;  /* THREAD_KSP */
+	/*
+	 * The kernel SP for child has grown further up, now it is
+	 * at the start of where CALLEE Regs were copied.
+	 * When child is passed to schedule( ) for the very first time,
+	 * it unwinds stack, loading CALLEE Regs from top and goes it's
+	 * merry way
+	 */
+	p->thread.ksp = (unsigned long)child_cregs;	/* THREAD_KSP */
 
 #ifdef CONFIG_ARCH_ARC_CURR_IN_REG
-    /* Replicate parent's user mode r25 for child */
-    p->thread.user_r25 = current->thread.user_r25;
+	/* Replicate parent's user mode r25 for child */
+	p->thread.user_r25 = current->thread.user_r25;
 #endif
 
 #ifdef CONFIG_ARC_TLS_REG_EMUL
-    if (user_mode(regs)) {
-        if (unlikely(clone_flags & CLONE_SETTLS)) {
-            /* If we came here because of a clone and that too with XX_SETTLS,
-            * set this task's userland tls data ptr from the 4th arg to clone
-            * Note that clone C-lib call is difft from clone sys-call
-            */
-            task_thread_info(p)->thr_ptr = regs->r3;
-        }
-        else {
-            /* Normal fork case: set parent's TLS ptr in child */
-            task_thread_info(p)->thr_ptr = task_thread_info(current)->thr_ptr;
-        }
-    }
+	if (user_mode(regs)) {
+		if (unlikely(clone_flags & CLONE_SETTLS)) {
+			/*
+			 * set task's userland tls data ptr from 4th arg
+			 * clone C-lib call is difft from clone sys-call
+			 */
+			task_thread_info(p)->thr_ptr = regs->r3;
+		} else {
+			/* Normal fork case: set parent's TLS ptr in child */
+			task_thread_info(p)->thr_ptr =
+			    task_thread_info(current)->thr_ptr;
+		}
+	}
 #endif
 
-    return 0;
+	return 0;
 }
 
-int sys_execve(const char __user * filenamei,
-		const char __user * __user * argv, const char __user * __user * envp,
-		struct pt_regs *regs)
+int sys_execve(const char __user *filenamei, const char __user *__user *argv,
+	       const char __user *__user *envp, struct pt_regs *regs)
 {
-    int error;
-    char __user *filename;
+	int error;
+	char __user *filename;
 
-    filename = getname(filenamei);
-    error = PTR_ERR(filename);
-    if (IS_ERR(filename))
-        goto out;
-    error = do_execve(filename, argv, envp, regs);
-    putname(filename);
-      out:
-    return error;
+	filename = getname(filenamei);
+	error = PTR_ERR(filename);
+	if (IS_ERR(filename))
+		goto out;
+	error = do_execve(filename, argv, envp, regs);
+	putname(filename);
+out:
+	return error;
 }
 
+/*
+ * Some archs flush debug and FPU info here
+ */
 void flush_thread(void)
 {
-    /* DUMMY: just a dummy function to remove the undefined references */
 }
 
+/*
+ * Free any architecture-specific thread data structures, etc.
+ */
 void exit_thread(void)
 {
-    /* DUMMY: just a dummy function to remove the undefined references */
 }
 
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
 {
-    return 0;
+	return 0;
 }
-
-/* Sameer: We don't have implementation yet */
-void (*pm_power_off) (void) = NULL;
-
-/*
- * Simon Spooner
- * "prepare" for a context switch.
- * This arch specific code detects if the next process is the process
- * that is being monitored with the ARC profiling tools.
- * If it is not, then it will optionally switch off the hardware profiling
- * if desired.  If it is it will switch on the monitoring hardware
- */
-
-#ifdef CONFIG_ARC_PROFILING
-
-unsigned long int arc_pid_to_monitor =0;
-unsigned long int arc_profiling=0;
-EXPORT_SYMBOL(arc_pid_to_monitor);
-EXPORT_SYMBOL(arc_profiling);
-
-void arc_ctx_callout(struct task_struct *next)
-{
-    unsigned int pct_control;
-    volatile unsigned int *hwp_ctrl = (unsigned int *)ARC_HWP_CTRL;
-
-    if(arc_profiling & 0x1)   /* Is profiling ctxt-switch support enabled ? */
-    {
-        if(arc_profiling &0x2) /* PCT counters enabled ? */
-        {
-            pct_control = read_new_aux_reg(ARC_PCT_CONTROL);
-
-            /* Are we interested */
-            if( (arc_pid_to_monitor == next->pid)
-                || arc_pid_to_monitor == 0)
-                pct_control |= 0x1;     /* profiling on */
-            else
-                pct_control &= ~0x1;    /* profiling off */
-
-            write_new_aux_reg(ARC_PCT_CONTROL, pct_control);
-        }
-
-        /* Are we interested in this PID ? */
-        if(arc_profiling & 0x4)
-        {
-            if ( (arc_pid_to_monitor == next->pid) || \
-                (arc_pid_to_monitor == 0) )
-            {
-                /* switch on hardware. */
-                *hwp_ctrl |= PR_CTRL_EN;
-            }
-            else
-            {
-                /* switch off hardware */
-                *hwp_ctrl &= ~PR_CTRL_EN;
-            }
-        }
-    }
-}
-
-#endif
 
 /*
  * API: expected by schedular Code: If thread is sleeping where is that.
@@ -415,33 +322,28 @@ void arc_ctx_callout(struct task_struct *next)
  */
 unsigned long thread_saved_pc(struct task_struct *t)
 {
-    struct pt_regs *regs = task_pt_regs(t);
-    unsigned long blink = 0;
+	struct pt_regs *regs = task_pt_regs(t);
+	unsigned long blink = 0;
 
-    /* If the thread being queried for in not itself calling this, then it
-     * implies it is not executing, which in turn implies it is sleeping,
-     * which in turn implies it got switched OUT by the schedular.
-     * In that case, it's kernel mode blink can reliably retrieved as per
-     * the picture above (right above pt_regs).
-     */
-    if ( t != current && t->state != TASK_RUNNING ) {
-        blink = *((unsigned int *)((unsigned long)regs - 4));
-    }
+	/* If the thread being queried for in not itself calling this, then it
+	 * implies it is not executing, which in turn implies it is sleeping,
+	 * which in turn implies it got switched OUT by the schedular.
+	 * In that case, it's kernel mode blink can reliably retrieved as per
+	 * the picture above (right above pt_regs).
+	 */
+	if (t != current && t->state != TASK_RUNNING)
+		blink = *((unsigned int *)((unsigned long)regs - 4));
 
-    return blink;
+	return blink;
 }
 
-/* Independent of kernel CONFIG option, we keep the syscall in
- * unistd.h and in sys-call jump table.
- * But return failure here if not supported
- */
 int sys_arc_settls(void *user_tls_data_ptr)
 {
 #ifdef CONFIG_ARC_TLS_REG_EMUL
-    task_thread_info(current)->thr_ptr = (unsigned int)user_tls_data_ptr;
-    return 0;
+	task_thread_info(current)->thr_ptr = (unsigned int)user_tls_data_ptr;
+	return 0;
 #else
-    return -EFAULT;
+	return -EFAULT;
 #endif
 }
 
@@ -457,8 +359,34 @@ int sys_arc_settls(void *user_tls_data_ptr)
 int sys_arc_gettls(void)
 {
 #ifdef CONFIG_ARC_TLS_REG_EMUL
-    return task_thread_info(current)->thr_ptr;
+	return task_thread_info(current)->thr_ptr;
 #else
-    return -EFAULT;
+	return -EFAULT;
 #endif
 }
+
+int kernel_execve(const char *filename, const char *const argv[],
+		  const char *const envp[])
+{
+	/* Although the arguments (order, number) to this function are
+	 * same as sys call, we don't need to setup args in regs again.
+	 * However in case mainline kernel changes the order of args to
+	 * kernel_execve, that assumtion will break.
+	 * So to be safe, let gcc know the args for sys call.
+	 * If they match no extra code will be generated
+	 */
+	register int arg2 asm("r1") = (int)argv;
+	register int arg3 asm("r2") = (int)envp;
+
+	register int filenm_n_ret asm("r0") = (int)filename;
+
+	__asm__ __volatile__(
+		"mov   r8, %1	\n\t"
+		"trap0		\n\t"
+		: "+r"(filenm_n_ret)
+		: "i"(__NR_execve), "r"(arg2), "r"(arg3)
+		: "r8", "memory");
+
+	return filenm_n_ret;
+}
+EXPORT_SYMBOL(kernel_execve);

@@ -23,8 +23,8 @@
  *#####################################################################*/
 
 /* Size of the log buffer */
-#define MAX_SNAPS  1024
-#define MAX_SNAPS_MASK (MAX_SNAPS-1)
+#define MAX_SNAPS	1024
+#define MAX_SNAPS_MASK	(MAX_SNAPS-1)
 
 /* Helpers to setup Event IDs:
  * 8 classes of events possible
@@ -68,10 +68,9 @@
 
 #define SNAP_SENTINEL           CUSTOM_EVENT(22)
 
-
 #ifndef CONFIG_ARC_DBG_EVENT_TIMELINE
 
-#define take_snap(type,extra,ptreg)
+#define take_snap(type, extra, ptreg)
 #define sort_snaps(halt_after_sort)
 
 #else
@@ -80,26 +79,23 @@
 
 typedef struct {
 
-    /*  0 */ char nm[16];
-    /* 16 */ unsigned int extra; /* Traps: Sys call num,
-                                    Intr: IRQ, Excepn:
-                                  */
-    /* 20 */ unsigned int  fault_addr;
-    /* 24 */ unsigned int  cause;
-    /* 28 */ unsigned int task;
-    /* 32 */ unsigned long time;
-    /* 36 */ unsigned int  event;
-    /* 40 */ unsigned int  sp;
-    /* 44 */ unsigned int  extra2;
-    /* 40 */ unsigned int  extra3;
+	/*  0 */ char nm[16];
+	/* 16 */ unsigned int extra; /* Traps: Syscall num, Intr: IRQ, Excep */
+	/* 20 */ unsigned int fault_addr;
+	/* 24 */ unsigned int cause;
+	/* 28 */ unsigned int task;
+	/* 32 */ unsigned long time;
+	/* 36 */ unsigned int event;
+	/* 40 */ unsigned int sp;
+	/* 44 */ unsigned int extra2;
+	/* 40 */ unsigned int extra3;
 
-}
-timeline_log_t;
+} timeline_log_t;
 
 void take_snap(int type, unsigned int extra, unsigned int extra2);
 void sort_snaps(int halt_after_sort);
 
-#endif  /* __ASSEMBLY__ */
+#endif /* __ASSEMBLY__ */
 
 #endif /* CONFIG_ARC_DBG_EVENT_TIMELINE */
 

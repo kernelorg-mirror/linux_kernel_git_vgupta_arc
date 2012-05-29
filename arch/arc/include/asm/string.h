@@ -27,14 +27,14 @@
 #define __HAVE_ARCH_STRCMP
 #define __HAVE_ARCH_STRLEN
 
-extern void * memset(void *ptr, int, __kernel_size_t);
-extern void * memcpy(void *, const void *, __kernel_size_t);
+extern void *memset(void *ptr, int, __kernel_size_t);
+extern void *memcpy(void *, const void *, __kernel_size_t);
 extern void memzero(void *ptr, __kernel_size_t n);
 extern int memcmp(const void *, const void *, __kernel_size_t);
-extern char * strchr(const char * s, int c);
+extern char *strchr(const char *s, int c);
 extern char *strcpy(char *dest, const char *src);
 extern int strcmp(const char *cs, const char *ct);
 extern __kernel_size_t strlen(const char *);
 
-#endif  /* __KERNEL__ */
-#endif  /* _ASM_ARC_STRING_H */
+#endif /* __KERNEL__ */
+#endif /* _ASM_ARC_STRING_H */

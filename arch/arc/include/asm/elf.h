@@ -16,6 +16,9 @@
 #include <asm/ptrace.h>
 #include <asm/user.h>
 
+#define EM_ARCTANGENT		93
+
+/* ARC Relocations relevant to kernel */
 #define  R_ARC_32		0x4
 #define  R_ARC_32_ME		0x1B
 #define  R_ARC_S25H_PCREL	0x10
@@ -23,10 +26,10 @@
 
 typedef unsigned long elf_greg_t;
 
-#define EM_ARCTANGENT	0x5D
 
-/* core dump regs is in the order pt_regs, callee_regs, stop_pc (for gdb's sake) */
-#define ELF_NGREG ((sizeof (struct pt_regs)+ sizeof (struct callee_regs) + sizeof(unsigned long))/ sizeof(elf_greg_t))
+/* core dump regs is in the order pt_regs, callee_regs, stop_pc (for gdb) */
+#define ELF_NGREG	((sizeof(struct pt_regs) + sizeof(struct callee_regs) \
+			  + sizeof(unsigned long)) / sizeof(elf_greg_t))
 
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
@@ -41,53 +44,47 @@ typedef unsigned long elf_fpregset_t;
 /*
  * These are used to set parameters in the core dumps.
  */
-#define ELF_CLASS	ELFCLASS32
-#define ELF_DATA	ELFDATA2LSB
-#define ELF_ARCH	EM_ARCTANGENT
+#define ELF_CLASS		ELFCLASS32
+#define ELF_DATA		ELFDATA2LSB
+#define ELF_ARCH		EM_ARCTANGENT
 
 #ifdef __KERNEL__
 
 #define USE_ELF_CORE_DUMP
 #define CORE_DUMP_USE_REGSET
-#define ELF_EXEC_PAGESIZE PAGE_SIZE
 
-/* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
-   use of this is to invoke "./ld.so someprog" to test out a new version of
-   the loader.  We need to make sure that it is out of the way of the program
-   that it will "exec", and that there is sufficient room for the brk.  */
+#define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
-#define ELF_ET_DYN_BASE	(2 * TASK_SIZE / 3)
-
-/* When the program starts, a1 contains a pointer to a function to be
-   registered with atexit, as per the SVR4 ABI.  A value of 0 means we
-   have no such handler.  */
-#define ELF_PLAT_INIT(_r, load_addr)	(_r)->r0 = 0
-
-extern void arc_elf_core_copy_regs(elf_gregset_t *,struct pt_regs *);
-
-#define ELF_CORE_COPY_REGS(elf_reg, regs)       \
-                arc_elf_core_copy_regs(&(elf_reg),regs);
-
-/* This is needed to dump the non-fatal threads in case of multi-threaded
- * program
+/*
+ * This is the location that an ET_DYN program is loaded if exec'ed.  Typical
+ * use of this is to invoke "./ld.so someprog" to test out a new version of
+ * the loader.  We need to make sure that it is out of the way of the program
+ * that it will "exec", and that there is sufficient room for the brk.
  */
-extern int arc_elf_core_copy_tsk_regs(struct task_struct *, elf_gregset_t *);
+#define ELF_ET_DYN_BASE		(2 * TASK_SIZE / 3)
 
-#define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs)  \
-                arc_elf_core_copy_tsk_regs(tsk, elf_regs)
+/*
+ * When the program starts, a1 contains a pointer to a function to be
+ * registered with atexit, as per the SVR4 ABI.  A value of 0 means we
+ * have no such handler.
+ */
+#define ELF_PLAT_INIT(_r, load_addr)	((_r)->r0 = 0)
 
-/* This yields a mask that user programs can use to figure out what
-   instruction set this cpu supports. */
-
+/*
+ * This yields a mask that user programs can use to figure out what
+ * instruction set this cpu supports.
+ */
 #define ELF_HWCAP	(0)
 
-/* This yields a string that ld.so will use to load implementation
-   specific libraries for optimization.  This is more specific in
-   intent than poking at uname or /proc/cpuinfo. */
-
+/*
+ * This yields a string that ld.so will use to load implementation
+ * specific libraries for optimization.  This is more specific in
+ * intent than poking at uname or /proc/cpuinfo.
+ */
 #define ELF_PLATFORM	(NULL)
 
 #define SET_PERSONALITY(ex) set_personality(PER_LINUX)
-#endif
+
+#endif  /* __KERNEL__ */
 
 #endif

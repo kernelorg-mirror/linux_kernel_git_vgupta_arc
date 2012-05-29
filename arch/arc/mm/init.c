@@ -18,13 +18,13 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/mmapcode.h>
+#include <asm/sections.h>
 
-pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__ ((aligned(PAGE_SIZE)));
-char empty_zero_page[PAGE_SIZE] __attribute__ ((aligned(PAGE_SIZE)));
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __aligned(PAGE_SIZE);
+char empty_zero_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(empty_zero_page);
 
-/* static unsigned long totalram_pages = 0; */
-extern char _etext, _text, _edata, _end, _init_end, _init_begin;
+unsigned long end_mem = CONFIG_SDRAM_SIZE + CONFIG_LINUX_LINK_BASE;
 
 void __init pagetable_init(void)
 {
@@ -36,26 +36,37 @@ void __init pagetable_init(void)
 void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, 0 };
-	extern unsigned long end_mem;
 
 	pagetable_init();
 
-	zones_size[ZONE_NORMAL] = (end_mem - CONFIG_LINUX_LINK_BASE) >> PAGE_SHIFT;
+	zones_size[ZONE_NORMAL] =
+	    (end_mem - CONFIG_LINUX_LINK_BASE) >> PAGE_SHIFT;
 
-#ifdef  CONFIG_FLATMEM
-	free_area_init_node(0, zones_size, CONFIG_LINUX_LINK_BASE >> PAGE_SHIFT, NULL);
+	/*
+	 * Must not use free_area_init() as that uses PAGE_OFFSET, which
+	 * need not be the case when our kernel linked at non-default addr
+	 * i.e. when CONFIG_LINUX_LINK_BASE != PAGE_OFFSET
+	 */
+#ifdef CONFIG_FLATMEM
+	free_area_init_node(0, zones_size, CONFIG_LINUX_LINK_BASE >> PAGE_SHIFT,
+			    NULL);
 #else
 #error "Fix !CONFIG_FLATMEM"
 #endif
 }
 
+/*
+ * mem_init - initializes memory
+ *
+ * Frees up bootmem
+ * Calculates and displays memory available/used
+ */
 void __init mem_init(void)
 {
 	int codesize, datasize, initsize, reserved_pages;
 	int tmp;
 
-	high_memory =
-	    (void *)__va((max_low_pfn) * PAGE_SIZE);
+	high_memory = (void *)__va((max_low_pfn) * PAGE_SIZE);
 
 	max_mapnr = num_physpages;
 
@@ -66,34 +77,31 @@ void __init mem_init(void)
 		if (PageReserved(mem_map + tmp))
 			reserved_pages++;
 
-	codesize = (unsigned long)&_etext - (unsigned long)&_text;
-	datasize = (unsigned long)&_end - (unsigned long)&_etext;
-	initsize = (unsigned long)&_init_end - (unsigned long)&_init_begin;
+	codesize = (unsigned long)_etext - (unsigned long)_text;
+	datasize = (unsigned long)_end - (unsigned long)_etext;
+	initsize = (unsigned long)__init_end - (unsigned long)__init_begin;
 
-	printk(KERN_NOTICE
-	       "Memory: %luKB available (%dK code,%dK data, %dK init)\n",
-	       (unsigned long)nr_free_pages() << (PAGE_SHIFT - 10),
-	       codesize >> 10, datasize >> 10, initsize >> 10);
+	pr_info("Memory: %luKB available (%dK code,%dK data, %dK init)\n",
+		(unsigned long)nr_free_pages() << (PAGE_SHIFT - 10),
+		codesize >> 10, datasize >> 10, initsize >> 10);
 }
 
 void free_initmem(void)
 {
-	extern char _init_begin, _init_end;
 	unsigned long addr;
 
-	addr = (unsigned long)(&_init_begin);
-	for (; addr < (unsigned long)(&_init_end); addr += PAGE_SIZE) {
+	addr = (unsigned long)(__init_begin);
+	for (; addr < (unsigned long)(__init_end); addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
-		/* Sameer: may be arch-specific code is not supposed to use
-		   this. */
-		/* set_page_count(virt_to_page(addr), 1); */
 		free_page(addr);
 		totalram_pages++;
 	}
-	printk(KERN_INFO "Freeing unused kernel memory: %luk freed [%p] TO [%p]\n",
-	       (&_init_end - &_init_begin) >> 10, &_init_begin, &_init_end);
+	pr_info("Freeing unused kernel memory: %luk freed [%lx] TO [%lx]\n",
+		(__init_end - __init_begin) >> 10,
+		(unsigned long)__init_begin,
+		(unsigned long)__init_end);
 
-    mmapcode_space_init();
+	mmapcode_space_init();
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -103,15 +111,59 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 	int pages = 0;
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
-		/* Sameer: may be arch-specific code is not supposed to use
-		   this. */
-		/* set_page_count(virt_to_page(start), 1); */
 		free_page(start);
 		totalram_pages++;
 		pages++;
 	}
-	printk("Freeing initrd memory: %luk freed\n",
-	       (pages * PAGE_SIZE) >> 10);
+	pr_info("Freeing initrd memory: %luk freed\n",
+		(pages * PAGE_SIZE) >> 10);
 
 }
 #endif
+
+/*
+ * Count the pages we have and Setup bootmem allocator
+  */
+void __init setup_arch_memory(void)
+{
+	int bootmap_sz;
+	unsigned long first_free_pfn, kernel_end_addr;
+
+	init_mm.start_code = (unsigned long)_text;
+	init_mm.end_code = (unsigned long)_etext;
+	init_mm.end_data = (unsigned long)_edata;
+	init_mm.brk = (unsigned long)_end;
+
+	/* Make sure that "end_kernel" is page aligned in linker script
+	 * so that it points to first free page in system
+	 * Also being a linker script var, we need to do &end_kernel which
+	 * doesn't work with >> operator, hence helper "kernel_end_addr"
+	 */
+	kernel_end_addr = (unsigned long)&end_kernel;
+
+	/* First free page beyond kernel image */
+	first_free_pfn = PFN_DOWN(kernel_end_addr);
+
+	/* first page of system - kernel .vector starts here */
+	min_low_pfn = PFN_DOWN(CONFIG_LINUX_LINK_BASE);
+
+	/* Last usable page of low mem (no HIGH_MEM yet for ARC port)
+	 * -must be BASE + SIZE
+	 */
+	max_low_pfn = max_pfn = PFN_DOWN(end_mem);
+
+	num_physpages = max_low_pfn - min_low_pfn;
+
+	/* setup bootmem allocator */
+	bootmap_sz = init_bootmem_node(NODE_DATA(0),
+				       first_free_pfn,/* bitmap start */
+				       min_low_pfn,	/* First pg to track */
+				       max_low_pfn);	/* Last pg to track */
+
+	/*
+	 * Make all mem tracked by bootmem alloc as usable,
+	 * except the bootmem bitmap itself
+	 */
+	free_bootmem(kernel_end_addr, end_mem - kernel_end_addr);
+	reserve_bootmem(kernel_end_addr, bootmap_sz, BOOTMEM_DEFAULT);
+}
