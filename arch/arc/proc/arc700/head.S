@@ -104,7 +104,7 @@ __clear_bss_loop:
 	sub r3, 0xffff, r3
 	st  r3, [@running_on_hw] ; 0 for sim, non-zero for real hw
 
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	; setup init_task as "current"
 	mov r25, [@init_task]
 	st r25, [@_current_task]

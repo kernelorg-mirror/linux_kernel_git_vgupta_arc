@@ -593,7 +593,7 @@ static void __init arc_serial_init_ports(void)
 	for (i = 0; i < CONFIG_ARC_SERIAL_NR_PORTS; i++) {
 
 		/* TBD: get_sclk(); */
-		arc_serial_ports[i].port.uartclk = CONFIG_ARC700_CLK;
+		arc_serial_ports[i].port.uartclk = CONFIG_ARC_PLAT_CLK;
 		arc_serial_ports[i].port.fifosize = ARC_UART_TX_FIFO_SIZE;
 		arc_serial_ports[i].port.ops = &arc_serial_pops;
 		arc_serial_ports[i].port.line = i;

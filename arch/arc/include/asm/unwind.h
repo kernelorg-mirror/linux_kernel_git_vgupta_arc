@@ -9,7 +9,7 @@
 #ifndef _ASM_ARC_UNWIND_H
 #define _ASM_ARC_UNWIND_H
 
-#ifdef CONFIG_ARC_STACK_UNWIND
+#ifdef CONFIG_ARC_DW2_UNWIND
 
 #include <linux/sched.h>
 

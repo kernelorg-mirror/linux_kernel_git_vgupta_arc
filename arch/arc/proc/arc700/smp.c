@@ -432,7 +432,7 @@ void smp_ipi_init(void)
 	/* Setup the interrupt in IDU */
 	idu_disable();
 
-#ifdef CONFIG_ARCH_ARC800
+#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
 	idu_irq_set_tgtcpu(cpu,	/* IDU IRQ assoc with CPU */
 			   (0x1 << cpu)	/* target cpus mask, here single cpu */
 	    );

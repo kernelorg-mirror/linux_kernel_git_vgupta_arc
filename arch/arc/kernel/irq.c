@@ -356,7 +356,7 @@ int get_hw_config_num_irq()
  *     over-written (this is deficiency in ARC700 Interrupt mechanism)
  */
 
-#ifdef CONFIG_ARCH_ARC_LV2_INTR	/* Complex version for 2 levels of Intr */
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS	/* Complex version for 2 IRQ levels */
 
 void arch_local_irq_enable(void)
 {
@@ -410,7 +410,7 @@ void arch_local_irq_enable(void)
 	arch_local_irq_restore(flags);
 }
 
-#else /* ! CONFIG_ARCH_ARC_LV2_INTR */
+#else /* ! CONFIG_ARC_COMPACT_IRQ_LEVELS */
 
  /* Simpler version for only 1 level of interrupt
   * Here we only Worry about Level 1 Bits

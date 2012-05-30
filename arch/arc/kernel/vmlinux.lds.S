@@ -35,7 +35,7 @@ SECTIONS
     }
 
     /* TODO: These might change depending on H/w */
-#ifdef CONFIG_ARCH_ARC_ICCM
+#ifdef CONFIG_ARC_USE_ICCM
     .text.arcfp : {
         ARCFP_CCM_TEXT
         . = ALIGN(ICCM_COMPILE_SZ);
@@ -135,7 +135,7 @@ SECTIONS
     RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 
     /* becasuse above RW_xxx doesn't include our .data.arcfp */
-#ifndef CONFIG_ARCH_ARC_DCCM
+#ifndef CONFIG_ARC_USE_DCCM
     .data.arcfp : {
     *(.data..shared_aligned)
     ARCFP_SDRAM_DATA
@@ -173,7 +173,7 @@ SECTIONS
     .debug_loc 0 : { *(.debug_loc) }
     .debug_macinfo 0 : { *(.debug_macinfo) }
 
-#ifdef CONFIG_ARCH_ARC_DCCM
+#ifdef CONFIG_ARC_USE_DCCM
     . = DCCM_COMPILE_BASE;
     __arc_dccm_base = .;
     .data.arcfp : {

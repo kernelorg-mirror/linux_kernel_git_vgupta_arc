@@ -32,7 +32,7 @@ typedef struct {
 #ifdef CONFIG_ARC_TLB_DBG
 	struct task_struct *tsk;
 #endif
-#ifdef CONFIG_MMAP_CODE_CMN_VADDR
+#ifdef CONFIG_ARC_CMN_MMAP
 	unsigned long sasid;	/* bitmap of Shared Addr-space IDs */
 #endif
 } mm_context_t;
@@ -93,7 +93,7 @@ typedef struct {
 /* Kernel allowed all permissions for all pages */
 #define _K_PAGE_PERMS  (_PAGE_K_EXECUTE | _PAGE_K_WRITE | _PAGE_K_READ)
 
-#ifdef CONFIG_ARC700_CACHE_PAGES
+#ifdef CONFIG_ARC_CACHE_PAGES
 #define _PAGE_DEF_CACHEABLE _PAGE_CACHEABLE
 #else
 #define _PAGE_DEF_CACHEABLE (0)

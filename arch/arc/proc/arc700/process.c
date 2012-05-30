@@ -256,7 +256,7 @@ int copy_thread(unsigned long clone_flags,
 	 */
 	p->thread.ksp = (unsigned long)child_cregs;	/* THREAD_KSP */
 
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	/* Replicate parent's user mode r25 for child */
 	p->thread.user_r25 = current->thread.user_r25;
 #endif

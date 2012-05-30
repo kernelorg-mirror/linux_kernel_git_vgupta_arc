@@ -14,12 +14,12 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 
 register struct task_struct *curr_arc asm("r25");
 #define current (curr_arc)
 
-#else /* ! CONFIG_ARCH_ARC_CURR_IN_REG */
+#else /* ! CONFIG_ARC_CURR_IN_REG */
 
 #include <linux/thread_info.h>
 
@@ -30,7 +30,7 @@ static inline struct task_struct *get_current(void)
 
 #define current (get_current())
 
-#endif /* ! CONFIG_ARCH_ARC_CURR_IN_REG */
+#endif /* ! CONFIG_ARC_CURR_IN_REG */
 
 #endif /* ! __ASSEMBLY__ */
 

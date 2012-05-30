@@ -25,7 +25,7 @@ __switch_to(struct task_struct *prev_task, struct task_struct *next_task)
 	unsigned int prev = (unsigned int)prev_task;
 	unsigned int next = (unsigned int)next_task;
 	int num_words_to_skip = 1;
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	num_words_to_skip++;
 #endif
 
@@ -43,19 +43,19 @@ __switch_to(struct task_struct *prev_task, struct task_struct *next_task)
 		"st.a    r22, [sp, -4]   \n\t"
 		"st.a    r23, [sp, -4]   \n\t"
 		"st.a    r24, [sp, -4]   \n\t"
-#ifndef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifndef CONFIG_ARC_CURR_IN_REG
 		"st.a    r25, [sp, -4]   \n\t"
 #endif
 		"sub     sp, sp, %4      \n\t"
 		"st.as   sp, [%3, %1]    \n\t"
 		"sync   \n\t"
 		"st  %2, [_current_task]   \n\t"
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 		"mov r25, %2   \n\t"
 #endif
 		"ld.as  sp, [%2, %1]   \n\t"
 		"add    sp, sp, %4     \n\t"
-#ifndef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifndef CONFIG_ARC_CURR_IN_REG
 		"ld.ab   r25, [sp, 4]   \n\t"
 #endif
 		"ld.ab   r24, [sp, 4]   \n\t"

@@ -86,7 +86,7 @@
 #include <asm/setup.h>
 
 
-#ifdef CONFIG_ARC700_USE_ICACHE
+#ifdef CONFIG_ARC_HAS_ICACHE
 static void __arc_icache_inv_lines_no_alias(unsigned long, int);
 static void __arc_icache_inv_lines_2_alias(unsigned long, int);
 static void __arc_icache_inv_lines_4_alias(unsigned long, int);
@@ -106,7 +106,7 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 		    "  Type=%d way set-assoc, Line length=%u, Size=%uK",
 		    p_cache->assoc, p_cache->line_len, TO_KB(p_cache->sz));
 
-#ifdef CONFIG_ARC700_USE_ICACHE
+#ifdef CONFIG_ARC_HAS_ICACHE
 	num += sprintf(buf + num, " (enabled)\n");
 #else
 	num += sprintf(buf + num, " (disabled)\n");
@@ -119,7 +119,7 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 		    "  Type=%d way set-assoc, Line length=%u, Size=%uK",
 		    p_cache->assoc, p_cache->line_len, TO_KB(p_cache->sz));
 
-#ifdef CONFIG_ARC700_USE_DCACHE
+#ifdef CONFIG_ARC_HAS_DCACHE
 	num += sprintf(buf + num, " (enabled)\n");
 #else
 	num += sprintf(buf + num, " (disabled)\n");
@@ -136,7 +136,7 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 void __init read_decode_cache_bcr(void)
 {
 
-#ifdef CONFIG_ARC700_USE_ICACHE
+#ifdef CONFIG_ARC_HAS_ICACHE
 	{
 		struct bcr_cache ibcr;
 
@@ -152,7 +152,7 @@ void __init read_decode_cache_bcr(void)
 	}
 #endif
 
-#ifdef CONFIG_ARC700_USE_DCACHE
+#ifdef CONFIG_ARC_HAS_DCACHE
 	{
 		struct bcr_cache dbcr;
 
@@ -187,7 +187,7 @@ void __init arc_cache_init(void)
 
 	ARC_shmlba = max_t(unsigned int, ARC_shmlba, PAGE_SIZE);
 
-#ifdef CONFIG_ARC700_USE_ICACHE
+#ifdef CONFIG_ARC_HAS_ICACHE
 	ic = &cpuinfo_arc700[0].icache;
 
 	/* 1. Confirm some of I-cache params which Linux assumes */
@@ -238,7 +238,7 @@ void __init arc_cache_init(void)
 	/* Enable/disable I-Cache */
 	temp = read_aux_reg(ARC_REG_IC_CTRL);
 
-#ifdef CONFIG_ARC700_USE_ICACHE
+#ifdef CONFIG_ARC_HAS_ICACHE
 	temp &= ~IC_CTRL_CACHE_DISABLE;
 #else
 	temp |= IC_CTRL_CACHE_DISABLE;
@@ -246,7 +246,7 @@ void __init arc_cache_init(void)
 
 	write_aux_reg(ARC_REG_IC_CTRL, temp);
 
-#ifdef CONFIG_ARC700_USE_DCACHE
+#ifdef CONFIG_ARC_HAS_DCACHE
 	dc = &cpuinfo_arc700[0].dcache;
 
 	if ((dc->assoc != ARC_DCACHE_WAYS) ||
@@ -269,7 +269,7 @@ void __init arc_cache_init(void)
 	temp = read_aux_reg(ARC_REG_DC_CTRL);
 	temp &= ~DC_CTRL_INV_MODE_FLUSH;
 
-#ifdef CONFIG_ARC700_USE_DCACHE
+#ifdef CONFIG_ARC_HAS_DCACHE
 	/* Enable D-Cache: Clear Bit 0 */
 	write_aux_reg(ARC_REG_DC_CTRL, temp & ~IC_CTRL_CACHE_DISABLE);
 #else
@@ -282,7 +282,7 @@ void __init arc_cache_init(void)
 	return;
 }
 
-#ifdef CONFIG_ARC700_USE_DCACHE
+#ifdef CONFIG_ARC_HAS_DCACHE
 
 /*
  **************************************************************
@@ -485,7 +485,7 @@ EXPORT_SYMBOL(inv_dcache_range);
 #define __arc_dcache_flush_lines(a, b)
 #endif
 
-#ifdef CONFIG_ARC700_USE_ICACHE
+#ifdef CONFIG_ARC_HAS_ICACHE
 
 /*
  **************************************************************************
@@ -836,7 +836,7 @@ noinline void flush_cache_all()
  */
 int sys_cacheflush(uint32_t start, uint32_t end, uint32_t flags)
 {
-#ifdef CONFIG_ARC700_CACHE
+#ifdef CONFIG_ARC_CACHE
 	struct vm_area_struct *vma;
 
 	vma = find_vma(current->mm, start);

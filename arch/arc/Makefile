@@ -68,7 +68,7 @@ endif
 
 KBUILD_CFLAGS_MODULE	+= -mlong-calls
 
-ifdef CONFIG_ARC_STACK_UNWIND
+ifdef CONFIG_ARC_DW2_UNWIND
 KBUILD_CFLAGS		+= -fasynchronous-unwind-tables
 endif
 
@@ -132,7 +132,7 @@ endef
 # work around for bug 94179: force some object file to have load,alloc flags
 # set for the debug_frame section
 
-ifdef CONFIG_ARC_STACK_UNWIND
+ifdef CONFIG_ARC_DW2_UNWIND
 objconvert: init/do_mounts.o
 	$(Q) $(OBJCOPY) --set-section-flags .debug_frame=load,alloc init/do_mounts.o init/do_mounts.o
 else

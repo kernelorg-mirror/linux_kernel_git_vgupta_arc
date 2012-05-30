@@ -131,7 +131,7 @@
 	st.a    r23, [sp, -4]
 	st.a    r24, [sp, -4]
 
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	; Retrieve orig r25 and save it on stack
 	ld      r12, [r25, TASK_THREAD + THREAD_USER_R25]
 	st.a    r12, [sp, -4]
@@ -162,7 +162,7 @@
 	st.a    r22, [sp, -4]
 	st.a    r23, [sp, -4]
 	st.a    r24, [sp, -4]
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	sub     sp, sp, 8
 #else
 	st.a    r25, [sp, -4]
@@ -184,7 +184,7 @@
 .macro RESTORE_CALLEE_SAVED_KERNEL
 
 
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	add     sp, sp, 8  /* skip callee_reg gutter and user r25 placeholder */
 #else
 	add     sp, sp, 4   /* skip "callee_regs->stack_place_holder" */
@@ -244,7 +244,7 @@
 	* assume SP is kernle mode SP. _NO_ need to do any stack switching
 	*/
 
-#ifdef CONFIG_ARCH_ARC_LV2_INTR
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 	/* However....
 	* If Level 2 Interrupts enabled, we may end up with a corner case:
 	* 1. User Task executing
@@ -288,7 +288,7 @@
 
 	GET_CURR_TASK_ON_CPU   r9
 
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 
 	/* If current task pointer cached in R25, time to
 	*  -safekeep USER R25 in task->thread_struct->user_r25
@@ -623,7 +623,7 @@
 	lsl \tmp_reg, \tmp_reg, 2
 	add \tmp_reg, \tmp_reg, _current_task
 	st  \out_reg, [\tmp_reg]
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	mov r25, \out_reg
 #endif
 
@@ -638,7 +638,7 @@
 
 .macro  SET_CURR_TASK_ON_CPU    out_reg, tmp_reg
 	st  \out_reg, [_current_task]
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	mov r25, \out_reg
 #endif
 .endm
@@ -651,7 +651,7 @@
  *       -Uses r25 for Current task ptr if that is enabled
  */
 
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 
 .macro GET_CURR_TASK_FIELD_PTR  off,  reg
 	add \reg, r25, \off

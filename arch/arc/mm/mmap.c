@@ -46,7 +46,7 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr_hint, unsigned long, len,
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 
 	if (!(flags & MAP_ANONYMOUS)
-#ifdef CONFIG_MMAP_CODE_CMN_VADDR
+#ifdef CONFIG_ARC_CMN_MMAP
 	    || (flags & MAP_SHARED_CODE)
 #endif
 	    ) {
@@ -90,7 +90,7 @@ out:
 }
 
 /* ARC mmap core:
- * -does special case handling for code mmaps (CONFIG_MMAP_CODE_CMN_VADDR)
+ * -does special case handling for code mmaps (CONFIG_ARC_CMN_MMAP)
  * -calls generic vm entry-pt do_mmap_pgoff(()
  */
 static unsigned long __do_mmap2(struct file *file, unsigned long addr_hint,
@@ -99,7 +99,7 @@ static unsigned long __do_mmap2(struct file *file, unsigned long addr_hint,
 {
 	unsigned long vaddr = -EINVAL;
 
-#ifdef CONFIG_MMAP_CODE_CMN_VADDR
+#ifdef CONFIG_ARC_CMN_MMAP
 
 	/* 1. What are we doing here ?
 	 * -------------------------------------
@@ -157,7 +157,7 @@ static unsigned long __do_mmap2(struct file *file, unsigned long addr_hint,
 
 	vaddr = do_mmap_pgoff(file, addr_hint, len, prot, flags, pgoff);
 
-#ifdef CONFIG_MMAP_CODE_CMN_VADDR
+#ifdef CONFIG_ARC_CMN_MMAP
 	if (!(IS_ERR_VALUE(vaddr)) && (prot & PROT_EXEC)) {
 
 		if (mmapcode_enab_vaddr(file, pgoff, PAGE_ALIGN(len), vaddr) ==
@@ -184,7 +184,7 @@ SYSCALL_DEFINE2(arc_munmap, unsigned long, addr, size_t, len)
 	down_write(&mm->mmap_sem);
 	ret = do_munmap(mm, addr, len);
 
-#ifdef CONFIG_MMAP_CODE_CMN_VADDR
+#ifdef CONFIG_ARC_CMN_MMAP
 	if (is_any_mmapcode_task_subscribed(mm))
 		mmapcode_free(mm, addr, len);
 #endif
@@ -228,7 +228,7 @@ asmlinkage int old_mmap(struct mmap_arg_struct *arg)
 
 static inline int mmap_is_legacy(void)
 {
-#ifdef CONFIG_ARCH_ARC_SPACE_RND
+#ifdef CONFIG_ARC_ADDR_SPACE_RND
 	/* ELF loader sets this flag way early.
 	 * So no need to check for multiple things like
 	 *   !(current->personality & ADDR_NO_RANDOMIZE)
@@ -264,7 +264,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 }
 EXPORT_SYMBOL_GPL(arch_pick_mmap_layout);
 
-#ifdef CONFIG_MMAP_CODE_CMN_VADDR
+#ifdef CONFIG_ARC_CMN_MMAP
 
 /********************************************************************
  *

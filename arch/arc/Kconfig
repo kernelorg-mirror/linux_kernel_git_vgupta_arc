@@ -6,7 +6,7 @@
 # published by the Free Software Foundation.
 #
 
-config ARCH_ARC
+config ARC
 	bool
 	default y
 	select HAVE_OPROFILE
@@ -31,12 +31,9 @@ config UID16
 	bool
 	default y
 
-# This definition is temporarily lying here
-
 config SPLIT_PTLOCK_CPUS
 	int
 	default 4096
-
 
 config FLATMEM
 	bool
@@ -107,24 +104,29 @@ menu "ARC CPU Core Configuration"
 
 choice
 	prompt "ARC Processor"
-	default ARCH_ARC700
+	default ARC_CPU_700
 
-config ARCH_ARC700
+config ARC_CPU_700
 	bool "ARC700"
 	help
 	  Support for ARC700 core processors.
 
-config ARCH_ARC800
-	bool "ARC800"
+config ARC_CPU_700_SMP_EXTN
+	bool "ARC700 with SMP Extensions (Models only)"
 	help
-	  Support for ARC800 core processors.
+	  Support for a "simulation only" Model of ARC700 with SMP Extensions.
+	  The SMP extensions include:
+	  -IDU (Interrupt Distribution Unit)
+	  -XTL (To enable CPU start/stop/set-PC for another CPU)
+	  It doesn't provide Cross-core Cache coherency or Atomic Ops
+	  Supported in ARC ISS (Instruction Set Simulator).
 
 endchoice
 
 config SMP
 	bool "Symmetric Multi-Processing (Incomplete)"
 	default y
-	depends on ARCH_ARC800
+	depends on ARC_CPU_700_SMP_EXTN
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -136,7 +138,7 @@ config NR_CPUS
 	depends on SMP
 	default "2"
 
-menuconfig ARC700_CACHE
+menuconfig ARC_CACHE
 	bool "Enable Cache Support"
 	default y
 
@@ -144,27 +146,27 @@ config ARC_CACHE_LINE_SHIFT
 	int "Cache Line Length (as power of 2)"
 	range 5 7
 	default "5"
-	depends on ARC700_CACHE
+	depends on ARC_CACHE
 	help
 	  Starting with ARC700 4.9, Cache line length is configurable,
 	  This option specifies "N", with Line-len = 2 power N
 	  So line lengths of 32, 64, 128 are specified by 5,6,7, respectively
 	  Linux only supports same line lengths for I and D caches.
 
-config ARC700_USE_ICACHE
+config ARC_HAS_ICACHE
 	bool "Use Instruction Cache"
 	default y
-	depends on ARC700_CACHE
+	depends on ARC_CACHE
 
-config ARC700_USE_DCACHE
+config ARC_HAS_DCACHE
 	bool "Use Data Cache"
 	default y
-	depends on ARC700_CACHE
+	depends on ARC_CACHE
 
-config ARC700_CACHE_PAGES
+config ARC_CACHE_PAGES
 	bool "Per Page Cache Control"
 	default y
-	depends on ARC700_CACHE && (ARC700_USE_ICACHE || ARC700_USE_DCACHE)
+	depends on ARC_CACHE && (ARC_HAS_ICACHE || ARC_HAS_DCACHE)
 	help
 	  This can be used to over-ride the global I/D Cache Enable on a
 	  per-page basis (but only for pages accessed via MMU such as
@@ -173,13 +175,13 @@ config ARC700_CACHE_PAGES
 	  Note that Global I/D ENABLE + Per Page DISABLE works but corollary
 	  Global DISABLE + Per Page ENABLE won't work
 
-config ARCH_ARC_ICCM
+config ARC_USE_ICCM
 		bool "Use ICCM"
 	help
 	  Single Cycle RAMS to store Fast Path Code
 	default n
 
-config ARCH_ARC_DCCM
+config ARC_USE_DCCM
 		bool "Use DCCM"
 	help
 	  Single Cycle RAMS to store Fast Path Data
@@ -195,8 +197,8 @@ config ARC_USE_HW_MPY
 
 choice
 	prompt "ARC700 MMU Version"
-	default ARC_MMU_V3 if ARC700_V_4_10
-	default ARC_MMU_V2 if !ARC700_V_4_10
+	default ARC_MMU_V3 if ARC_CPU_700_V_4_10
+	default ARC_MMU_V2 if !ARC_CPU_700_V_4_10
 
 config ARC_MMU_V1
 	bool "MMU v1"
@@ -211,8 +213,7 @@ config ARC_MMU_V2
 
 config ARC_MMU_V3
 	bool "MMU v3"
-# enable this later on, otherwise we are bound to use news insn with v3
-#        depends on ARC700_V_4_10
+	depends on ARC_CPU_700_V_4_10
 	help
 	  Introduced with ARC700 4.10: New Features
 	  Variable Page size (1k-16k), var JTLB size 128 x (2 or 4)
@@ -225,7 +226,7 @@ config ARC_MMU_SASID
 	bool "shared TLB entries for library code segments"
 	default y
 	depends on ARC_MMU_V3
-	select MMAP_CODE_CMN_VADDR
+	select ARC_CMN_MMAP
 	help
 	  Enable MMU support for code TLB entries, sharable across processes.
 	  So instead of a per-process TLB entry per page of library code, a
@@ -252,12 +253,12 @@ config ARC_PAGE_SIZE_4K
 
 endchoice
 
-config ARCH_ARC_LV2_INTR
+config ARC_COMPACT_IRQ_LEVELS
 	bool "Enable two levels of Interrupts high(2)low(1)"
 	default n
 	select TIMER_LV2
 
-config ARCH_ARC_FPU
+config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
 	default N
 	help
@@ -268,7 +269,7 @@ config ARCH_ARC_FPU
 	  based on actual usage of FPU by a task. Thus our implemn does
 	  this for all tasks in system.
 
-menuconfig ARC700_V_4_10
+menuconfig ARC_CPU_700_V_4_10
 	bool "Build kernel for ARC700 v 4.10 - Summer 2011"
 	default n
 	help
@@ -280,23 +281,23 @@ menuconfig ARC700_V_4_10
 config ARC_HAS_LLSC
 	bool "llock/scond insns for faster atomic ops"
 	default y
-	depends on ARC700_V_4_10
+	depends on ARC_CPU_700_V_4_10
 
 config ARC_HAS_SWAPE
 	bool "single cycle endian-swap insn"
 	default y
-	depends on ARC700_V_4_10
+	depends on ARC_CPU_700_V_4_10
 
 config ARC_HAS_RTSC
 	bool "64-bit read-only time-stamp counter"
 	default y
-	depends on ARC700_V_4_10
+	depends on ARC_CPU_700_V_4_10
 
 endmenu   #CPU Core config
 
 menu "Board Configuration"
 
-config ARC700_CLK
+config ARC_PLAT_CLK
 	int "Clock speed"
 	default "12000000"
 
@@ -313,7 +314,7 @@ config LINUX_LINK_BASE
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
 
-config SDRAM_SIZE
+config ARC_PLAT_SDRAM_SIZE
 	hex "SD RAM Size"
 	default "0x10000000"
 	help
@@ -323,25 +324,26 @@ config SDRAM_SIZE
 
 choice
 	prompt "Board Selection"
-	default ARCH_ARC_ANGEL4
+	default ARC_BOARD_ANGEL4
 
-config ARCH_ARC_ANGEL4
-		bool "Angel4"
+config ARC_BOARD_ANGEL4
+	bool "Angel4"
 	help
 	  ARC Angel4 FPGA Ref Platform (Xilinx Virtex Based)
 
-config ARCH_ARC_ML509
+config ARC_BOARD_ML509
 	bool "ML509"
 	help
 	  ARC ML509 FPGA Ref Platform (Xilinx Virtex-5 Based)
 
-config ARCH_ARC_SIM
-	bool "ISS"
+config ARC_ISS_VIRT_PERIP
+	bool "ISS Virtual Peripherals"
 	help
-	  ARC Linux can run on ARC Instruction set Simulator. While in-general
-	  the kernel is agnostic of ISS vs. hardware, and supports virtual
-	  UART by default, other virtual peripherals needs to be explicitly
-	  selected by chosing this option.
+	  ARC Linux can run on ARC Instruction set Simulator.
+	  The binary built for AA4/ML509 can run on ISS, despite lack of
+	  peripherals since drivers check if they are on ISS vs. real H/w.
+	  This config option is only used if you want to build ISS specific
+	  virtual periperal drivers such as virt-framebuffer or virt-mac.
 
 endchoice
 
@@ -350,7 +352,7 @@ source "arch/arc/drivers/Kconfig"
 endmenu   #Board config
 
 
-config ARCH_ARC_CURR_IN_REG
+config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"
 	default N
 	help
@@ -365,7 +367,7 @@ config ARC_TLS_REG_EMUL
 	  pointer to TLS Data area.
 	  So we emulate the TLS register using a TLS Virtual addr
 
-config ARC_MISAILGNED_ACCESS
+config ARC_MISALIGN_ACCESS
 	bool "Emulate unaligned memory access (userspace only)"
 	default N
 	help
@@ -373,7 +375,7 @@ config ARC_MISAILGNED_ACCESS
 	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide
 	  potential bugs in code
 
-config ARCH_ARC_SPACE_RND
+config ARC_ADDR_SPACE_RND
 	bool "Address Space Randomisation (mmap/SP)"
 	default N
 	help
@@ -381,14 +383,14 @@ config ARCH_ARC_SPACE_RND
 	  Note that it could lead to some performance degradation especially
 	  for shared libraries so use it only if needed
 
-config MMAP_CODE_CMN_VADDR
-	bool "mmap shared lib code at same vaddr across proceses"
+config ARC_CMN_MMAP
+	bool "mmap shared lib code at same vaddr across processes"
 	default y
 	select GENERIC_ALLOCATOR
 	help
 	  This feature forces kernel to map a particular shared lib's code
 	  at same vaddr across processes using a dedicated
-	  mmap-shared-code-virtual-address-space. Any lib's code page frames
+	  common-mmap-virtual-address-space. Any lib's code page frames
 	  are already shared using page-cache; same vaddr ensures a single
 	  v:p mapping, preventing virtual aliases in ARC VIPT I-Caches.
 	  This boosts performance because each alias occupies a cache-line
@@ -410,7 +412,7 @@ config ARC_STACK_NONEXEC
 
 source "kernel/time/Kconfig"
 
-config ARCH_ARC_HLINK
+config ARC_METAWARE_HLINK
 	bool "Support for Metaware debugger assisted Host access"
 	default n
 	help
@@ -424,7 +426,7 @@ menuconfig ARC_DBG
 	bool "ARC debugging"
 	default y
 
-config ARC_STACK_UNWIND
+config ARC_DW2_UNWIND
 	bool "Enable DWARF specific kernel stack unwind"
 	depends on ARC_DBG
 	default y
@@ -438,7 +440,7 @@ config ARC_STACK_UNWIND
 	  If you don't debug the kernel, you can say N, but we may not be able
 	  to solve problems without frame unwind information
 
-config ARC_TLB_PARANOIA
+config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
 	depends on ARC_DBG
 	default n
@@ -450,7 +452,7 @@ config ARC_DBG_EVENT_TIMELINE
 	help
 	  Capture low level events: IRQ/Trap/Exception
 
-config ARC_TLB_PROFILE
+config ARC_DBG_TLB_MISS_COUNT
 	bool "Profile TLB Misses"
 	default n
 	select DEBUG_FS

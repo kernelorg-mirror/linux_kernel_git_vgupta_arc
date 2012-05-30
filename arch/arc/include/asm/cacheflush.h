@@ -52,11 +52,11 @@
  */
 #define flush_cache_page(vma, u_vaddr, pfn)
 
-#ifdef CONFIG_ARC700_CACHE
+#ifdef CONFIG_ARC_CACHE
 
 #ifdef CONFIG_SMP
 #error "Caching not yet supported in SMP"
-#error "remove CONFIG_ARC700_USE_ICACHE and CONFIG_ARC700_USE_DCACHE"
+#error "remove CONFIG_ARC_HAS_ICACHE and CONFIG_ARC_HAS_DCACHE"
 #endif
 
 extern void flush_cache_all(void);
@@ -67,7 +67,7 @@ extern void flush_cache_all(void);
 
 #endif /* CONFIG_ARC_CACHE */
 
-#ifdef CONFIG_ARC700_USE_ICACHE
+#ifdef CONFIG_ARC_HAS_ICACHE
 extern void flush_icache_range_vaddr(unsigned long paddr, unsigned long u_vaddr,
 				     int len);
 extern void flush_icache_all(void);
@@ -81,11 +81,11 @@ extern void flush_icache_page(struct vm_area_struct *vma, struct page *page);
 #define flush_icache_range_vaddr(p, uv, len)	do { } while (0)
 #define flush_icache_page(vma, page)		do { } while (0)
 
-#endif /*CONFIG_ARC700_USE_ICACHE */
+#endif /*CONFIG_ARC_HAS_ICACHE */
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 
-#ifdef CONFIG_ARC700_USE_DCACHE
+#ifdef CONFIG_ARC_HAS_DCACHE
 
 extern void flush_dcache_page(struct page *page);
 extern void flush_dcache_page_virt(unsigned long *page);
@@ -116,7 +116,7 @@ void flush_and_inv_dcache_all(void);
 #define dma_cache_wback_inv(start, size)	do { } while (0)
 #define dma_cache_wback(start, size)		do { } while (0)
 #define dma_cache_inv(start, size)		do { } while (0)
-#endif /*CONFIG_ARC700_USE_DCACHE */
+#endif /*CONFIG_ARC_HAS_DCACHE */
 
 /*
  * Copy user data from/to a page which is mapped into a different

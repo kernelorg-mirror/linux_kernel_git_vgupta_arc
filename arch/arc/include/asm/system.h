@@ -74,7 +74,7 @@ struct task_struct;		/* to prevent cyclic dependencies */
 extern struct task_struct *__switch_to(struct task_struct *prev,
 				       struct task_struct *next);
 
-#ifdef CONFIG_ARCH_ARC_FPU
+#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
 
 #define HW_BUG_101581
 
@@ -96,12 +96,12 @@ extern inline void fpu_restore(struct task_struct *tsk);
 
 #endif /* !HW_BUG_101581 */
 
-#else /* !CONFIG_ARCH_ARC_FPU */
+#else /* !CONFIG_ARC_FPU_SAVE_RESTORE */
 
 #define ARC_FPU_PREV(p, n)
 #define ARC_FPU_NEXT(n)
 
-#endif /* !CONFIG_ARCH_ARC_FPU */
+#endif /* !CONFIG_ARC_FPU_SAVE_RESTORE */
 
 #define switch_to(prev, next, last)	\
 do {					\
@@ -159,7 +159,7 @@ static inline void sched_cacheflush(void)
 
 static inline unsigned long arch_align_stack(unsigned long sp)
 {
-#ifdef CONFIG_ARCH_ARC_SPACE_RND
+#ifdef CONFIG_ARC_ADDR_SPACE_RND
 	/* ELF loader sets this flag way early.
 	 * So no need to check for multiple things like
 	 *   !(current->personality & ADDR_NO_RANDOMIZE)

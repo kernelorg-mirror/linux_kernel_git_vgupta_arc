@@ -26,7 +26,7 @@
 #include <asm/arcregs.h>
 #include <asm/tlb.h>
 
-#ifndef CONFIG_MMAP_CODE_CMN_VADDR
+#ifndef CONFIG_ARC_CMN_MMAP
 #include <asm-generic/mm_hooks.h>
 #else
 extern void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);

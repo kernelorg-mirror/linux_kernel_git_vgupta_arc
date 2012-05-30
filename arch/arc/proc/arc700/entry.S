@@ -206,7 +206,7 @@ reserved:		; processor restart
 
 ;##################### Interrupt Handling ##############################
 
-#ifdef CONFIG_ARCH_ARC_LV2_INTR
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 ; ---------------------------------------------
 ;  Level 2 ISR: Can interrupt a Level 1 ISR
 ; ---------------------------------------------
@@ -433,14 +433,14 @@ ARC_ENTRY EV_TLBProtV
 	mov r1, r4              ; faulting address
 	mov r2, sp              ; pt_regs
 
-#ifdef  CONFIG_ARC_MISAILGNED_ACCESS
+#ifdef  CONFIG_ARC_MISALIGN_ACCESS
 	SAVE_CALLEE_SAVED_USER
 	mov r3, sp              ; callee_regs
 #endif
 
 	bl  do_misaligned_access
 
-#ifdef  CONFIG_ARC_MISAILGNED_ACCESS
+#ifdef  CONFIG_ARC_MISALIGN_ACCESS
 	DISCARD_CALLEE_SAVED_USER
 #endif
 
@@ -728,7 +728,7 @@ restore_regs :
 	and r9, r9, ~(STATUS_E1_MASK | STATUS_E2_MASK)
 	flag r9
 
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	; Restore User R25
 	; Earlier this used to be only for returning to user mode
 	; However with 2 levels of IRQ this can also happen even if
@@ -751,7 +751,7 @@ restore_regs :
 
 not_exception:
 
-#ifdef CONFIG_ARCH_ARC_LV2_INTR
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 
 	bbit0  r10, STATUS_A2_BIT, not_level2_interrupt
 

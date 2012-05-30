@@ -670,7 +670,7 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
  *  -Called from Low Level TLB Hanlders if things don;t look good
  **********************************************************************/
 
-#ifdef CONFIG_ARC_TLB_PARANOIA
+#ifdef CONFIG_ARC_DBG_TLB_PARANOIA
 
 /*
  * Low Level ASM TLB handler calls this if it finds that HW and SW ASIDS

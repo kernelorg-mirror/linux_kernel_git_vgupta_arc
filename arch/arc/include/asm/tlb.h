@@ -81,7 +81,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 #include <asm/tlb-mmu1.h>
 #endif
 
-#ifdef CONFIG_ARC_TLB_PARANOIA
+#ifdef CONFIG_ARC_DBG_TLB_PARANOIA
 void tlb_paranoid_check(unsigned int pid_sw, unsigned long address);
 #else
 #define tlb_paranoid_check(a, b)

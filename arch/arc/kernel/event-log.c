@@ -43,7 +43,7 @@
 #include <linux/module.h>
 #include <linux/reboot.h>
 
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 /* current on ARC is a register variable "r25" setup on entry to kernel and
    restored back to user value on return.
    However if the event snap shotting return is called very late from

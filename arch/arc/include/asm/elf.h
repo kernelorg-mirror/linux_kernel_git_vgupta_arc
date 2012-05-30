@@ -16,7 +16,7 @@
 #include <asm/ptrace.h>
 #include <asm/user.h>
 
-#define EM_ARCTANGENT		93
+#define EM_ARCOMPACT		93
 
 /* ARC Relocations relevant to kernel */
 #define  R_ARC_32		0x4
@@ -39,14 +39,14 @@ typedef unsigned long elf_fpregset_t;
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(x) ((x)->e_machine == EM_ARCTANGENT)
+#define elf_check_arch(x) ((x)->e_machine == EM_ARCOMPACT)
 
 /*
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS		ELFCLASS32
 #define ELF_DATA		ELFDATA2LSB
-#define ELF_ARCH		EM_ARCTANGENT
+#define ELF_ARCH		EM_ARCOMPACT
 
 #ifdef __KERNEL__
 

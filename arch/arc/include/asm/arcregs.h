@@ -161,7 +161,7 @@
 #define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
 #define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
 
-#ifdef CONFIG_ARCH_ARC800
+#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
 
 #define ARC_AUX_IDU_REG_CMD     0x2000
 #define ARC_AUX_IDU_REG_PARAM   0x2001
@@ -338,7 +338,7 @@ struct bcr_ccm {
 	unsigned int sz;
 };
 
-#ifdef CONFIG_ARCH_ARC800
+#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
 struct bcr_mp {
 	unsigned int ver:8, scu:1, idu:1, sdu:1, padding:5, mp_arch:16;
 };
@@ -372,13 +372,13 @@ struct cpuinfo_arc {
 	struct bcr_extn_xymem extn_xymem;
 	struct bcr_extn_mac_mul extn_mac_mul;
 	struct bcr_ccm iccm, dccm;
-#ifdef CONFIG_ARCH_ARC800
+#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
 	struct bcr_mp mp;
 #endif
 	struct bcr_fp fp, dpfp;
 };
 
-#ifdef CONFIG_ARCH_ARC_FPU
+#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
 /* These DPFP regs need to be saved/restored across ctx-sw */
 struct arc_fpu {
 	struct {

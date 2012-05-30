@@ -55,10 +55,10 @@ struct thread_struct {
 	unsigned long callee_reg;	/* pointer to callee regs */
 	unsigned long fault_address;	/* dbls as brkpt holder as well */
 	unsigned long cause_code;	/* Exception Cause Code (ECR) */
-#ifdef CONFIG_ARCH_ARC_CURR_IN_REG
+#ifdef CONFIG_ARC_CURR_IN_REG
 	unsigned long user_r25;
 #endif
-#ifdef CONFIG_ARCH_ARC_FPU
+#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
 	struct arc_fpu fpu;
 #endif
 };

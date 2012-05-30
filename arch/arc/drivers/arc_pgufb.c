@@ -443,7 +443,7 @@ static int arc_pgu_setmode(void)
 #endif
 	{
 		clk_div = 1;
-		freq = CONFIG_ARC700_CLK;
+		freq = CONFIG_ARC_PLAT_CLK;
 		while (freq / clk_div > fb_devdata.display->max_freq)
 			clk_div++;
 

@@ -115,7 +115,7 @@ static void __init arc_clocksource_init(void)
 	/* Find a shift value */
 	for (shift = 32; shift > 0; shift--) {
 		temp = (u64) NSEC_PER_SEC << shift;
-		do_div(temp, CONFIG_ARC700_CLK);
+		do_div(temp, CONFIG_ARC_PLAT_CLK);
 		if ((temp >> 32) == 0)
 			break;
 	}
@@ -161,7 +161,7 @@ static void arc_set_mode(enum clock_event_mode mode,
 	pr_info("clockevent mode switch to [%d]\n", mode);
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		arc_timer0_setup_event(CONFIG_ARC700_CLK / HZ);
+		arc_timer0_setup_event(CONFIG_ARC_PLAT_CLK / HZ);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		break;
@@ -185,7 +185,7 @@ static void __cpuinit arc_clockevent_init(void)
 
 	/* Find a shift value */
 	for (shift = 32; shift > 0; shift--) {
-		temp = (u64) CONFIG_ARC700_CLK << shift;
+		temp = (u64) CONFIG_ARC_PLAT_CLK << shift;
 		do_div(temp, NSEC_PER_SEC);
 		if ((temp >> 32) == 0)
 			break;

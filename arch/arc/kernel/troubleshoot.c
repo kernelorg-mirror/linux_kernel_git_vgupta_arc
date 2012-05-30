@@ -214,7 +214,7 @@ static struct dentry *test_u32_dentry;
 
 u32 clr_on_read = 1;
 
-#ifdef CONFIG_ARC_TLB_PROFILE
+#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 u32 numitlb, numdtlb, num_pte_not_present;
 
 static int fill_display_data(char *kbuf)
@@ -281,7 +281,7 @@ static int __init arc_debugfs_init(void)
 {
 	test_dir = debugfs_create_dir("arc", NULL);
 
-#ifdef CONFIG_ARC_TLB_PROFILE
+#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	test_dentry = debugfs_create_file("tlb_stats", 0444, test_dir, NULL,
 					  &tlb_stats_file_ops);
 #endif

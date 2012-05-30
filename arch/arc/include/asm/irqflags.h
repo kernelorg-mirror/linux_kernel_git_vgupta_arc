@@ -120,7 +120,7 @@ static inline long arch_local_save_flags(void)
 static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
 	return !(flags & (STATUS_E1_MASK
-#ifdef CONFIG_ARCH_ARC_LV2_INTR
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 			| STATUS_E2_MASK
 #endif
 		));

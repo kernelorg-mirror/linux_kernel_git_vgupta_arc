@@ -13,14 +13,14 @@ obj-y	+= troubleshoot.o stacktrace.o
 
 obj-$(CONFIG_ARC_DBG_EVENT_TIMELINE)	+= event-log.o
 obj-$(CONFIG_MODULES)			+= arcksyms.o module.o
-obj-$(CONFIG_ARCH_ARC_HLINK)		+= arc_hostlink.o
+obj-$(CONFIG_ARC_METAWARE_HLINK)		+= arc_hostlink.o
 obj-$(CONFIG_SMP) 			+= atomic_lock.o bitops_lock.o
 obj-$(CONFIG_GENERIC_CLOCKEVENTS) 	+= time.o
-obj-$(CONFIG_ARC_STACK_UNWIND)		+= unwind.o
+obj-$(CONFIG_ARC_DW2_UNWIND)		+= unwind.o
 obj-$(CONFIG_KPROBES)      		+= kprobes.o
-obj-$(CONFIG_ARC_MISAILGNED_ACCESS) 	+= unaligned.o
+obj-$(CONFIG_ARC_MISALIGN_ACCESS) 	+= unaligned.o
 
 CFLAGS_fpu.o   += -mdpfp
-obj-$(CONFIG_ARCH_ARC_FPU) 		+= fpu.o
+obj-$(CONFIG_ARC_FPU_SAVE_RESTORE) 		+= fpu.o
 
 extra-y := init_task.o vmlinux.lds

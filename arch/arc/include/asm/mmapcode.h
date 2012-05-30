@@ -11,7 +11,7 @@
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 
-#ifdef CONFIG_MMAP_CODE_CMN_VADDR
+#ifdef CONFIG_ARC_CMN_MMAP
 
 #include <linux/mm_types.h>
 #include <linux/genalloc.h>

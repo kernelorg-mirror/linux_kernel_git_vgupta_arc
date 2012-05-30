@@ -52,7 +52,7 @@ struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
  * passes atag list
  */
 
-unsigned long clk_speed = CONFIG_ARC700_CLK;
+unsigned long clk_speed = CONFIG_ARC_PLAT_CLK;
 struct sockaddr mac_addr = { 0, {0x64, 0x66, 0x46, 0x88, 0x63, 0x33} };
 
 /* Allows up to identify at runtime if running on ISS or h/w */
@@ -165,7 +165,7 @@ int __init read_arc_build_cfg_regs(void)
 	READ_BCR(ARC_REG_FP_BCR, p_cpu->fp);
 	READ_BCR(ARC_REG_DPFP_BCR, p_cpu->dpfp);
 
-#ifdef CONFIG_ARCH_ARC800
+#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
 	READ_BCR(ARC_REG_MP_BCR, p_cpu->mp);
 #endif
 
@@ -294,7 +294,7 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 	num += sprintf(buf + num, "   Ext Arith Insn: %s\n",
 		       IS_AVAIL2(p_cpu->extn.ext_arith));
 
-#ifdef CONFIG_ARCH_ARC800
+#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
 	num += sprintf(buf + num, "MP Extensions: Ver (%d), Arch (%d)\n",
 		       p_cpu->mp.ver, p_cpu->mp.mp_arch);
 
@@ -320,10 +320,10 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 
 void arc_chk_ccms(void)
 {
-#if defined(CONFIG_ARCH_ARC_DCCM) || defined(CONFIG_ARCH_ARC_ICCM)
+#if defined(CONFIG_ARC_USE_DCCM) || defined(CONFIG_ARC_USE_ICCM)
 	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[smp_processor_id()];
 
-#ifdef CONFIG_ARCH_ARC_DCCM
+#ifdef CONFIG_ARC_USE_DCCM
 	/*
 	 * DCCM can be arbit placed in hardware.
 	 * Make sure it's placement/sz matches what Linux is built with
@@ -335,7 +335,7 @@ void arc_chk_ccms(void)
 		panic("Linux built with incorrect DCCM Size\n");
 #endif
 
-#ifdef CONFIG_ARCH_ARC_ICCM
+#ifdef CONFIG_ARC_USE_ICCM
 	if (ICCM_COMPILE_SZ != p_cpu->iccm.sz)
 		panic("Linux built with incorrect ICCM Size\n");
 #endif
@@ -375,11 +375,11 @@ void __init probe_fpu(void)
 	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[smp_processor_id()];
 
 	if (p_cpu->dpfp.ver) {
-#ifndef CONFIG_ARCH_ARC_FPU
+#ifndef CONFIG_ARC_FPU_SAVE_RESTORE
 		pr_warn("DPFP support broken in this kernel...\n");
 #endif
 	} else {
-#ifdef CONFIG_ARCH_ARC_FPU
+#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
 		panic("H/w lacks DPFP support, kernel won't work\n");
 #endif
 	}
@@ -446,7 +446,7 @@ static int __init parse_tag_mem32(struct tag *tag)
 {
 	printk_init("ATAG_MEM: size = 0x%x\n", tag->u.mem.size);
 
-	end_mem = CONFIG_SDRAM_SIZE + CONFIG_LINUX_LINK_BASE;
+	end_mem = CONFIG_ARC_PLAT_SDRAM_SIZE + CONFIG_LINUX_LINK_BASE;
 
 	return 0;
 }
@@ -592,17 +592,17 @@ static struct init_tags {
 	{},
 
 	{tag_size(tag_clk_speed), ATAG_CLK_SPEED},
-	{CONFIG_ARC700_CLK},
+	{CONFIG_ARC_PLAT_CLK},
 
 	{tag_size(tag_cache), ATAG_CACHE},
 
-#ifdef CONFIG_ARC700_USE_ICACHE
+#ifdef CONFIG_ARC_HAS_ICACHE
 	{1,
 #else
 	{0,
 
 #endif
-#ifdef CONFIG_ARC700_USE_DCACHE
+#ifdef CONFIG_ARC_HAS_DCACHE
 	 1},
 #else
 	 0},

@@ -24,7 +24,7 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD] __aligned(PAGE_SIZE);
 char empty_zero_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(empty_zero_page);
 
-unsigned long end_mem = CONFIG_SDRAM_SIZE + CONFIG_LINUX_LINK_BASE;
+unsigned long end_mem = CONFIG_ARC_PLAT_SDRAM_SIZE + CONFIG_LINUX_LINK_BASE;
 
 void __init pagetable_init(void)
 {

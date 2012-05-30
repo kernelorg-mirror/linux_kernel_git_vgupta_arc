@@ -74,7 +74,7 @@ ex_saved_reg1:
 
 .macro DBG_ASID_MISMATCH
 
-#ifdef CONFIG_ARC_TLB_PARANOIA
+#ifdef CONFIG_ARC_DBG_TLB_PARANOIA
 
 	; make sure h/w ASID is same as s/w ASID
 
@@ -143,7 +143,7 @@ ex_saved_reg1:
 	lsr     r0, r2, (PAGE_SHIFT - 2)
 	and     r0, r0, ( (PTRS_PER_PTE-1) << 2)
 	ld.aw   r0, [r1, r0]            ; get PTE and PTE ptr for fault addr
-#ifdef CONFIG_ARC_TLB_PROFILE
+#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	and.f 0, r0, _PAGE_PRESENT
 	bz   1f
 	ld   r2, [num_pte_not_present]
@@ -234,7 +234,7 @@ ARC_ENTRY EV_TLBMissI
 
 	FREEUP_SCRATCH_REGS
 
-#ifdef CONFIG_ARC_TLB_PROFILE
+#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	ld  r0, [numitlb]
 	add r0, r0, 1
 	st  r0, [numitlb]
@@ -273,7 +273,7 @@ ARC_ENTRY EV_TLBMissD
 
 	FREEUP_SCRATCH_REGS
 
-#ifdef CONFIG_ARC_TLB_PROFILE
+#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	ld  r0, [numdtlb]
 	add r0, r0, 1
 	st  r0, [numdtlb]

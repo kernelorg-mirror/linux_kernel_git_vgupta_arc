@@ -2,7 +2,7 @@ config ARC_AHB_PCI_BRIDGE
 	bool "Host PCI Bridge on AA4 Board"
 	default n
 	depends on PCI
-	depends on ARCH_ARC_ANGEL4
+	depends on ARC_BOARD_ANGEL4
 	help
 	To Enable a PCI device to work on AA4 Ref Board a AHB to PCI Host Bridge
 	is needed.
@@ -14,7 +14,7 @@ config ARC_IDE
 	select IDE
 	select BLK_DEV_IDE
 	select BLK_DEV_IDEDISK
-	depends on ARCH_ARC_ANGEL4
+	depends on ARC_BOARD_ANGEL4
 	default y
 
 config ARC_BLK_DEV_IDEDMA
@@ -26,7 +26,7 @@ config ARC_BLK_DEV_IDEDMA
 config ARC_SERIAL
 	bool "ARC UART driver support"
 	select SERIAL_CORE
-	depends on ARCH_ARC_ANGEL4 || ARCH_ARC_ML509 || ARCH_ARC_SIM
+	depends on ARC_BOARD_ANGEL4 || ARC_BOARD_ML509 || ARC_ISS_VIRT_PERIP
 	default y
 
 config ARC_SERIAL_NR_PORTS
@@ -54,12 +54,12 @@ config SERIAL_LV2
 config TIMER_LV2
 	bool "Configure Timer0 interrupt on level 2"
 	default n
-	depends on ARCH_ARC_LV2_INTR
+	depends on ARC_COMPACT_IRQ_LEVELS
 
 config ARC_PS2
 	bool "ARC PS/2 support"
 	default n
-	depends on SERIO && ARCH_ARC_ANGEL4
+	depends on SERIO && ARC_BOARD_ANGEL4
 	help
 	  ARC FPGA Peripherals PS/2 support. Driver currently works only
 	  on AA4 board.
@@ -79,7 +79,7 @@ config ARCTANGENT_EMAC
 	select NETDEVICES
 	select NET_ETHERNET
 	default n
-	depends on ARCH_ARC_ANGEL4
+	depends on ARC_BOARD_ANGEL4
 
 config EMAC_LV2
 	bool "Configure EMAC interrupt on level 2"
@@ -98,7 +98,7 @@ config XILINX_TEMAC
 	select INET
 	select NETDEVICES
 	select NET_ETHERNET
-	depends on ARCH_ARC_ML509
+	depends on ARC_BOARD_ML509
 
 config ISS_MAC
 	tristate "Use xISS/ISS ENET simulation ?"
@@ -107,7 +107,7 @@ config ISS_MAC
 	select IET
 	select NETDEVICES
 	select NET_ETHERNET
-	depends on ARCH_ARC_SIM
+	depends on ARC_ISS_VIRT_PERIP
 
 config ARCPGU
 	tristate "Use ARC Pixel Graphics Unit"
@@ -124,7 +124,7 @@ config VFB_SIM
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_SYS_FOPS
-	depends on ARCH_ARC_SIM
+	depends on ARC_ISS_VIRT_PERIP
 
 config VFB_SIM_BASE
 	hex "Base address of Frame Buffer in Pysical memory"

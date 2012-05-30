@@ -156,7 +156,7 @@ static unsigned long dma_timings[3][5] = {
 #define DMA_TIMING_TM  4
 
 /* Convert nanoseconds to clock cycles */
-#define cycles_per_usec  (CONFIG_ARC700_CLK/1000000)
+#define cycles_per_usec  (CONFIG_ARC_PLAT_CLK/1000000)
 
 static __inline__ unsigned long ns_to_cycles(unsigned long ns)
 {

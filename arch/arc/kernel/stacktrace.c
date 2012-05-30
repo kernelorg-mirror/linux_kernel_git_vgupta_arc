@@ -95,7 +95,7 @@ static noinline unsigned int
 arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 		int (*consumer_fn) (unsigned int, void *), void *arg)
 {
-#ifdef CONFIG_ARC_STACK_UNWIND
+#ifdef CONFIG_ARC_DW2_UNWIND
 	int ret = 0;
 	unsigned int address;
 	struct unwind_frame_info frame_info;
@@ -127,7 +127,7 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 	 * prelogue is setup (callee regs saved and then fp set and not other
 	 * way around
 	 */
-	pr_warn("CONFIG_ARC_STACK_UNWIND needs to be enabled\n");
+	pr_warn("CONFIG_ARC_DW2_UNWIND needs to be enabled\n");
 	return 0;
 
 #endif
