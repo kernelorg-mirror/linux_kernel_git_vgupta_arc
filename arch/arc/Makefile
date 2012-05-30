@@ -7,7 +7,6 @@
 #
 
 UTS_MACHINE := arc
-PROCESSOR  := arc700
 
 KBUILD_DEFCONFIG := 4.10_defconfig
 
@@ -103,8 +102,8 @@ KBUILD_AFLAGS		+= $(KBUILD_CFLAGS)
 
 LIBGCC		:= $(shell $(CC) $(ARC_LIBGCC) --print-libgcc-file-name)
 
-head-y		:= arch/arc/proc/$(PROCESSOR)/head.o arch/arc/kernel/init_task.o
-core-y		+= arch/arc/kernel/ arch/arc/mm/ arch/arc/proc/$(PROCESSOR)/
+head-y		:= arch/arc/kernel/head.o arch/arc/kernel/init_task.o
+core-y		+= arch/arc/kernel/ arch/arc/mm/
 core-$(CONFIG_OPROFILE)		+= arch/arc/oprofile/
 drivers-y	+= arch/arc/drivers/
 libs-y 		+= arch/arc/lib/ $(LIBGCC)

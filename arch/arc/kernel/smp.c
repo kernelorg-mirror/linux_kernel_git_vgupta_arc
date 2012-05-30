@@ -30,6 +30,10 @@
 #include <linux/setup.h>
 #include <asm/processor.h>
 #include <asm/idu.h>
+#include <linux/spinlock_types.h>
+
+DEFINE_SPINLOCK(smp_atomic_ops_lock);
+DEFINE_SPINLOCK(smp_bitops_lock);
 
 extern struct task_struct *_current_task[NR_CPUS];
 

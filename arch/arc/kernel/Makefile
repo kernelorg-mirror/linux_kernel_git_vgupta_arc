@@ -10,17 +10,25 @@ CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
 obj-y	+= arcksyms.o ptrace.o sys_arc.o setup.o irq.o time.o reset.o
 obj-y	+= troubleshoot.o stacktrace.o
+obj-y	+= entry.o process.o signal.o traps.o
 
 obj-$(CONFIG_ARC_DBG_EVENT_TIMELINE)	+= event-log.o
 obj-$(CONFIG_MODULES)			+= arcksyms.o module.o
-obj-$(CONFIG_ARC_METAWARE_HLINK)		+= arc_hostlink.o
-obj-$(CONFIG_SMP) 			+= atomic_lock.o bitops_lock.o
+obj-$(CONFIG_ARC_METAWARE_HLINK)	+= arc_hostlink.o
+obj-$(CONFIG_SMP) 			+= smp.o idu.o
 obj-$(CONFIG_GENERIC_CLOCKEVENTS) 	+= time.o
 obj-$(CONFIG_ARC_DW2_UNWIND)		+= unwind.o
 obj-$(CONFIG_KPROBES)      		+= kprobes.o
 obj-$(CONFIG_ARC_MISALIGN_ACCESS) 	+= unaligned.o
 
+obj-$(CONFIG_ARC_FPU_SAVE_RESTORE)	+= fpu.o
 CFLAGS_fpu.o   += -mdpfp
-obj-$(CONFIG_ARC_FPU_SAVE_RESTORE) 		+= fpu.o
 
-extra-y := init_task.o vmlinux.lds
+ifdef CONFIG_ARC_DW2_UNWIND
+CFLAGS_ctx_sw.o += -fno-omit-frame-pointer
+obj-y += ctx_sw.o
+else
+obj-y += ctx_sw_asm.o
+endif
+
+extra-y := init_task.o vmlinux.lds head.o
