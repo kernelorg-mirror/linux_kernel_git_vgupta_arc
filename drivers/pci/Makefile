@@ -50,7 +50,7 @@ obj-$(CONFIG_MICROBLAZE) += setup-bus.o
 obj-$(CONFIG_TILE) += setup-bus.o setup-irq.o
 obj-$(CONFIG_SPARC_LEON) += setup-bus.o setup-irq.o
 obj-$(CONFIG_M68K) += setup-bus.o setup-irq.o
-obj-$(CONFIG_ARCH_ARC) += setup-bus.o
+obj-$(CONFIG_ARC) += setup-bus.o
 
 #
 # ACPI Related PCI FW Functions
