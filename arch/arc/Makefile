@@ -103,8 +103,11 @@ KBUILD_AFLAGS		+= $(KBUILD_CFLAGS)
 LIBGCC		:= $(shell $(CC) $(ARC_LIBGCC) --print-libgcc-file-name)
 
 head-y		:= arch/arc/kernel/head.o arch/arc/kernel/init_task.o
-core-y		+= arch/arc/kernel/ arch/arc/mm/
-core-$(CONFIG_OPROFILE)		+= arch/arc/oprofile/
+
+# See arch/arc/Kbuild for content of core part of the kernel
+core-y		+= arch/arc/
+
+drivers-$(CONFIG_OPROFILE)		+= arch/arc/oprofile/
 drivers-y	+= arch/arc/drivers/
 libs-y 		+= arch/arc/lib/ $(LIBGCC)
 
