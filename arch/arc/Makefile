@@ -13,74 +13,46 @@ KBUILD_DEFCONFIG := 4.10_defconfig
 PLATFORM := AA4
 export PLATFORM
 
-KBUILD_CFLAGS		+= -Iarch/arc/include/asm/board-$(PLATFORM)
-KBUILD_CFLAGS		+= -mA7 -fno-common -pipe -fno-builtin \
+cflags-y	+= -Iarch/arc/include/asm/board-$(PLATFORM)
+
+LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/defines.h \
+		    -include ${src}/arch/arc/include/asm/current.h
+
+cflags-y	+= -mA7 -fno-common -pipe -fno-builtin \
 						-D__linux__
 
-# preprocessor macros due to following: __Xlock __Xswape __Xrtsc
-ifdef CONFIG_ARC_HAS_LLSC
-KBUILD_CFLAGS		+= -mlock
-endif
-ifdef CONFIG_ARC_HAS_SWAPE
-KBUILD_CFLAGS		+= -mswape
-endif
-ifdef CONFIG_ARC_HAS_RTSC
-KBUILD_CFLAGS		+= -mrtsc
-endif
+atleast_gcc44 :=  $(call cc-ifversion, -gt, 0402, y)
+cflags-$(atleast_gcc44)			+= -fsection-anchors
 
-ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-# Generic build system already passes -Os
-# Enable some explicitly uninlined routines
-KBUILD_CFLAGS		+= -DNONINLINE_MEMSET
+cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
+cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
+cflags-$(CONFIG_ARC_HAS_RTSC)		+= -mrtsc
+cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables
+
+# Generic build system already passes -Os, additonally uninline some code
+cflags-$(CONFIG_CC_OPTIMIZE_FOR_SIZE)	+= -DNONINLINE_MEMSET
+
+ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
 # Generic build system uses -O2, we want -O3
-else
-KBUILD_CFLAGS  += -O3
+cflags-y  += -O3
 endif
 
 # small data is default for elf32 tool-chain. If not usable, disable it
 # This also allows repurposing GP as scratch reg to gcc reg allocator
-enable_small_data := n
-ifeq ($(enable_small_data),n)
-KBUILD_CFLAGS  += -mno-sdata -fcall-used-gp
-endif
+disable_small_data := y
+cflags-$(disable_small_data)		+= -mno-sdata -fcall-used-gp
 
-ATLEAST_GCC_44 :=  $(call cc-ifversion, -gt, 0402, y)
+# Low level event tracing with Metaware debugger assist needs symbol info
+cflags-$(CONFIG_ARC_DBG_EVENT_TIMELINE) += -g
 
-# vineetg Oct 2010: ARC GCC 4.4.2 supports section anchors
-ifeq ($(ATLEAST_GCC_44),y)
-KBUILD_CFLAGS  +=      -fsection-anchors
-endif
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mbig-endian
+ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB
 
-
-# vineetg, Oct 2009
-# Low level event tracing is sort of crude, as it relies on visualisation
-# of log-buffer as a global array in Metaware debugger's "globals" Pane and
-# then manually saving it to a file. However w/o -g, debugger can't show the
-# non-scalar globals, hence this switch.
-# Ideally we must use something like relay FS, but can't, because this tracing
-# is generally done in case of weird faults like Machine check, to capture the
-# dying kernel's last few events. Thus expecting multiple kernel/user
-# daemons to haul data out of kernel in that state would be really stupid !
-ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
-KBUILD_CFLAGS += -g
-endif
-
-KBUILD_CFLAGS_MODULE	+= -mlong-calls
-
-ifdef CONFIG_ARC_DW2_UNWIND
-KBUILD_CFLAGS		+= -fasynchronous-unwind-tables
-endif
-
-LINUXINCLUDE +=  -include ${src}/arch/arc/include/asm/defines.h \
-				 -include ${src}/arch/arc/include/asm/current.h
-
-ifdef CONFIG_CPU_BIG_ENDIAN
-KBUILD_CFLAGS    	+= -mbig-endian
-KBUILD_LDFLAGS		+= -EB
-endif
+ARC_LIBGCC				:= -mA7
+cflags-$(CONFIG_ARC_USE_HW_MPY)		+= -multcost=16
 
 ifndef CONFIG_ARC_USE_HW_MPY
-	KBUILD_CFLAGS	+= -mno-mpy
+	cflags-y	+= -mno-mpy
 
 # newlib for ARC700 assumes MPY to be always present, which is generally true
 # However, if someone really doesn't want MPY, we need to use the 600 ver
@@ -88,28 +60,29 @@ ifndef CONFIG_ARC_USE_HW_MPY
 # With gcc 4.4.7, -mno-mpy is enough to make any other related adjustments,
 # e.g. increased cost of MPY. With gcc 4.2.1 this had to be explicitly hinted
 
-	ARC_LIBGCC              := -marc600
-	ifneq ($(ATLEAST_GCC_44),y)
-		KBUILD_CFLAGS   += -multcost=30
+	ARC_LIBGCC		:= -marc600
+	ifneq ($(atleast_gcc44),y)
+		cflags-y	+= -multcost=30
 	endif
-else
-	ARC_LIBGCC		:= -mA7
-	KBUILD_CFLAGS		+= -multcost=16
 endif
 
-#setup AFLAGS from CFLAGS when we are done with all the CFLAGS
-KBUILD_AFLAGS		+= $(KBUILD_CFLAGS)
-
 LIBGCC		:= $(shell $(CC) $(ARC_LIBGCC) --print-libgcc-file-name)
+
+# Modules with short calls might break for calls into builtin-kernel
+KBUILD_CFLAGS_MODULE	+= -mlong-calls
+
+# Finally dump eveything into kernel build system
+KBUILD_CFLAGS	+= $(cflags-y)
+KBUILD_AFLAGS	+= $(KBUILD_CFLAGS)
+KBUILD_LDFLAGS	+= $(ldflags-y)
 
 head-y		:= arch/arc/kernel/head.o arch/arc/kernel/init_task.o
 
 # See arch/arc/Kbuild for content of core part of the kernel
-core-y		+= arch/arc/
-
-drivers-$(CONFIG_OPROFILE)		+= arch/arc/oprofile/
-drivers-y	+= arch/arc/drivers/
-libs-y 		+= arch/arc/lib/ $(LIBGCC)
+core-y				+= arch/arc/
+drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
+drivers-y			+= arch/arc/drivers/
+libs-y				+= arch/arc/lib/ $(LIBGCC)
 
 #default target for make without any arguements.
 KBUILD_IMAGE := bootpImage
