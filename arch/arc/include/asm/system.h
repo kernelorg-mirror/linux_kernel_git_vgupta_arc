@@ -185,7 +185,6 @@ static inline unsigned long arch_align_stack(unsigned long sp)
  *     eventlog.h in that file
  ******************************************************************/
 
-#include <plat_memmap.h>	/* Peripherals Memory Map */
 #include <asm/event-log.h>	/* event log from "C" */
 
 void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs);

@@ -11,7 +11,7 @@
 #include <asm/cache.h>
 #include <asm/page.h>
 #include <asm/thread_info.h>
-#include <asm/board/plat_memmap.h>
+#include <plat/memmap.h>
 
 OUTPUT_ARCH(arc)
 ENTRY(_stext)

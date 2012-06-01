@@ -32,8 +32,7 @@
 #include <linux/serial_core.h>
 
 #include <asm/irq.h>
-#include <asm/board/plat_memmap.h>
-#include <asm/board/plat_irq.h>
+#include <plat/memmap.h>
 #include <asm/setup.h>
 
 /*************************************

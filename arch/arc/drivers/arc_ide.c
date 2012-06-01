@@ -29,6 +29,8 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <asm/irq.h>
+#include <plat/memmap.h>
 
 /* drive's registers map in controller base address*/
 #define DRIVE_REGISTER_OFFSET 0xA0

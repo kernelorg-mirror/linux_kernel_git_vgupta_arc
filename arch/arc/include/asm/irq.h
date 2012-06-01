@@ -10,7 +10,7 @@
 #define __ASM_ARC_IRQ_H
 
 #include <linux/irqreturn.h>
-#include <plat_irq.h>		/* Board Specific IRQ assignments */
+#include <plat/irq.h>		/* Board Specific IRQ assignments */
 
 #define irq_canonicalize(i)    (i)
 

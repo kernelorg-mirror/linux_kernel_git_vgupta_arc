@@ -58,6 +58,7 @@
 #include <linux/platform_device.h>
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
+#include <plat/memmap.h>
 
 #ifdef ARC_EMAC_COH_MEM
 /* The BDs are allocated in cache coherent memory - thus normal "C" code

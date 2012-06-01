@@ -1,0 +1,44 @@
+==================================================================
+Introduction To ARC "Platform"
+==================================================================
+
+Conceptually, an ARC Platform is a SoC Family (one/more SoC(s)),
+with one/more Boards based on those SoC(s).
+
+Typically a Platform would be associated with an ARC Customer.
+
+An SoC is essentially
+  -Pre-canned Core Settings (cache line, MMU ver etc)
+  -Any specific ARC Core extensions, which arc kernel either doesn't care
+   about or if it does then it should have hooks to call-into it
+  -Any other Soc specific devices, arc kernel doesn't care about anyways
+
+==================================================================
+How To add a Platform
+==================================================================
+
+(1) create arch/arc/plat-xxx
+
+(2) create arch/arc/plat-xxx/Kconfig
+	Define CONFIG_ARC_SOC_1
+	Define CONFIG_ARC_SOC_1
+
+(3) source above Kconfig in arch/arc/Kconfig
+
+(4) Add entry in arch/arc/Makefile
+	platform-$CONFIG_ARC_SOC_1 := xxx
+	platform-$CONFIG_ARC_SOC_2 := xxx
+
+==================================================================
+ How to Organise you Platform's Kconfig
+==================================================================
+
+(1) ARC Platform code organisation requires all SoC Family members, of a
+    Platform plat-xxx, be enlisted in arch/arc/plat-xxx/Kconfig
+    For more than 1 SoCs, this needs to be [ choice config* encdchoice ]
+
+(2) Then depending on the complexity of family, the rest of organisation is
+    left to the SoC folks. They may choose to have seperate Kconfig files for
+    the following or decide to dump everything in arch/arc/plat-xxx/Kconfig
+      -SoC specific stuff: e.g. if it has 32 vs. 64 b Cache Line
+      -Board specific Stuff: e.g. List of Boards based on SoC and their quirks.

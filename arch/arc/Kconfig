@@ -98,7 +98,7 @@ config GENERIC_CLOCKEVENTS
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
-menu "ARC-specific Configuration"
+menu "ARC Architecture Configuration"
 
 menu "ARC CPU Core Configuration"
 
@@ -293,9 +293,11 @@ config ARC_HAS_RTSC
 	default y
 	depends on ARC_CPU_700_V_4_10
 
-endmenu   #CPU Core config
+endmenu   # "ARC CPU Core Configuration"
 
-menu "Board Configuration"
+menu "ARC Platform Configuration"
+
+source "arch/arc/plat-arcfpga/Kconfig"
 
 config ARC_PLAT_CLK
 	int "Clock speed"
@@ -322,34 +324,7 @@ config ARC_PLAT_SDRAM_SIZE
 	  The actual memory itself could be larger than this number. But for
 	  all software purposes, this is the amt of memory.
 
-choice
-	prompt "Board Selection"
-	default ARC_BOARD_ANGEL4
-
-config ARC_BOARD_ANGEL4
-	bool "Angel4"
-	help
-	  ARC Angel4 FPGA Ref Platform (Xilinx Virtex Based)
-
-config ARC_BOARD_ML509
-	bool "ML509"
-	help
-	  ARC ML509 FPGA Ref Platform (Xilinx Virtex-5 Based)
-
-config ARC_ISS_VIRT_PERIP
-	bool "ISS Virtual Peripherals"
-	help
-	  ARC Linux can run on ARC Instruction set Simulator.
-	  The binary built for AA4/ML509 can run on ISS, despite lack of
-	  peripherals since drivers check if they are on ISS vs. real H/w.
-	  This config option is only used if you want to build ISS specific
-	  virtual periperal drivers such as virt-framebuffer or virt-mac.
-
-endchoice
-
-source "arch/arc/drivers/Kconfig"
-
-endmenu   #Board config
+endmenu # "ARC Platform Configuration"
 
 
 config ARC_CURR_IN_REG
@@ -421,7 +396,6 @@ config ARC_METAWARE_HLINK
 	  Metaware Debugger. This can come in handy for Linux-host communication
 	  when there is no real usable peripheral such as EMAC.
 
-
 menuconfig ARC_DBG
 	bool "ARC debugging"
 	default y
@@ -474,7 +448,7 @@ config ARC_UBOOT_CMDLINE
 
 source "kernel/Kconfig.preempt"
 
-endmenu
+endmenu	 # "ARC Architecture Configuration"
 
 source "mm/Kconfig"
 source "net/Kconfig"

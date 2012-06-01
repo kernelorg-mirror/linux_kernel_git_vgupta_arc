@@ -622,6 +622,10 @@ static struct init_tags {
 	{0, ATAG_NONE}
 };
 
+void __init __attribute__((weak)) arc_platform_early_init(void)
+{
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	struct tag *tags = (struct tag *)&init_tags;	/* to shut up gcc */
@@ -641,10 +645,8 @@ void __init setup_arch(char **cmdline_p)
 		printk_init("SKIPPING ATAG parsing...\n");
 	}
 
-	/* Before probing MMU or caches, so any discrepancy printk( ) shows up
-	 * but after, tag parsing, as it could override the build-time baud
-	 */
-	arc_early_serial_reg();
+	/* Platform/board specific: e.g. early console registration */
+	arc_platform_early_init();
 
 	setup_processor();
 

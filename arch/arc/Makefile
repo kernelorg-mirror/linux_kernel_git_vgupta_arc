@@ -10,10 +10,13 @@ UTS_MACHINE := arc
 
 KBUILD_DEFCONFIG := 4.10_defconfig
 
-PLATFORM := AA4
+# For ARC FPGA Platforms
+platform-$(CONFIG_ARC_SOC_GENERIC)	:= arcfpga
+
+PLATFORM := $(platform-y)
 export PLATFORM
 
-cflags-y	+= -Iarch/arc/include/asm/board-$(PLATFORM)
+cflags-y	+= -Iarch/arc/plat-$(PLATFORM)/include
 
 LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/defines.h \
 		    -include ${src}/arch/arc/include/asm/current.h
@@ -76,10 +79,19 @@ KBUILD_CFLAGS	+= $(cflags-y)
 KBUILD_AFLAGS	+= $(KBUILD_CFLAGS)
 KBUILD_LDFLAGS	+= $(ldflags-y)
 
+# Needed for Linker script preprocessing
+KBUILD_CPPFLAGS	+= -Iarch/arc/plat-$(PLATFORM)/include
+
 head-y		:= arch/arc/kernel/head.o arch/arc/kernel/init_task.o
 
 # See arch/arc/Kbuild for content of core part of the kernel
 core-y				+= arch/arc/
+
+# w/o this ifneq, make ARCH=arc clean was crapping out
+ifneq ($(platform-y),)
+core-y				+= arch/arc/plat-$(PLATFORM)/
+endif
+
 drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
 drivers-y			+= arch/arc/drivers/
 libs-y				+= arch/arc/lib/ $(LIBGCC)
@@ -93,16 +105,6 @@ bootpImage uImage: objconvert vmlinux
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-
-archprepare: arch/arc/include/asm/board
-
-arch/arc/include/asm/board: FORCE
-	$(arc-create-symlink)
-
-define arc-create-symlink
-	@echo 'SYMLINK arch/arc/include/asm/board -> ${src}/arch/arc/include/asm/board-$(PLATFORM)'; \
-	ln -fsn board-$(PLATFORM) ${src}/arch/arc/include/asm/board;
-endef
 
 # work around for bug 94179: force some object file to have load,alloc flags
 # set for the debug_frame section
