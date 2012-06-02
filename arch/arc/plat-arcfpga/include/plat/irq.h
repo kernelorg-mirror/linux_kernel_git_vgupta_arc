@@ -36,4 +36,14 @@
 #define IDU_INTERRUPT_0 16
 #endif
 
+/* For ARC FPGA Board- nothing fancy needed */
+
+#define platform_setup_irq(irq, flags)		(0)
+
+#define platform_process_interrupt(irq)
+#define platform_irq_init()
+#define platform_free_irq(irq)
+#define platform_enable_irq(irq)
+#define platform_disable_irq(irq)
+
 #endif

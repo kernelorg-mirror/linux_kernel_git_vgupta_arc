@@ -146,24 +146,24 @@ VECTOR   mem_service             ; 0x8, Mem exception   (0x1)
 VECTOR   instr_service           ; 0x10, Instrn Error   (0x2)
 
 ; ******************** Device ISRs **********************
-#ifdef  CONFIG_TIMER_LV2
-VECTOR   handle_interrupt_level2 ; Timer0 level2        (0x3)
+#ifdef CONFIG_ARC_IRQ3_LV2
+VECTOR   handle_interrupt_level2
 #else
-VECTOR   handle_interrupt_level1 ; Timer0 level1        (0x3)
+VECTOR   handle_interrupt_level1
 #endif
 
-VECTOR   handle_interrupt_level1 ;                      (0x4)
+VECTOR   handle_interrupt_level1
 
-#ifdef  CONFIG_SERIAL_LV2
-VECTOR   handle_interrupt_level2 ; UART level2          (0x5)
+#ifdef CONFIG_ARC_IRQ5_LV2
+VECTOR   handle_interrupt_level2
 #else
-VECTOR   handle_interrupt_level1 ; UART level1          (0x5)
+VECTOR   handle_interrupt_level1
 #endif
 
-#ifdef  CONFIG_EMAC_LV2
-VECTOR   handle_interrupt_level2 ; EMAC level2          (0x6)
+#ifdef CONFIG_ARC_IRQ6_LV2
+VECTOR   handle_interrupt_level2
 #else
-VECTOR   handle_interrupt_level1 ; EMAC level1          (0x6)
+VECTOR   handle_interrupt_level1
 #endif
 
 .rept   25

@@ -27,18 +27,15 @@
  */
 
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/errno.h>
 #include <linux/kallsyms.h>
-#include <linux/irqflags.h>
 #include <linux/kernel_stat.h>
 #include <linux/slab.h>
-#include <linux/smp.h>
-#include <linux/linkage.h>
 #include <asm/sections.h>
+#include <asm/irq.h>
 
 /* table for system interrupt handlers */
 
@@ -50,32 +47,33 @@ static spinlock_t irq_controller_lock;
 
 void __init arc_irq_init(void)
 {
-	int level_mask = 0;
+	int level_mask = level_mask;
 
 	write_aux_reg(AUX_INTR_VEC_BASE, &_int_vec_base_lds);
 
 	/* Disable all IRQs: enable them as devices request */
 	write_aux_reg(AUX_IENABLE, 0);
 
-	/*
-	 * A device with high priority Interrupts (Level2 in ARCompact jargon)
-	 * needs to be set up accordingly
-	 */
-#ifdef CONFIG_TIMER_LV2
-	level_mask |= (1 << TIMER0_INT);
+       /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
+#ifdef CONFIG_ARC_IRQ3_LV2
+       level_mask |= (1 << 3);
 #endif
-#ifdef CONFIG_SERIAL_LV2
-	level_mask |= (1 << VUART_IRQ);
+#ifdef CONFIG_ARC_IRQ5_LV2
+       level_mask |= (1 << 5);
 #endif
-#ifdef CONFIG_EMAC_LV2
-	level_mask |= (1 << VMAC_IRQ);
+#ifdef CONFIG_ARC_IRQ6_LV2
+       level_mask |= (1 << 6);
 #endif
 
-	if (level_mask) {
-		pr_info("setup as level-2 interrupt/s\n");
-		write_aux_reg(AUX_IRQ_LEV, level_mask);
-	}
+       if (level_mask) {
+               pr_info("Level-2 interrupts bitset %x\n");
+               write_aux_reg(AUX_IRQ_LEV, level_mask);
+       }
+#endif
 
+	/* initialise platform interrupt controller */
+	platform_irq_init();
 }
 
 void __init init_IRQ(void)
@@ -85,7 +83,9 @@ void __init init_IRQ(void)
 #endif
 }
 
-/* setup_irq:
+/*
+ * setup_irq - Attach an ISR to a IRQ (variant #1, takes @irqaction)
+ *
  * Typically used by architecure special interrupts for
  * registering handler to IRQ line
  */
@@ -94,11 +94,16 @@ int setup_irq(unsigned int irq, struct irqaction *node)
 {
 	unsigned long flags;
 	struct irqaction **curr;
+	int rc;
 
 	pr_info("---IRQ Request (%d) ISR ", irq);
 	__print_symbol("%s\n", (unsigned long)node->handler);
 
 	spin_lock_irqsave(&irq_controller_lock, flags);	/* insert atomically */
+
+	rc = platform_setup_irq(irq, node->flags);
+	if (rc)
+		goto finish;
 
 	/* IRQ might be shared, thus we need a link list per IRQ for all ISRs
 	 * Adds to tail of list
@@ -116,11 +121,14 @@ int setup_irq(unsigned int irq, struct irqaction *node)
 	if (irq_list[irq] == node)
 		unmask_interrupt((1 << irq));	/* AUX_IEMABLE */
 
+finish:
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 	return 0;
 }
 
-/* request_irq:
+/*
+ * request_irq - Attach an ISR to a IRQ (variant #2, all params itemised)
+ *
  * Exported to device drivers / modules to assign handler to IRQ line
  */
 int request_irq(unsigned int irq,
@@ -180,6 +188,8 @@ void free_irq(unsigned int irq, void *dev_id)
 		}
 	}
 
+	platform_free_irq(irq);
+
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 
 	if (!tmp)
@@ -196,6 +206,8 @@ void process_interrupt(unsigned int irq, struct pt_regs *fp)
 	const int cpu = smp_processor_id();
 
 	irq_enter();
+
+	platform_process_interrupt(irq);
 
 	/* call all the ISR's in the list for that interrupt source */
 	node = irq_list[irq];
@@ -214,7 +226,8 @@ void process_interrupt(unsigned int irq, struct pt_regs *fp)
 	return;
 }
 
-/* IRQ Autodetect not required for ARC
+/*
+ * IRQ Autodetect not required for ARC
  * However the stubs still need to be exported for IDE et all
  */
 unsigned long probe_irq_on(void)
@@ -262,13 +275,9 @@ int show_interrupts(struct seq_file *p, void *v)
 
 }
 
-/**
- *      disable_irq - disable an irq and wait for completion
- *      @irq: Interrupt to disable
- *
- *      Disable the selected interrupt line.  We do this lazily.
- *
- *      This function may be called from IRQ context.
+/*
+ * disable_irq - disable an irq and wait for completion
+ * @irq: Interrupt to disable
  */
 void disable_irq(unsigned int irq)
 {
@@ -276,22 +285,24 @@ void disable_irq(unsigned int irq)
 
 	if (irq < NR_IRQS && irq_list[irq]) {
 		spin_lock_irqsave(&irq_controller_lock, flags);
-		if (!irq_depth[irq]++)
+		if (!irq_depth[irq]++) {
+			platform_disable_irq(irq);
 			mask_interrupt(1 << irq);
+		}
 		spin_unlock_irqrestore(&irq_controller_lock, flags);
 	}
 }
 EXPORT_SYMBOL(disable_irq);
 
-/**
- *      enable_irq - enable interrupt handling on an irq
- *      @irq: Interrupt to enable
+/*
+ * enable_irq - enable interrupt handling on an irq
+ * @irq: Interrupt to enable
  *
- *      Re-enables the processing of interrupts on this IRQ line.
- *      Note that this may call the interrupt handler, so you may
- *      get unexpected results if you hold IRQs disabled.
+ * Re-enables the processing of interrupts on this IRQ line.
+ * Note that this may call the interrupt handler, so you may
+ * get unexpected results if you hold IRQs disabled.
  *
- *      This function may be called from IRQ context.
+ * This function may be called from IRQ context.
  */
 void enable_irq(unsigned int irq)
 {
@@ -301,6 +312,7 @@ void enable_irq(unsigned int irq)
 		spin_lock_irqsave(&irq_controller_lock, flags);
 		if (irq_depth[irq]) {
 			if (!--irq_depth[irq])
+				platform_enable_irq(irq);
 				unmask_interrupt(1 << irq);
 		} else {
 			pr_warn("Unbalanced IRQ action %d %s\n", irq,
@@ -334,7 +346,8 @@ int get_hw_config_num_irq()
 #endif
 
 /*
- * Enable interrupts.
+ * arch_local_irq_enable - Enable interrupts.
+ *
  * 1. Explicitly called to re-enable interrupts
  * 2. Implicitly called from spin_unlock_irq, write_unlock_irq etc
  *    which maybe in hard ISR itself
@@ -412,10 +425,10 @@ void arch_local_irq_enable(void)
 
 #else /* ! CONFIG_ARC_COMPACT_IRQ_LEVELS */
 
- /* Simpler version for only 1 level of interrupt
-  * Here we only Worry about Level 1 Bits
-  */
-
+/*
+ * Simpler version for only 1 level of interrupt
+ * Here we only Worry about Level 1 Bits
+ */
 void arch_local_irq_enable(void)
 {
 
@@ -423,7 +436,8 @@ void arch_local_irq_enable(void)
 	flags = arch_local_save_flags();
 	flags |= (STATUS_E1_MASK | STATUS_E2_MASK);
 
-	/* If called from hard ISR (between irq_enter and irq_exit)
+	/*
+	 * If called from hard ISR (between irq_enter and irq_exit)
 	 * don't allow Level 1. In Soft ISR we allow further Level 1s
 	 */
 

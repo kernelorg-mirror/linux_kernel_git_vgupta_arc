@@ -45,3 +45,19 @@ endchoice
 # TBD: The drivers would eventually move into drivers/xxx folders
 # Right now, this will make the "ARC Platform Menu cobbled up"
 source "arch/arc/drivers/Kconfig"
+
+# Platform specific IRQ wiring - tied to devices - feeds into non-plat-arc code
+config ARC_TIMER_LV2
+	bool "High Priority Timer0 IRQ"
+	select ARC_IRQ3_LV2
+
+# Timer HAS to be high priority, for any other high priority config
+config ARC_SERIAL_LV2
+	bool "High Priority Serial IRQ"
+	depends on ARC_SERIAL && ARC_TIMER_LV2
+	select ARC_IRQ5_LV2
+
+config ARC_EMAC_LV2
+	bool "High Priority EMAC IRQ"
+	depends on ARCTANGENT_EMAC && ARC_TIMER_LV2
+	select ARC_IRQ5_LV2

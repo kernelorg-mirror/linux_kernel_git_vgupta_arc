@@ -256,7 +256,15 @@ endchoice
 config ARC_COMPACT_IRQ_LEVELS
 	bool "Enable two levels of Interrupts high(2)low(1)"
 	default n
-	select TIMER_LV2
+
+config ARC_IRQ3_LV2
+	bool
+
+config ARC_IRQ5_LV2
+	bool
+
+config ARC_IRQ6_LV2
+	bool
 
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
