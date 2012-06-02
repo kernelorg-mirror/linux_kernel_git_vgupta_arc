@@ -700,7 +700,7 @@ static struct console arc_serial_console = {
 	.device = uart_console_device,
 	.setup = arc_serial_console_setup,
 	.flags = CON_PRINTBUFFER,
-	.index = 0,
+	.index = -1,	/* non preferred by default */
 	.data = &arc_uart_driver
 };
 
@@ -779,4 +779,4 @@ void __init arc_early_serial_reg(void) {
 
 #endif /* CONFIG_EARLY_PRINTK */
 
-#endif
+#endif  /* CONFIG_ARC_SERIAL_CONSOLE */

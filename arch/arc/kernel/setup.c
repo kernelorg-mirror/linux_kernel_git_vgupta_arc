@@ -63,14 +63,6 @@ int running_on_hw = 1;
 char __initdata command_line[COMMAND_LINE_SIZE] = {
 "root=/dev/nfs nfsroot=10.0.0.2:/home/vineetg/ARC/arc_initramfs_nfs,nolock ip=dhcp console=ttyS0" };
 
-#elif defined(CONFIG_ARC_SERIAL_CONSOLE)
-
-/* with console=tty0, arc uart console will be prefered console and
- * registrations will be successful, otherwise dummy console will be
- * registered if CONFIG_VT_CONSOLE is enabled
- */
-char __initdata command_line[COMMAND_LINE_SIZE] = { "console=ttyS0" };
-
 #else
 
 char __initdata command_line[COMMAND_LINE_SIZE];
@@ -681,10 +673,7 @@ void __init setup_arch(char **cmdline_p)
 	console_verbose();
 
 #ifdef CONFIG_VT
-#if defined(CONFIG_ARC_PGU_CONSOLE)
-	/* Arc PGU Console */
-#error "FIXME: enable PGU Console"
-#elif defined(CONFIG_DUMMY_CONSOLE)
+#if defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
 #endif
 #endif
