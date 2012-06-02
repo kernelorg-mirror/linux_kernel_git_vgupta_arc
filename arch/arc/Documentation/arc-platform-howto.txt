@@ -61,6 +61,7 @@ void platform_disable_irq(int irq);
 -Look at arch/arc/kernel/irq.c for the order in which plat hooks are
  called w.r.t arch-common work.
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 (2) High Priority Device IRQs (ARCompact ISA Level 2 Interrupts)
 
 -arch code exposes CONFIG_ARC_IRQ<n>_LV2 which are by default "hidden"
@@ -70,3 +71,30 @@ void platform_disable_irq(int irq);
 -The arch core uses them to do anything needed at arc-common level:
    =setting up the vector table entries to common low/high priority ISRs
    =setting the corresponding bits in AUX_IRQ_LEV core reg
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+(3) SMP hooks
+
+-API expected BY platform smp code (FROM arch-common code)
+
+  int smp_ipi_irq_setup(int cpu, int irq);
+    Takes @cpu and @irq to which the arch-common IPI ISR is hooked up
+
+-APIs expected FROM platform smp code
+
+  const char * arc_platform_smp_cpuinfo(void);
+    returns a string containing info for /proc/cpuinfo
+
+  void arc_platform_smp_init_cpu(void);
+    Called from start_kernel_secondary to do any CPU local setup
+    such as starting a timer, setting up IPI etc
+
+  void arc_platform_ipi_send(cpumask_t callmap);
+    Takes @cpumask to which IPI(s) would be sent.
+    The actual msg-id/buffer is manager in arch-common code
+
+  void arc_platform_ipi_clear(int cpu, int irq);
+    Takes @cpu which got IPI at @irq to do any IPI clearing
+
+-Note that if !CONFIG_SMP, the NULL defs for these are provided by
+ arch-common code itself.

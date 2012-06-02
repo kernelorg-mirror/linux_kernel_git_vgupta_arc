@@ -161,24 +161,6 @@
 #define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
 #define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
 
-#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
-
-#define ARC_AUX_IDU_REG_CMD     0x2000
-#define ARC_AUX_IDU_REG_PARAM   0x2001
-
-#define ARC_AUX_XTL_REG_CMD     0x2002
-#define ARC_AUX_XTL_REG_PARAM   0x2003
-
-#define ARC_REG_MP_BCR          0x2021
-
-#define ARC_XTL_REG_SYNTAX_PARAM_PC     1	/* Left shift by 1 */
-#define ARC_XTL_REG_SYNTAX_CMD_CPU_ID   8	/* Left shift by 8 */
-
-#define ARC_XTL_CMD_WRITE_PC		0x04
-#define ARC_XTL_CMD_CLEAR_HALT		0x02
-
-#endif
-
 /* Profiling AUX regs. */
 #define ARC_PCT_CONTROL         0x255
 #define ARC_HWP_CTRL            0xc0fcb018
@@ -338,12 +320,6 @@ struct bcr_ccm {
 	unsigned int sz;
 };
 
-#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
-struct bcr_mp {
-	unsigned int ver:8, scu:1, idu:1, sdu:1, padding:5, mp_arch:16;
-};
-#endif
-
 struct cpuinfo_arc_cache {
 	unsigned int has_aliasing, sz, line_len, assoc, ver;
 };
@@ -372,9 +348,6 @@ struct cpuinfo_arc {
 	struct bcr_extn_xymem extn_xymem;
 	struct bcr_extn_mac_mul extn_mac_mul;
 	struct bcr_ccm iccm, dccm;
-#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
-	struct bcr_mp mp;
-#endif
 	struct bcr_fp fp, dpfp;
 };
 

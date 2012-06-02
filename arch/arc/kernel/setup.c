@@ -41,6 +41,7 @@
 #include <asm/irq.h>
 #include <asm/unwind.h>
 #include <asm/serial.h>
+#include <asm/smp.h>
 
 extern void __init arc_verify_sig_sz(void);
 
@@ -157,10 +158,6 @@ int __init read_arc_build_cfg_regs(void)
 	READ_BCR(ARC_REG_FP_BCR, p_cpu->fp);
 	READ_BCR(ARC_REG_DPFP_BCR, p_cpu->dpfp);
 
-#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
-	READ_BCR(ARC_REG_MP_BCR, p_cpu->mp);
-#endif
-
 	return cpu;
 }
 
@@ -232,7 +229,6 @@ static const struct id_to_str mac_mul_nm[] = {
 
 char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 {
-
 	int num = 0;
 	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[cpu_id];
 	FIX_PTR(p_cpu);
@@ -285,15 +281,6 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 
 	num += sprintf(buf + num, "   Ext Arith Insn: %s\n",
 		       IS_AVAIL2(p_cpu->extn.ext_arith));
-
-#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
-	num += sprintf(buf + num, "MP Extensions: Ver (%d), Arch (%d)\n",
-		       p_cpu->mp.ver, p_cpu->mp.mp_arch);
-
-	num += sprintf(buf + num, "    SCU %s, IDU %s, SDU %s\n",
-		       IS_AVAIL1(p_cpu->mp.scu),
-		       IS_AVAIL1(p_cpu->mp.idu), IS_AVAIL1(p_cpu->mp.sdu));
-#endif
 
 	num += sprintf(buf + num, "Floating Point Extension: %s",
 		       (p_cpu->fp.ver || p_cpu->dpfp.ver) ? "\n" : "N/A\n");
@@ -420,6 +407,8 @@ void __init setup_processor(void)
 	arc_chk_ccms();
 
 	printk(arc_extn_mumbojumbo(cpu_id, str));
+
+	printk(arc_platform_smp_cpuinfo());
 
 	probe_fpu();
 
@@ -706,6 +695,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, arc_cache_mumbojumbo(cpu_id, str));
 
 	seq_printf(m, arc_extn_mumbojumbo(cpu_id, str));
+
+	seq_printf(m, arc_platform_smp_cpuinfo());
 
 	seq_printf(m, "\n\n");
 

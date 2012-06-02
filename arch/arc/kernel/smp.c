@@ -26,10 +26,8 @@
 #include <linux/delay.h>
 #include <linux/atomic.h>
 #include <linux/percpu.h>
-#include <linux/mmu_context.h>
 #include <linux/setup.h>
 #include <asm/processor.h>
-#include <asm/idu.h>
 #include <linux/spinlock_types.h>
 
 DEFINE_SPINLOCK(smp_atomic_ops_lock);
@@ -102,6 +100,8 @@ asmlinkage void __cpuinit start_kernel_secondary(void)
 	 */
 	setup_processor();
 
+	arc_platform_smp_init_cpu();
+
 	_current_task[cpu] = current;
 
 	atomic_inc(&mm->mm_users);
@@ -123,10 +123,6 @@ asmlinkage void __cpuinit start_kernel_secondary(void)
 	 */
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
-
-	board_setup_timer();
-
-	smp_ipi_init();
 
 	/* Enable the interrupts on the local cpu */
 	local_irq_enable();
@@ -238,7 +234,7 @@ struct smp_call_struct {
 static struct smp_call_struct *volatile smp_call_function_data;
 static DEFINE_SPINLOCK(smp_call_function_lock);
 
-static void send_ipi_message(cpumask_t callmap, enum ipi_msg_type msg)
+static void ipi_send_msg(cpumask_t callmap, enum ipi_msg_type msg)
 {
 	unsigned long flags;
 	unsigned int cpu;
@@ -256,23 +252,21 @@ static void send_ipi_message(cpumask_t callmap, enum ipi_msg_type msg)
 	/*
 	 * Call the platform specific cross-CPU call function.
 	 */
-
-	for_each_cpu_mask(cpu, callmap)
-	    idu_irq_assert(cpu);
+	arc_platform_ipi_send(callmap);
 
 	local_irq_restore(flags);
 }
 
 void smp_send_reschedule(int cpu)
 {
-	send_ipi_message(cpumask_of_cpu(cpu), IPI_RESCHEDULE);
+	ipi_send_msg(cpumask_of_cpu(cpu), IPI_RESCHEDULE);
 }
 
 void smp_send_stop(void)
 {
 	cpumask_t mask = cpu_online_map;
 	cpu_clear(smp_processor_id(), mask);
-	send_ipi_message(mask, IPI_CPU_STOP);
+	ipi_send_msg(mask, IPI_CPU_STOP);
 }
 
 /**
@@ -313,7 +307,7 @@ int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
 	spin_lock(&smp_call_function_lock);
 	smp_call_function_data = &data;
 
-	send_ipi_message(callmap, IPI_CALL_FUNC);
+	ipi_send_msg(callmap, IPI_CALL_FUNC);
 
 	/* Wait for response */
 	while (!cpus_empty(data.pending))
@@ -364,10 +358,9 @@ static void ipi_cpu_stop(unsigned int cpu)
 }
 
 /*
- * Main handler for inter-processor interrupts
- *
+ * arch-common ISR to handle for inter-processor interrupts
+ * Has hooks for platform specific IPI
  */
-
 irqreturn_t do_IPI(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
@@ -375,7 +368,7 @@ irqreturn_t do_IPI(int irq, void *dev_id, struct pt_regs *regs)
 
 	ipi->ipi_count++;
 
-	idu_irq_clear((IDU_INTERRUPT_0 + cpu));
+	arc_platform_ipi_clear(cpu, irq);
 
 	for (;;) {
 		unsigned long msgs;
@@ -422,42 +415,12 @@ irqreturn_t do_IPI(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static struct irq_node ipi_intr[NR_CPUS];
-
-void smp_ipi_init(void)
+/*
+ * API called by platform code to hookup arch-common ISR to their IPI IRQ
+ */
+int smp_ipi_irq_setup(int cpu, int irq)
 {
-	/* Owner of the Idu Interrupt determines who is SELF */
-	int cpu = smp_processor_id();
-
-	/* Check if CPU is configured for more than 16 interrupts */
-	if (NR_IRQS <= 16 || get_hw_config_num_irq() <= 16)
-		BUG();
-
-	/* Setup the interrupt in IDU */
-	idu_disable();
-
-#ifdef CONFIG_ARC_CPU_700_SMP_EXTN
-	idu_irq_set_tgtcpu(cpu,	/* IDU IRQ assoc with CPU */
-			   (0x1 << cpu)	/* target cpus mask, here single cpu */
-	    );
-
-	idu_irq_set_mode(cpu,	/* IDU IRQ assoc with CPu */
-			 IDU_IRQ_MOD_TCPU_ALLRECP, IDU_IRQ_MODE_PULSE_TRIG);
-
-#endif
-
-	idu_enable();
-
-	/* Install the interrupts */
-	ipi_intr[cpu].handler = do_IPI;
-	ipi_intr[cpu].flags = IRQ_FLG_LOCK;
-	ipi_intr[cpu].disable_depth = 0;
-	ipi_intr[cpu].dev_id = NULL;
-	ipi_intr[cpu].devname = "IPI Interrupt";
-	ipi_intr[cpu].next = NULL;
-
-	/* Setup ISR as well as enable IRQ on CPU */
-	setup_arc_irq((IDU_INTERRUPT_0 + cpu), &ipi_intr[cpu]);
+	request_irq(irq, do_IPI, IRQ_FLG_LOCK, "IPI Interrupt", NULL);
 }
 
 struct cpu cpu_topology[NR_CPUS];
