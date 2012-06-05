@@ -175,19 +175,19 @@ config ARC_CACHE_PAGES
 	  Note that Global I/D ENABLE + Per Page DISABLE works but corollary
 	  Global DISABLE + Per Page ENABLE won't work
 
-config ARC_USE_ICCM
+config ARC_HAS_ICCM
 		bool "Use ICCM"
 	help
 	  Single Cycle RAMS to store Fast Path Code
 	default n
 
-config ARC_USE_DCCM
+config ARC_HAS_DCCM
 		bool "Use DCCM"
 	help
 	  Single Cycle RAMS to store Fast Path Data
 	default n
 
-config ARC_USE_HW_MPY
+config ARC_HAS_HW_MPY
 		bool "Use Hardware Multiplier (Normal or Faster XMAC)"
 	default y
 	help

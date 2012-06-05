@@ -272,10 +272,10 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 
 void arc_chk_ccms(void)
 {
-#if defined(CONFIG_ARC_USE_DCCM) || defined(CONFIG_ARC_USE_ICCM)
+#if defined(CONFIG_ARC_HAS_DCCM) || defined(CONFIG_ARC_HAS_ICCM)
 	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[smp_processor_id()];
 
-#ifdef CONFIG_ARC_USE_DCCM
+#ifdef CONFIG_ARC_HAS_DCCM
 	/*
 	 * DCCM can be arbit placed in hardware.
 	 * Make sure it's placement/sz matches what Linux is built with
@@ -287,7 +287,7 @@ void arc_chk_ccms(void)
 		panic("Linux built with incorrect DCCM Size\n");
 #endif
 
-#ifdef CONFIG_ARC_USE_ICCM
+#ifdef CONFIG_ARC_HAS_ICCM
 	if (ICCM_COMPILE_SZ != p_cpu->iccm.sz)
 		panic("Linux built with incorrect ICCM Size\n");
 #endif

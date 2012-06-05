@@ -58,10 +58,10 @@
 	flag 1
 	nop
 1:
-#ifdef CONFIG_ARC_USE_HW_MPY
+#ifdef CONFIG_ARC_HAS_HW_MPY
 	mpyu \reg_ptr, \reg_ptr, EVLOG_RECORD_SZ
 #else
-#error "even logger broken for !CONFIG_ARC_USE_HW_MPY
+#error "even logger broken for !CONFIG_ARC_HAS_HW_MPY
 #endif
 
 	add \reg_ptr, timeline_log, \reg_ptr

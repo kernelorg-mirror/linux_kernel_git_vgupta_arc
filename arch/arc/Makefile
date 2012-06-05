@@ -52,9 +52,9 @@ cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mbig-endian
 ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB
 
 ARC_LIBGCC				:= -mA7
-cflags-$(CONFIG_ARC_USE_HW_MPY)		+= -multcost=16
+cflags-$(CONFIG_ARC_HAS_HW_MPY)		+= -multcost=16
 
-ifndef CONFIG_ARC_USE_HW_MPY
+ifndef CONFIG_ARC_HAS_HW_MPY
 	cflags-y	+= -mno-mpy
 
 # newlib for ARC700 assumes MPY to be always present, which is generally true

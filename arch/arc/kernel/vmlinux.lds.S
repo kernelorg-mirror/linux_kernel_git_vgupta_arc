@@ -34,7 +34,7 @@ SECTIONS
         . = ALIGN(PAGE_SIZE);
     }
 
-#ifdef CONFIG_ARC_USE_ICCM
+#ifdef CONFIG_ARC_HAS_ICCM
     .text.arcfp : {
 	*(.text.arcfp)
         . = ALIGN(ICCM_COMPILE_SZ);
@@ -135,7 +135,7 @@ SECTIONS
     .debug_loc 0 : { *(.debug_loc) }
     .debug_macinfo 0 : { *(.debug_macinfo) }
 
-#ifdef CONFIG_ARC_USE_DCCM
+#ifdef CONFIG_ARC_HAS_DCCM
     . = DCCM_COMPILE_BASE;
     __arc_dccm_base = .;
     .data.arcfp : {

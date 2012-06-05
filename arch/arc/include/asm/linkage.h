@@ -27,7 +27,7 @@
 
 /* annotation for data we want in DCCM - if enabled in .config */
 .macro ARCFP_DATA nm
-#ifdef CONFIG_ARC_USE_DCCM
+#ifdef CONFIG_ARC_HAS_DCCM
 	.section .data.arcfp
 #else
 	.section .data
@@ -37,7 +37,7 @@
 
 /* annotation for data we want in DCCM - if enabled in .config */
 .macro ARCFP_CODE
-#ifdef CONFIG_ARC_USE_ICCM
+#ifdef CONFIG_ARC_HAS_ICCM
 	.section .text.arcfp, "ax",@progbits
 #else
 	.section .text, "ax",@progbits
@@ -46,13 +46,13 @@
 
 #else	/* !__ASSEMBLY__ */
 
-#ifdef CONFIG_ARC_USE_ICCM
+#ifdef CONFIG_ARC_HAS_ICCM
 #define __arcfp_code __attribute__((__section__(".text.arcfp")))
 #else
 #define __arcfp_code __attribute__((__section__(".text")))
 #endif
 
-#ifdef CONFIG_ARC_USE_DCCM
+#ifdef CONFIG_ARC_HAS_DCCM
 #define __arcfp_data __attribute__((__section__(".data.arcfp")))
 #else
 #define __arcfp_data __attribute__((__section__(".data")))
