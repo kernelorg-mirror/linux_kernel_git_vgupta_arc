@@ -8,7 +8,7 @@
 
 UTS_MACHINE := arc
 
-KBUILD_DEFCONFIG := 4.10_defconfig
+KBUILD_DEFCONFIG := fpga_defconfig
 
 # For ARC FPGA Platforms
 platform-$(CONFIG_ARC_SOC_GENERIC)	:= arcfpga
