@@ -519,7 +519,7 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf)
 	int num = 0;
 	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[0].mmu;
 
-	num += sprintf(buf+num, "ARC700 MMU [v%x]: %dk PAGE, ",
+	num += sprintf(buf+num, "ARC700 MMU [v%x]\t: %dk PAGE, ",
 			p_mmu->ver, TO_KB(p_mmu->pg_sz));
 
 	num += sprintf(buf+num, "J-TLB %d (%dx%d), uDTLB %d, uITLB %d, %s\n",

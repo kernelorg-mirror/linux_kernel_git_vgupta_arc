@@ -361,7 +361,10 @@ struct arc_fpu {
 #endif
 
 /* Helpers */
-#define TO_KB(x) (x >> 10)
+#define TO_KB(bytes)		((bytes) >> 10)
+#define TO_MB(bytes)		(TO_KB(bytes) >> 10)
+#define PAGES_TO_KB(n_pages) 	((n_pages) << (PAGE_SHIFT - 10))
+#define PAGES_TO_MB(n_pages) 	(PAGES_TO_KB(n_pages) >> 10)
 
 #define READ_BCR(reg, into)				\
 {							\

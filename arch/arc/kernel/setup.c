@@ -157,36 +157,41 @@ char *arc_cpu_mumbojumbo(int cpu_id, char *buf)
 	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[cpu_id];
 	FIX_PTR(p_cpu);
 
+	num += sprintf(buf + num, "\nARC IDENTITY\t: Family [%#02x]"
+			" Cpu-id [%#02x] Chip-id [%#4x]\n",
+			p_cpu->core.family, p_cpu->core.cpu_id,
+			p_cpu->core.chip_id);
+
 	for (i = 0; arc_cpu_tbl[i].id != 0; i++) {
 		if ((p_cpu->core.family >= arc_cpu_tbl[i].id) &&
 		    (p_cpu->core.family <= arc_cpu_tbl[i].up_range)) {
-			num += sprintf(buf, "\nProcessor Family: %s [0x%x]\n",
-				       arc_cpu_tbl[i].str, p_cpu->core.family);
+			num += sprintf(buf + num, "processor\t: %s\n",
+				       arc_cpu_tbl[i].str);
 			break;
 		}
 	}
 
 	if (arc_cpu_tbl[i].id == 0)
-		num += sprintf(buf, "UNKNOWN ARC Processor\n");
+		num += sprintf(buf + num, "UNKNOWN ARC Processor\n");
 
-	num += sprintf(buf + num, "CPU speed :\t%u.%02u Mhz\n",
+	num += sprintf(buf + num, "CPU speed\t: %u.%02u Mhz\n",
 		       (unsigned int)(clk_speed / 1000000),
 		       (unsigned int)(clk_speed / 10000) % 100);
 
-	num += sprintf(buf + num, "Timers: \t%s %s\n",
+	num += sprintf(buf + num, "Timers\t\t: %s %s\n",
 		       ((p_cpu->timers & 0x200) ? "TIMER1" : ""),
 		       ((p_cpu->timers & 0x100) ? "TIMER0" : ""));
 
-	num += sprintf(buf + num, "Interrupt Vect Base: \t0x%x\n",
-		    p_cpu->vec_base);
+	num += sprintf(buf + num, "Vect Tbl Base\t: %#x\n", p_cpu->vec_base ?
+			p_cpu->vec_base : (unsigned int)_int_vec_base_lds);
 
-	num += sprintf(buf + num, "Peripheral Base: \t");
+	num += sprintf(buf + num, "Peripheral Base\t:");
 	if (p_cpu->perip_base == 0)
-		num += sprintf(buf + num, "assuming 0xCOFC0000\n");
+		num += sprintf(buf + num, " N/A (assuming 0xc0fc0000)\n");
 	else
-		num += sprintf(buf + num, "0x%x\n", p_cpu->perip_base);
+		num += sprintf(buf + num, " %#x\n", p_cpu->perip_base);
 
-	num += sprintf(buf + num, "Data UNCACHED Base: @%#x, %dMB\n",
+	num += sprintf(buf + num, "UNCACHED Base\t: %#x000000, %dMB\n",
 			p_cpu->uncached_space.start,
 			(0x10 << p_cpu->uncached_space.sz));
 
@@ -219,22 +224,30 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 #define IS_AVAIL2(var, str)	((var == 0x2) ? str : "")
 #define IS_AVAIL3(var)   ((var) ? "" : "N/A")
 
+	num += sprintf(buf + num, "Extn [700-Base]\t: %s %s %s %s %s %s\n",
+			IS_AVAIL2(p_cpu->extn.norm, "norm,"),
+			IS_AVAIL2(p_cpu->extn.barrel, "barrel-shift,"),
+			IS_AVAIL1(p_cpu->extn.swap, "swap,"),
+			IS_AVAIL2(p_cpu->extn.minmax, "minmax,"),
+			IS_AVAIL1(p_cpu->extn.crc, "crc,"),
+			IS_AVAIL2(p_cpu->extn.ext_arith, "ext-arith"));
+
+	num += sprintf(buf + num, "Extn [700-MPY]\t: %s",
+		       mul_type_nm[p_cpu->extn.mul].str);
+
+	num += sprintf(buf + num, "   MAC MPY: %s\n",
+		       mac_mul_nm[p_cpu->extn_mac_mul.type].str);
+
 	if (p_cpu->core.family == 0x34) {
 		const char *inuse = "(in-use)";
 		const char *notinuse = "(not used)";
 
 		num += sprintf(buf + num,
-			"Extn [700-4.10]: LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
+			"Extn [700-4.10]\t: LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
 			__CONFIG_ARC_HAS_LLSC_VAL ? inuse : notinuse,
 			__CONFIG_ARC_HAS_SWAPE_VAL ? inuse : notinuse,
 			__CONFIG_ARC_HAS_RTSC_VAL ? inuse : notinuse);
 	}
-
-	num += sprintf(buf + num, "MPY: %s",
-		       mul_type_nm[p_cpu->extn.mul].str);
-
-	num += sprintf(buf + num, "   MAC MPY: %s\n",
-		       mac_mul_nm[p_cpu->extn_mac_mul.type].str);
 
 	num += sprintf(buf + num, "DCCM: %s", IS_AVAIL3(p_cpu->dccm.sz));
 	if (p_cpu->dccm.sz)
@@ -246,15 +259,7 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 		num += sprintf(buf + num, "@ %x, %d KB",
 			       p_cpu->iccm.base_addr, TO_KB(p_cpu->iccm.sz));
 
-	num += sprintf(buf+num, "\nExtn [700-Basic]: %s %s %s %s %s %s\n",
-			IS_AVAIL2(p_cpu->extn.norm, "norm,"),
-			IS_AVAIL2(p_cpu->extn.barrel, "barrel-shift,"),
-			IS_AVAIL1(p_cpu->extn.swap, "swap,"),
-			IS_AVAIL2(p_cpu->extn.minmax, "minmax,"),
-			IS_AVAIL1(p_cpu->extn.crc, "crc,"),
-			IS_AVAIL2(p_cpu->extn.ext_arith, "ext-arith"));
-
-	num += sprintf(buf + num, "Extn [Floating Point]: %s",
+	num += sprintf(buf + num, "\nExtn [Floating Point]: %s",
 			!(p_cpu->fp.ver || p_cpu->dpfp.ver) ? "N/A" : "");
 
 	if (p_cpu->fp.ver) {
@@ -381,7 +386,9 @@ void __init setup_processor(void)
 
 	printk(arc_extn_mumbojumbo(cpu_id, str));
 
+#ifdef CONFIG_SMP
 	printk(arc_platform_smp_cpuinfo());
+#endif
 
 	probe_fpu();
 
@@ -669,7 +676,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m, arc_extn_mumbojumbo(cpu_id, str));
 
+#ifdef CONFIG_SMP
 	seq_printf(m, arc_platform_smp_cpuinfo());
+#endif
 
 	seq_printf(m, "\n\n");
 

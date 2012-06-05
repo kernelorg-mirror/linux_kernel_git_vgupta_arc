@@ -18,6 +18,7 @@
 #include <asm/pgalloc.h>
 #include <asm/mmapcode.h>
 #include <asm/sections.h>
+#include <asm/arcregs.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __aligned(PAGE_SIZE);
 char empty_zero_page[PAGE_SIZE] __aligned(PAGE_SIZE);
@@ -80,9 +81,11 @@ void __init mem_init(void)
 	datasize = _end - _etext;
 	initsize = __init_end - __init_begin;
 
-	pr_info("Memory: %luKB available (%dK code,%dK data, %dK init)\n",
-		(unsigned long)nr_free_pages() << (PAGE_SHIFT - 10),
-		codesize >> 10, datasize >> 10, initsize >> 10);
+	pr_info("Memory Available: %luM / %uM "
+		"(%dK code,%dK data, %dK init)\n",
+		PAGES_TO_MB((unsigned long)nr_free_pages()),
+		TO_MB(CONFIG_ARC_PLAT_SDRAM_SIZE),
+		TO_KB(codesize), TO_KB(datasize), TO_KB(initsize));
 }
 
 static void __init free_init_pages(const char *what, unsigned long begin,
@@ -97,8 +100,8 @@ static void __init free_init_pages(const char *what, unsigned long begin,
 		totalram_pages++;
 	}
 
-	printk(KERN_INFO "Freeing %s: %ldk freed.  [%lux] TO [%lux]\n",
-		what, (end - begin) >> 10, begin, end);
+	printk(KERN_INFO "Freeing %s: %ldk [%lx] to [%lx]\n",
+		what, TO_KB(end - begin), begin, end);
 }
 
 void free_initmem(void)
@@ -118,7 +121,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 /*
  * Count the pages we have and Setup bootmem allocator
-  */
+ */
 void __init setup_arch_memory(void)
 {
 	int bootmap_sz;

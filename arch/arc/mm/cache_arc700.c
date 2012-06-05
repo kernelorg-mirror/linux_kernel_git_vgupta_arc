@@ -114,13 +114,13 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 
 	p_cache = &cpuinfo_arc700[0].icache;
 	num += sprintf(buf + num,
-			"I-cache: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
+			"I-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
 			TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
 			ic_enb ? "" : " (DISABLED)");
 
 	p_cache = &cpuinfo_arc700[0].dcache;
 	num += sprintf(buf + num,
-			"D-cache: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
+			"D-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
 			TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
 			dc_enb ? "" : " (DISABLED)");
 
