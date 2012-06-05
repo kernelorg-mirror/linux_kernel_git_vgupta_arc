@@ -1206,17 +1206,17 @@ int arc_unwind(struct unwind_frame_info *frame)
 					return -EIO;
 
 			switch (reg_info[i].width) {
-			case 8:
+			case sizeof(u8):
 				__get_user(FRAME_REG(i, u8), (u8 *)addr);
 				break;
-			case 16:
+			case sizeof(u16):
 				__get_user(FRAME_REG(i, u16), (u16 *)addr);
 				break;
-			case 32:
+			case sizeof(u32):
 				__get_user(FRAME_REG(i, u32), (u32 *)addr);
 				break;
 #ifdef CONFIG_64BIT
-			case 64:
+			case sizeof(u64):
 				__get_user(FRAME_REG(i, u64), (u64 *)addr);
 				break;
 #endif

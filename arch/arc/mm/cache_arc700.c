@@ -100,13 +100,13 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 	int num = 0;
 	struct cpuinfo_arc_cache *p_cache;
 
-#ifdef CONFIG_ARC700_USE_ICACHE
+#ifdef CONFIG_ARC_HAS_ICACHE
 	const int ic_enb = 1;
 #else
 	const int ic_enb = 0;
 #endif
 
-#ifdef CONFIG_ARC700_USE_DCACHE
+#ifdef CONFIG_ARC_HAS_DCACHE
 	const int dc_enb = 1;
 #else
 	const int dc_enb = 0;
@@ -114,8 +114,8 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 
 	p_cache = &cpuinfo_arc700[0].icache;
 	num += sprintf(buf + num,
-		       "I-cache: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
-		       TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
+			"I-cache: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
+			TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
 			ic_enb ? "" : " (DISABLED)");
 
 	p_cache = &cpuinfo_arc700[0].dcache;
