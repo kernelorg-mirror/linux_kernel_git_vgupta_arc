@@ -39,8 +39,8 @@ void __init paging_init(void)
 
 	pagetable_init();
 
-	zones_size[ZONE_NORMAL] =
-	    (end_mem - CONFIG_LINUX_LINK_BASE) >> PAGE_SHIFT;
+	/* num_phypages has already been calc in setup_arch_memory( ) */
+	zones_size[ZONE_NORMAL] = num_physpages;
 
 	/*
 	 * Must not use free_area_init() as that uses PAGE_OFFSET, which
@@ -48,8 +48,10 @@ void __init paging_init(void)
 	 * i.e. when CONFIG_LINUX_LINK_BASE != PAGE_OFFSET
 	 */
 #ifdef CONFIG_FLATMEM
-	free_area_init_node(0, zones_size, CONFIG_LINUX_LINK_BASE >> PAGE_SHIFT,
-			    NULL);
+	free_area_init_node(0,			/* node-id */
+			    zones_size,		/* num pages per zone */
+			    min_low_pfn,	/* first pfn of node */
+			    NULL);		/* NO holes */
 #else
 #error "Fix !CONFIG_FLATMEM"
 #endif
@@ -63,7 +65,7 @@ void __init paging_init(void)
  */
 void __init mem_init(void)
 {
-	int codesize, datasize, initsize, reserved_pages;
+	int codesize, datasize, initsize, reserved_pages, free_pages;
 	int tmp;
 
 	high_memory = (void *)end_mem;
@@ -72,26 +74,42 @@ void __init mem_init(void)
 
 	totalram_pages = free_all_bootmem();
 
+	/* count all reserved pages, including kernel code/data/mem_map.. */
 	reserved_pages = 0;
-	for (tmp = 0; tmp < num_physpages; tmp++)
+	for (tmp = 0; tmp < max_mapnr; tmp++)
 		if (PageReserved(mem_map + tmp))
 			reserved_pages++;
+
+	/* XXX: nr_free_pages() is equivalent */
+	free_pages = max_mapnr - reserved_pages;
+
+	/*
+	 * kernel code/data is reserved and already shown explicitly,
+	 * Show any other reservations (mem_map[ ] et al)
+	 */
+	reserved_pages -= (((unsigned int)_end - CONFIG_LINUX_LINK_BASE) >>
+								PAGE_SHIFT);
 
 	codesize = _etext - _text;
 	datasize = _end - _etext;
 	initsize = __init_end - __init_begin;
 
-	pr_info("Memory Available: %luM / %uM "
-		"(%dK code,%dK data, %dK init)\n",
-		PAGES_TO_MB((unsigned long)nr_free_pages()),
+	pr_info("Memory Available: %dM / %uM "
+		"(%dK code, %dK data, %dK init, %dK reserv)\n",
+		PAGES_TO_MB(free_pages),
 		TO_MB(CONFIG_ARC_PLAT_SDRAM_SIZE),
-		TO_KB(codesize), TO_KB(datasize), TO_KB(initsize));
+		TO_KB(codesize), TO_KB(datasize), TO_KB(initsize),
+		PAGES_TO_KB(reserved_pages));
 }
 
 static void __init free_init_pages(const char *what, unsigned long begin,
 				   unsigned long end)
 {
 	unsigned long addr;
+
+	printk(KERN_INFO "Freeing %s: %ldk [%lx] to [%lx]\n",
+		what, TO_KB(end - begin), begin, end);
+
 	/* need to check that the page we free is not a partial page */
 	for (addr = begin; addr + PAGE_SIZE <= end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
@@ -99,12 +117,12 @@ static void __init free_init_pages(const char *what, unsigned long begin,
 		free_page(addr);
 		totalram_pages++;
 	}
-
-	printk(KERN_INFO "Freeing %s: %ldk [%lx] to [%lx]\n",
-		what, TO_KB(end - begin), begin, end);
 }
 
-void free_initmem(void)
+/*
+ * free_initmem: Free all the __init memory.
+ */
+void __init_refok free_initmem(void)
 {
 	free_init_pages("unused kernel memory", (unsigned long)__init_begin,
 			(unsigned long)__init_end);
@@ -113,7 +131,7 @@ void free_initmem(void)
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
+void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
 	free_init_pages("initrd memory", start, end);
 }
@@ -125,21 +143,20 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 void __init setup_arch_memory(void)
 {
 	int bootmap_sz;
-	unsigned long first_free_pfn, kernel_end_addr;
+	unsigned int first_free_pfn;
+	unsigned long kernel_img_end, alloc_start;
 
 	init_mm.start_code = (unsigned long)_text;
 	init_mm.end_code = (unsigned long)_etext;
 	init_mm.end_data = (unsigned long)_edata;
 	init_mm.brk = (unsigned long)_end;
 
-	/*
-	 * Make sure that "_end" is page aligned in linker script
-	 * so that it points to first free page in system
-	 */
-	kernel_end_addr = (unsigned long)_end;
+	/* _end needs to be page aligned */
+	kernel_img_end = (unsigned long)_end;
+	BUG_ON(kernel_img_end & ~PAGE_MASK);
 
 	/* First free page beyond kernel image */
-	first_free_pfn = PFN_DOWN(kernel_end_addr);
+	first_free_pfn = PFN_DOWN(kernel_img_end);
 
 	/* first page of system - kernel .vector starts here */
 	min_low_pfn = PFN_DOWN(CONFIG_LINUX_LINK_BASE);
@@ -159,9 +176,11 @@ void __init setup_arch_memory(void)
 				       max_low_pfn);  /* Last pg to track */
 
 	/*
-	 * Make all mem tracked by bootmem alloc as usable,
-	 * except the bootmem bitmap itself
+	 * init_bootmem above marks all tracked Page-frames as inuse "allocated"
+	 * This includes pages occupied by kernel's elf segments.
+	 * Beyond that, excluding bootmem bitmap itself, mark the rest of
+	 * free-mem as "allocatable"
 	 */
-	free_bootmem(kernel_end_addr, end_mem - kernel_end_addr);
-	reserve_bootmem(kernel_end_addr, bootmap_sz, BOOTMEM_DEFAULT);
+	alloc_start = kernel_img_end + bootmap_sz;
+	free_bootmem(alloc_start, end_mem - alloc_start);
 }
