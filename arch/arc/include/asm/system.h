@@ -35,6 +35,7 @@
 #define __ASM_ARC_SYSTEM_H
 
 #include <asm/ptrace.h>
+#include <asm/atomic.h>
 
 #ifndef __ASSEMBLY__
 
