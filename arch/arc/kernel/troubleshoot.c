@@ -300,5 +300,6 @@ static void __exit arc_debugfs_exit(void)
 	debugfs_remove(test_dentry);
 	debugfs_remove(test_dir);
 }
+module_exit(arc_debugfs_exit);
 
 #endif

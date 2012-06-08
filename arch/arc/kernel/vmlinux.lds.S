@@ -80,6 +80,16 @@ SECTIONS
 
     }
 
+	/*
+	 * .exit.text is discard at runtime, not link time, to deal with
+	 *  references from .debug_frame
+	 *  It will be init freed, despite not strictly being inside the
+         *  init : { ... } construct, because it is still inside the
+         *  __init_{start,end} block.
+	 */
+	.exit.text : { EXIT_TEXT }
+	.exit.data : { EXIT_DATA }
+
     . = ALIGN(PAGE_SIZE);
     __init_end = .;
 
