@@ -164,7 +164,8 @@ asmlinkage void ret_from_fork(void);
  * |   UNUSED 1 word|
  * ------------------
  * |     r25        |
- * ~                ~	CALLEE Regs
+ * ~                ~
+ * |    --to--      |   (CALLEE Regs of user mode)
  * |     r13        |
  * ------------------
  * |     fp         |
@@ -176,7 +177,8 @@ asmlinkage void ret_from_fork(void);
  * |                |
  * ------------------
  * |     r12        |
- * ~                ~	CALLER Regs
+ * ~                ~
+ * |    --to--      |   (scratch Regs of user mode)
  * |     r0         |
  * ------------------
  * |   UNUSED 1 word|

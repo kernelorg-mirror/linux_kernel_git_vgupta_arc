@@ -223,16 +223,10 @@
 /*--------------------------------------------------------------
  * Switch to Kernel Mode stack if SP points to User Mode stack
  *
- * This macro
- *  -if event happened in USER mode proceeds to switch stack.
- *    (in other words, would _NOT_ switch stack if event happened
- *    in kernel mode)
- *  -For that calculates the new value of SP (kernel mode stack)
- *
- * Note (Assumption on ENTRY)
- *   Requires r9 to be loaded with the pre-intr/pre-excp status32
- *
- * Note: Special case handling for L2 ISR
+ * Entry   : r9 contains pre-IRQ/exception/trap status32
+ * Exit    : SP is set to kernel mode stack pointer (if not already)
+ *           If CURR_IN_REG, r25 set to "current" task pointer
+ * Clobbers: r9
  *-------------------------------------------------------------*/
 
 .macro SWITCH_TO_KERNEL_STK

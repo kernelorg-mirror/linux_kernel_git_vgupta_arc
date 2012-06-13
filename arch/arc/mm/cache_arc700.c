@@ -1,16 +1,16 @@
 /*
+ * ARC700 VIPT Cache Management
+ *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * I-Cache and D-cache control functionality.
- *
  *  vineetg: May 2011: for Non-aliasing VIPT D-cache following can be NOPs
  *   -flush_cache_dup_mm (fork)
  *   -likewise for flush_cache_mm (exit/execve)
- *   -likewise for flush_cache_{range,page} (munmap, exit, COW-break)
+ *   -likewise for flush_cache_range,flush_cache_page (munmap, exit, COW-break)
  *
  * vineetg: Apr 2011
  *  -Now that MMU can support larger pg sz (16K), the determiniation of
@@ -37,44 +37,28 @@
  *   Conv them into iterations based as opposed to while (start < end) types
  *
  * Vineetg: July 2009
- *  -In I-cache flush routine we check for aliasing for every line INV.
+ *  -In I-cache flush routine we used to chk for aliasing for every line INV.
  *   Instead now we setup routines per cache geometry and invoke them
  *   via function pointers.
- *
- * Vineetg: Mar 2009
- *  -D-Cache Invalidate mode set to INV ONLY as that is more common than
- *      FLUSH BEFORE INV (not called at all)
  *
  * Vineetg: Jan 2009
  *  -Cache Line flush routines used to flush an extra line beyond end addr
  *   because check was while (end >= start) instead of (end > start)
  *     =Some call sites had to work around by doing -1, -4 etc to end param
- *     ==Some callers didnt care. This was spec bad in case of INV routines
- *       which would discard valid data (cause of the horrible ext2 bug
- *       in ARC IDE driver)
+ *     =Some callers didnt care. This was spec bad in case of INV routines
+ *      which would discard valid data (cause of the horrible ext2 bug
+ *      in ARC IDE driver)
  *
- * Vineetg: Oct 3rd 2008:
- *  -Got rid of un-necessary globals such as Cache line size,
- *      checks if cache enabled in entry of each cache routine etc
- *  -Cache Meta data (sz, alising etc) saved in a seperate structure rather than
- *      in the big cpu info struct
- *
- * vineetg: June 11th 2008:
- *  -Fixed flush_icache_range( )
- *   + As an API it is called by kernel while doing insmod after copying module
- *     code from user space to kernel space in load_module( ).
- *     Later kernel executes module out of this COPIED OVER kernel memory.
- *     Since ARC700 caches are not coherent (I$ doesnt snoop D$) both need
- *     to be flushed in flush_icache_range() which it was not doing.
- *   + load_module( ) passes vmalloc addr (Kernel Virtual Addr) to the API,
- *     however ARC cache maintenance OPs require PHY addr. Thus need to do
- *     vmalloc_to_phy.
- *   + Also added optimisation there, that for range > PAGE SIZE we flush the
- *     entire cache in one shot rather than line by line. For e.g. a module
- *     with Code sz 600k, old code flushed 600k worth of cache (line-by-line),
- *     while cache is only 16 or 32k.
- *
- * Amit Bhor, Rahul Trivedi: Codito Technologies 2004
+ * vineetg: June 11th 2008: Fixed flush_icache_range( )
+ *  -Since ARC700 caches are not coherent (I$ doesnt snoop D$) both need
+ *   to be flushed, which it was not doing.
+ *  -load_module( ) passes vmalloc addr (Kernel Virtual Addr) to the API,
+ *   however ARC cache maintenance OPs require PHY addr. Thus need to do
+ *   vmalloc_to_phy.
+ *  -Also added optimisation there, that for range > PAGE SIZE we flush the
+ *   entire cache in one shot rather than line by line. For e.g. a module
+ *   with Code sz 600k, old code flushed 600k worth of cache (line-by-line),
+ *   while cache is only 16 or 32k.
  */
 
 #include <linux/module.h>
@@ -159,6 +143,7 @@ void __init read_decode_cache_bcr(void)
 /*
  * 1. Validate the Cache Geomtery (compile time config matches hardware)
  * 2. If I-cache suffers from aliasing, setup work arounds (difft flush rtn)
+ *    (aliasing D-cache configurations are not supported YET)
  * 3. Enable the Caches, setup default flush mode for D-Cache
  * 3. Calculate the SHMLBA used by user space
  */
@@ -354,7 +339,7 @@ static inline void __arc_dcache_per_line_op(unsigned long start,
 #if (CONFIG_ARC_MMU_VER > 2)
 		/*
 		 * Just as for I$, in MMU v3, D$ ops also require
-		 * "tag" bits in DC_PTAG, "index" bits in {FL|IV}DL
+		 * "tag" bits in DC_PTAG, "index" bits in FLDL,IVDL ops
 		 * But we pass phy addr for both. This works since Linux
 		 * doesn't support aliasing configs for D$, yet.
 		 * Thus paddr is enough to provide both tag and index.
