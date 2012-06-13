@@ -193,39 +193,6 @@ SYSCALL_DEFINE2(arc_munmap, unsigned long, addr, size_t, len)
 	return ret;
 }
 
-/*
- * Perform the select(nd, in, out, ex, tv) and mmap() system
- * calls. Linux/i386 didn't use to be able to handle more than
- * 4 system call parameters, so these system calls used a memory
- * block for parameter passing..
- */
-
-struct mmap_arg_struct {
-	unsigned long addr;
-	unsigned long len;
-	unsigned long prot;
-	unsigned long flags;
-	unsigned long fd;
-	unsigned long offset;
-};
-
-asmlinkage int old_mmap(struct mmap_arg_struct *arg)
-{
-	struct mmap_arg_struct a;
-	int err;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		return -EFAULT;
-
-	if (a.offset & ~PAGE_MASK)
-		return -EINVAL;
-
-	err = sys_mmap2(a.addr, a.len, a.prot, a.flags, a.fd,
-			a.offset >> PAGE_SHIFT);
-
-	return err;
-}
-
 static inline int mmap_is_legacy(void)
 {
 #ifdef CONFIG_ARC_ADDR_SPACE_RND

@@ -91,12 +91,12 @@
 #define __NR_getppid			64
 #define __NR_getpgrp			65
 #define __NR_setsid			66
-#define __NR_sigaction			67
+	/* __NR_sigaction	67 obsolete, use rt_sigaction */
 	/* __NR_sgetmask        68 obsolete, supersseded by sigprocmask */
 	/* __NR_ssetmask        69 obsolete */
 #define __NR_setreuid			70
 #define __NR_setregid			71
-#define __NR_sigsuspend			72
+	/* __NR_sigsuspend	72 use rt_sigsuspend */
 #define __NR_sigpending			73
 #define __NR_sethostname		74
 #define __NR_setrlimit			75
@@ -106,7 +106,7 @@
 #define __NR_settimeofday		79
 #define __NR_getgroups			80
 #define __NR_setgroups			81
-#define __NR_select			82
+	/* __NR_select		82 use __NR_newselect */
 #define __NR_symlink			83
 #define __NR_oldlstat			84
 #define __NR_readlink			85
@@ -114,7 +114,7 @@
 #define __NR_swapon			87
 #define __NR_reboot			88
 #define __NR_readdir			89
-#define __NR_mmap			90
+	/* __NR_mmap	90  obsolete	*/
 #define __NR_munmap			91
 #define __NR_truncate			92
 #define __NR_ftruncate			93

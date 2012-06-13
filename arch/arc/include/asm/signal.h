@@ -13,18 +13,7 @@
 
 #define SIGRTMAX	(_NSIG-1)
 #define SA_RESTORER	0x04000000
+
 #include <asm-generic/signal.h>
-
-#ifdef __KERNEL__
-
-struct old_sigaction {
-	__sighandler_t sa_handler;
-	old_sigset_t sa_mask;
-	unsigned long sa_flags;
-	void (*sa_restorer) (void);
-};
-
-#endif /* __KERNEL__ */
-
 
 #endif /* _ASM_ARC_SIGNAL_H */

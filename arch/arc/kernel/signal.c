@@ -77,68 +77,6 @@
 
 static noinline void set_frame_exec(unsigned long vaddr, unsigned int exec_on);
 
-/*
- * atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int sys_sigsuspend(int restart, unsigned long oldmask,
-			      old_sigset_t mask)
-{
-	sigset_t saveset;
-
-	mask &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	siginitset(&current->blocked, mask);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
-}
-
-asmlinkage int
-sys_sigaction(int sig, const struct old_sigaction __user *act,
-	      struct old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-	int err;
-
-	if (act) {
-		old_sigset_t mask;
-
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)))
-			return -EFAULT;
-
-		err = __get_user(new_ka.sa.sa_handler, &act->sa_handler);
-		err |= __get_user(new_ka.sa.sa_restorer, &act->sa_restorer);
-		err |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		err |= __get_user(mask, &act->sa_mask);
-		if (err)
-			return -EFAULT;
-
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)))
-			return -EFAULT;
-
-		err = __put_user(old_ka.sa.sa_handler, &oact->sa_handler);
-		err |= __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer);
-		err |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		err |= __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
-		if (err)
-			return -EFAULT;
-	}
-
-	return ret;
-}
-
 asmlinkage int sys_sigaltstack(const stack_t *uss, stack_t *uoss)
 {
 	struct pt_regs *regs = task_pt_regs(current);
@@ -191,6 +129,10 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 	return err;
 }
 
+/*
+ * Unlike sigaction/sigsuspend where rt_xxx variants are same as not rt ones,
+ * sigreturn is not equiv to rt_sigreturn because of SA_SIGINFO semantics.
+ */
 int sys_sigreturn(void)
 {
 	struct sigframe __user *frame;
@@ -732,7 +674,6 @@ void __init arc_verify_sig_sz(void)
 	unsigned int sz2 = dst_end - dst_start + 4;
 
 	if (sz1 != sz2) {
-		printk_init("Signals block copy code buggy\n");
-		panic("\n");
+		panic("Signals block copy code buggy\n");
 	}
 }

@@ -991,12 +991,12 @@ __syscall_start:
 	.long   @sys_getppid
 /*065*/ .long   @sys_getpgrp
 	.long   @sys_setsid
-	.long   @sys_sigaction
+	.long   @sys_ni_syscall	/* was sys_sigaction */
 	.long   @sys_ni_syscall /* was sys_sgetmask */
 	.long   @sys_ni_syscall /* was sys_ssetmask */
 /*070*/ .long   @sys_setreuid16
 	.long   @sys_setregid16
-	.long   @sys_sigsuspend
+	.long   @sys_ni_syscall	/* was sys_sigsuspend */
 	.long   @sys_sigpending
 	.long   @sys_sethostname
 /*075*/ .long   @sys_setrlimit
@@ -1006,7 +1006,7 @@ __syscall_start:
 	.long   @sys_settimeofday
 /*080*/ .long   @sys_getgroups16
 	.long   @sys_setgroups16
-	.long   @old_select /* used by libc4 */
+	.long   @sys_ni_syscall	/* was old_select */
 	.long   @sys_symlink
 	.long   @sys_ni_syscall /* was sys_lstat */
 /*085*/ .long   @sys_readlink
@@ -1014,7 +1014,7 @@ __syscall_start:
 	.long   @sys_swapon
 	.long   @sys_reboot
 	.long   @sys_old_readdir /* used by libc4 */
-/*090*/ .long   @old_mmap /* used by libc4 */
+/*090*/ .long   @@sys_ni_syscall  /* was old_mmap */
 	.long   @sys_arc_munmap
 	.long   @sys_truncate
 	.long   @sys_ftruncate
