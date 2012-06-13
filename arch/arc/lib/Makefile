@@ -5,9 +5,7 @@
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
 
-lib-y	:= checksum.o string.o \
+lib-y	:= checksum.o \
 	   strchr-700.o strcmp.o strcpy-700.o strlen.o \
 	   memcmp.o memcpy-700.o memset.o
-
-
 
