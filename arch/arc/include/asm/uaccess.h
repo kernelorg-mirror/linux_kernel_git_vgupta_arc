@@ -224,9 +224,9 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 		 * temporary register inside the loop is not the same as
 		 *  FROM or TO.
 		*/
-		  "=&r" (tmp)
-		: "r" (to), "r" (from)
-		: "lp_count", "lp_start", "lp_end");
+		  "=&r" (tmp), "+r" (to), "+r" (from)
+		:
+		: "lp_count", "lp_start", "lp_end", "memory");
 
 		return n;
 	}
@@ -453,9 +453,9 @@ __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 		 * temporary register inside the loop is not the same as
 		 * FROM or TO.
 		 */
-		  "=&r" (tmp)
-		: "r" (to), "r" (from)
-		: "lp_count", "lp_start", "lp_end");
+		  "=&r" (tmp), "+r" (to), "+r" (from)
+		:
+		: "lp_count", "lp_start", "lp_end", "memory");
 
 		return n;
 	}
