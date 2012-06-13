@@ -138,4 +138,14 @@ do {									\
 #include <asm/arcregs.h>
 extern struct cpuinfo_arc cpuinfo_arc700[];
 
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ *
+ * TODO: fill this in!
+ */
+static inline void sched_cacheflush(void)
+{
+}
+
 #endif

@@ -58,6 +58,24 @@
 #define __arcfp_data __attribute__((__section__(".data")))
 #endif
 
+/******************************************************************
+ * printk calls in __init code, so that their literal strings go into
+ * .init.rodata (which gets reclaimed) instead of in .rodata
+ ******************************************************************/
+#define INIT_PRINT 2
+
+#if (INIT_PRINT == 2)
+#define printk_init(fmt, ...)   pr_info(fmt, ##__VA_ARGS__)
+#elif (INIT_PRINT == 1)
+#define printk_init(fmt, ...)
+#else
+#define printk_init(fmt, ...)			\
+({							\
+	static const __initconst char __fmt[] = fmt;	\
+	pr_info(__fmt, ##__VA_ARGS__);				\
+})
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif

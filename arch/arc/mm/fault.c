@@ -23,10 +23,9 @@
 #include <linux/uaccess.h>
 #include <linux/mmu_context.h>
 #include <linux/kdebug.h>
-
 #include <asm/hardirq.h>
 #include <asm/pgalloc.h>
-#include <asm/system.h>
+#include <asm/event-log.h>
 
 static inline int notify_page_fault(struct pt_regs *regs, unsigned long cause)
 {

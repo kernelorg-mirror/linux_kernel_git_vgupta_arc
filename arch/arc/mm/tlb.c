@@ -54,8 +54,8 @@
 #include <linux/module.h>
 #include <asm/arcregs.h>
 #include <asm/mmu_context.h>
-#include <asm/system.h>
 #include <asm/tlb.h>
+#include <asm/event-log.h>
 
 /* Need for MMU v2
  *

@@ -30,7 +30,7 @@
 #include <linux/random.h>
 #include <linux/vmalloc.h>
 #include <linux/bug.h>
-#include <asm/system.h>
+#include <asm/switch_to.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>

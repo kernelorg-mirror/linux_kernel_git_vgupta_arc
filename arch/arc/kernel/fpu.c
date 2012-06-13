@@ -9,7 +9,7 @@
  */
 
 #include <linux/sched.h>
-#include <asm/system.h>
+#include <asm/switch_to.h>
 
 #ifdef HW_BUG_101581
 

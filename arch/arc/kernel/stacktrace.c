@@ -27,10 +27,11 @@
 
 #include <linux/ptrace.h>
 #include <linux/module.h>
-#include <asm/arcregs.h>
-#include <asm/unwind.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
+#include <asm/arcregs.h>
+#include <asm/unwind.h>
+#include <asm/switch_to.h>
 
 /*-------------------------------------------------------------------------
  *              Unwinding Core

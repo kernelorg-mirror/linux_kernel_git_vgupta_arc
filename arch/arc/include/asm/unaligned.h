@@ -12,6 +12,7 @@
 /* ARC700 can't handle unaligned accesses. */
 
 #include <asm-generic/unaligned.h>
+#include <asm/ptrace.h>
 
 extern int misaligned_fixup(unsigned long address, struct pt_regs *regs,
 			    unsigned long cause, struct callee_regs *cregs);

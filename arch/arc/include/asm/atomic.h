@@ -11,7 +11,8 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
-#include <linux/irqflags.h>
+#include <asm/cmpxchg.h>
+#include <asm/barrier.h>
 
 #define ATOMIC_INIT(i)  { (i) }
 
@@ -50,7 +51,7 @@ static inline void atomic_set(atomic_t *v, int i)
 
 #define atomic_read(v)  ((v)->counter)
 
-#if defined(CONFIG_ARC_HAS_LLSC)
+#ifdef CONFIG_ARC_HAS_LLSC
 
 static inline void atomic_add(int i, atomic_t *v)
 {
@@ -127,24 +128,6 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 	: "cc");
 }
 
-static inline unsigned long
-__cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
-{
-	unsigned long prev;
-
-	__asm__ __volatile__(
-	"1:	llock   %0, [%1]	\n"
-	"	brne    %0, %2, 2f	\n"
-	"	scond   %3, [%1]	\n"
-	"	bnz     1b		\n"
-	"2:				\n"
-	: "=&r"(prev)
-	: "r"(ptr), "ir"(expected),
-	  "r"(new) /* can't be "ir". scond can't take limm for "b" */
-	: "cc");
-
-	return prev;
-}
 
 #else
 
@@ -203,58 +186,7 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 	atomic_ops_unlock(flags);
 }
 
-/* unlike other APIS, cmpxchg is same as atomix_cmpxchg because
- * because the sematics of cmpxchg itself is to be atomic
- */
-static inline unsigned long
-__cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
-{
-	unsigned long flags;
-	int prev;
-	volatile unsigned long *p = ptr;
-
-	atomic_ops_lock(flags);
-	prev = *p;
-	if (prev == expected)
-		*p = new;
-	atomic_ops_unlock(flags);
-	return prev;
-}
-
 #endif /* CONFIG_ARC_HAS_LLSC */
-
-#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
-
-#define cmpxchg(ptr, o, n) \
-	((typeof(*(ptr)))__cmpxchg((ptr), (unsigned long)(o), (unsigned long)(n)))
-
-/******************************************************************
- * Atomically Exchange memory with a register
- ******************************************************************/
-extern unsigned long __xchg_bad_pointer(void);
-
-/* On ARC700, "ex" is inherently atomic so don't need IRQ disabling */
-
-static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
-				   int size)
-{
-	switch (size) {
-	case 4:
-		__asm__ __volatile__(
-		"	ex  %0, [%1]	\n"
-		: "+r"(val)
-		: "r"(ptr)
-		: "memory");
-
-		return val;
-	}
-	return __xchg_bad_pointer();
-}
-
-#define xchg(ptr, with) ((typeof(*(ptr)))__xchg((unsigned long)(with), (ptr), \
-						 sizeof(*(ptr))))
-
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 /**
  * __atomic_add_unless - add unless the number is a given value
@@ -286,11 +218,6 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 #define atomic_sub_and_test(i, v)	(atomic_sub_return(i, v) == 0)
 
 #define atomic_add_negative(i, v)	(atomic_add_return(i, v) < 0)
-
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
 
 #ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
