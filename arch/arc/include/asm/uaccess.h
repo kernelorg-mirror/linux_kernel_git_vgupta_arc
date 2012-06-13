@@ -186,9 +186,6 @@ do {                                                    \
     : "r" (x), "r" (addr),"i" (-EFAULT), "0" (err))
 #endif
 
-extern unsigned long slowpath_copy_from_user(void *to, const void __user *from,
-					     unsigned long n);
-
 static inline unsigned long
 __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
@@ -201,8 +198,38 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 		return 0;
 
 	/* unaligned */
-	if (((unsigned long)to & 0x3) || ((unsigned long)from & 0x3))
-		return slowpath_copy_from_user(to, from, n);
+	if (((unsigned long)to & 0x3) || ((unsigned long)from & 0x3)) {
+
+		unsigned char tmp;
+
+		__asm__ __volatile__ (
+		"	mov.f   lp_count, %0		\n"
+		"	lpnz 2f				\n"
+		"1:	ldb.ab  %1, [%3, 1]		\n"
+		"	stb.ab  %1, [%2, 1]		\n"
+		"	sub     %0,%0,1			\n"
+		"2:	;nop				\n"
+		"	.section .fixup, \"ax\"		\n"
+		"	.align 4			\n"
+		"3:	j   2b				\n"
+		"	.previous			\n"
+		"	.section __ex_table, \"a\"	\n"
+		"	.align 4			\n"
+		"	.word   1b, 3b			\n"
+		"	.previous			\n"
+
+		: "+r" (n),
+		/*
+		 * Note as an '&' earlyclobber operand to make sure the
+		 * temporary register inside the loop is not the same as
+		 *  FROM or TO.
+		*/
+		  "=&r" (tmp)
+		: "r" (to), "r" (from)
+		: "lp_count", "lp_start", "lp_end");
+
+		return n;
+	}
 
 	/*
 	 * Hand-crafted constant propagation to reduce code sz of the
@@ -401,8 +428,37 @@ __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 		return 0;
 
 	/* unaligned */
-	if (((unsigned long)to & 0x3) || ((unsigned long)from & 0x3))
-		return slowpath_copy_to_user(to, from, n);
+	if (((unsigned long)to & 0x3) || ((unsigned long)from & 0x3)) {
+
+		unsigned char tmp;
+
+		__asm__ __volatile__(
+		"	mov.f   lp_count, %0		\n"
+		"	lpnz 3f				\n"
+		"	ldb.ab  %1, [%3, 1]		\n"
+		"1:	stb.ab  %1, [%2, 1]		\n"
+		"	sub     %0, %0, 1		\n"
+		"3:	;nop				\n"
+		"	.section .fixup, \"ax\"		\n"
+		"	.align 4			\n"
+		"4:	j   3b				\n"
+		"	.previous			\n"
+		"	.section __ex_table, \"a\"	\n"
+		"	.align 4			\n"
+		"	.word   1b, 4b			\n"
+		"	.previous			\n"
+
+		: "+r" (n),
+		/* Note as an '&' earlyclobber operand to make sure the
+		 * temporary register inside the loop is not the same as
+		 * FROM or TO.
+		 */
+		  "=&r" (tmp)
+		: "r" (to), "r" (from)
+		: "lp_count", "lp_start", "lp_end");
+
+		return n;
+	}
 
 	if (__builtin_constant_p(orig_n)) {
 		res = orig_n;
