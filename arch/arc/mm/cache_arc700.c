@@ -164,9 +164,14 @@ void __init read_decode_cache_bcr(void)
  */
 void __init arc_cache_init(void)
 {
-	struct cpuinfo_arc_cache *dc, *ic;
 	unsigned int temp;
-	int way_pg_ratio;
+#ifdef CONFIG_ARC_HAS_ICACHE
+	struct cpuinfo_arc_cache *ic;
+#endif
+#ifdef CONFIG_ARC_HAS_DCACHE
+	struct cpuinfo_arc_cache *dc;
+#endif
+	int way_pg_ratio = way_pg_ratio;
 	char str[512];
 
 	printk(arc_cache_mumbojumbo(0, str));
