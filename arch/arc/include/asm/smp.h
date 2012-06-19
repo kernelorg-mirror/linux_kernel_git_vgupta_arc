@@ -70,4 +70,59 @@ extern void arc_platform_ipi_clear(int cpu, int irq);
 
 #endif
 
+/*
+ * ARC700 doesn't support native R-M-W ops.
+ *
+ * For uni-processor builds
+ * -llock/scond introduced in 4.10 can be used.
+ * -older ARC700, need to disable interrupts.
+ *
+ * For SMP builds, llock/scond can't be used since the only SMP model we
+ * we have so far (ISS) doesn't ensure coherency in multi-cpu env.
+ * So the workaround is to use spin-locks for R-M-W ops.
+ * However we can't use exported spinlock API due to cyclic hdr dependencies
+ * (even after system.h disintegration upstream)
+ * asm/bitops.h -> linux/spinlock.h -> linux/preempt.h -> linux/thread_info.h
+ *	-> linux/bitops.h -> asm/bitops.h
+ *
+ * So the workaround is to use the lowest level arch spinlock API
+ */
+#ifdef CONFIG_SMP
+
+#include <linux/irqflags.h>
+#include <asm/spinlock.h>
+
+extern arch_spinlock_t smp_atomic_ops_lock;
+extern arch_spinlock_t smp_bitops_lock;
+
+#define atomic_ops_lock(flags)	do {		\
+	local_irq_save(flags);			\
+	arch_spin_lock(&smp_atomic_ops_lock);	\
+} while (0)
+
+#define atomic_ops_unlock(flags) do {		\
+	arch_spin_unlock(&smp_atomic_ops_lock);	\
+	local_irq_restore(flags);		\
+} while (0)
+
+#define bitops_lock(flags)	do {		\
+	local_irq_save(flags);			\
+	arch_spin_lock(&smp_bitops_lock);	\
+} while (0)
+
+#define bitops_unlock(flags) do {		\
+	arch_spin_unlock(&smp_bitops_lock);	\
+	local_irq_restore(flags);		\
+} while (0)
+
+#elif !defined(CONFIG_ARC_HAS_LLSC)
+
+#define atomic_ops_lock(flags)		local_irq_save(flags)
+#define atomic_ops_unlock(flags)	local_irq_restore(flags)
+
+#define bitops_lock(flags)		local_irq_save(flags)
+#define bitops_unlock(flags)		local_irq_restore(flags)
+
+#endif  /* !CONFIG_SMP */
+
 #endif

@@ -33,28 +33,10 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
-#include <linux/compiler.h>
-#include <linux/irqflags.h>
-
-#ifdef CONFIG_SMP
-
-#include <linux/spinlock_types.h>
-
-extern spinlock_t smp_bitops_lock;
-extern unsigned long _spin_lock_irqsave(spinlock_t *lock);
-extern void _spin_unlock_irqrestore(spinlock_t *lock, unsigned long);
-
-#define bitops_lock(flags)   flags = _spin_lock_irqsave(&smp_bitops_lock)
-#define bitops_unlock(flags) _spin_unlock_irqrestore(&smp_bitops_lock, flags)
-
-#else
-
-#define bitops_lock(flags)   local_irq_save(flags)
-#define bitops_unlock(flags) local_irq_restore(flags)
-
-#endif
-
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+
+#include <linux/types.h>
+#include <linux/compiler.h>
 
 #if defined(CONFIG_ARC_HAS_LLSC)
 
@@ -172,6 +154,8 @@ test_and_change_bit(unsigned long nr, volatile unsigned long *m)
 }
 
 #else
+
+#include <asm/smp.h>
 
 static inline void set_bit(unsigned long nr, volatile unsigned long *m)
 {
@@ -534,6 +518,6 @@ static inline int __attribute__ ((const))__fls(unsigned long x)
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
 
-#endif /* __KERNEL__ */
+#endif /* __KERNEL__ && !__ASSEMBLY__ */
 
 #endif

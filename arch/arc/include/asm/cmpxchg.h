@@ -10,6 +10,7 @@
 #define __ASM_ARC_CMPXCHG_H
 
 #include <linux/types.h>
+#include <asm/smp.h>
 
 #ifdef CONFIG_ARC_HAS_LLSC
 

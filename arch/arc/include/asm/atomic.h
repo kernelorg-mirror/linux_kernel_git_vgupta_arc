@@ -9,28 +9,15 @@
 #ifndef _ASM_ARC_ATOMIC_H
 #define _ASM_ARC_ATOMIC_H
 
+#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
-
-#define ATOMIC_INIT(i)  { (i) }
-
-#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+#include <asm/smp.h>
 
 #ifdef CONFIG_SMP
-
-#include <linux/spinlock_types.h>
-
-extern spinlock_t smp_atomic_ops_lock;
-extern unsigned long _spin_lock_irqsave(spinlock_t *lock);
-extern void _spin_unlock_irqrestore(spinlock_t *lock, unsigned long);
-
-#define atomic_ops_lock(flags)   \
-	flags = _spin_lock_irqsave(&smp_atomic_ops_lock)
-
-#define atomic_ops_unlock(flags) \
-	_spin_unlock_irqrestore(&smp_atomic_ops_lock, flags)
 
 static inline void atomic_set(atomic_t *v, int i)
 {
@@ -40,14 +27,11 @@ static inline void atomic_set(atomic_t *v, int i)
 	v->counter = i;
 	atomic_ops_unlock(flags);
 }
-#else
-
-#define atomic_ops_lock(flags)      local_irq_save(flags)
-#define atomic_ops_unlock(flags)    local_irq_restore(flags)
+#else	/* !CONFIG_SMP */
 
 #define atomic_set(v, i) (((v)->counter) = (i))
 
-#endif
+#endif	/* !CONFIG_SMP */
 
 #define atomic_read(v)  ((v)->counter)
 
@@ -219,11 +203,14 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 
 #define atomic_add_negative(i, v)	(atomic_add_return(i, v) < 0)
 
+#define ATOMIC_INIT(i)			((atomic_t) { (i) })
+
 #ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
 #else
 #error "implement ARC 64bit atomics"
 #endif
 
-#endif
+#endif /* __KERNEL__ && !__ASSEMBLY__ */
+
 #endif
