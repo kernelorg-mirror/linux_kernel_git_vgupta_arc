@@ -59,15 +59,15 @@ void arc_platform_smp_init_cpu(void)
 
 	idu_enable();
 
-	/* Attach the arch-common to our IDU IRQ */
+	/* Attach the arch-common IPI ISR to our IDU IRQ */
 	smp_ipi_irq_setup(cpu, IDU_INTERRUPT_0 + cpu);
 }
 
-void arc_platform_ipi_send(cpumask_t callmap)
+void arc_platform_ipi_send(const struct cpumask *callmap)
 {
 	unsigned int cpu;
 
-	for_each_cpu_mask(cpu, callmap)
+	for_each_cpu(cpu, callmap)
 		idu_irq_assert(cpu);
 }
 

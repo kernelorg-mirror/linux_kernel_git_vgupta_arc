@@ -26,33 +26,22 @@
 #include <linux/delay.h>
 #include <linux/atomic.h>
 #include <linux/percpu.h>
-#include <linux/setup.h>
-#include <asm/processor.h>
+#include <linux/cpumask.h>
 #include <linux/spinlock_types.h>
+#include <asm/processor.h>
+#include <asm/setup.h>
 
 arch_spinlock_t smp_atomic_ops_lock;
 arch_spinlock_t smp_bitops_lock;
 
 extern struct task_struct *_current_task[NR_CPUS];
 
-extern void board_setup_timer(void);
-
-/*
- * bitmask of present and online CPUs.
- * The present bitmask indicates that the CPU is physically present.
- * The online bitmask indicates that the CPU is up and running.
- */
-cpumask_t cpu_possible_map;
-EXPORT_SYMBOL(cpu_possible_map);
-cpumask_t cpu_online_map;
-EXPORT_SYMBOL(cpu_online_map);
 
 secondary_boot_t secondary_boot_data;
 
 /* Called from start_kernel */
 void __init smp_prepare_boot_cpu(void)
 {
-
 }
 
 /*
@@ -85,7 +74,11 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 }
 
-asmlinkage void __cpuinit start_kernel_secondary(void)
+/*
+ * The very first "C" code executed by secondary
+ * Called from asm stub in head.S
+ */
+void __cpuinit start_kernel_secondary(void)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
@@ -107,14 +100,13 @@ asmlinkage void __cpuinit start_kernel_secondary(void)
 	atomic_inc(&mm->mm_users);
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
-	cpu_set(cpu, mm->cpu_vm_mask);
 
 	/* TODO-vineetg: need to implement this */
 #if 0
 	enter_lazy_tlb(mm, current);
 #endif
 
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 
 	/* vineetg Nov 19th 2007:
 	   For this printk to work in ISS, a bridge.dll instance in the
@@ -124,13 +116,7 @@ asmlinkage void __cpuinit start_kernel_secondary(void)
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
-	/* Enable the interrupts on the local cpu */
 	local_irq_enable();
-
-	/* Note that preemption needs to be disabled before entering
-	   cpu_idle. When it sees need_resched it enables it momentarily
-	   But most of then time, idle is running, preemption is disabled
-	 */
 	preempt_disable();
 	cpu_idle();
 }
@@ -207,51 +193,36 @@ int __init setup_profiling_timer(unsigned int multiplier)
  *
  */
 
-/* TODO_rajesh investigate timer, tlb and stop message types. */
+/*
+ * TODO_rajesh investigate tlb message types.
+ * IPI Timer not needed because each ARC has an individual Interrupting Timer
+ */
 enum ipi_msg_type {
 	IPI_RESCHEDULE,
 	IPI_CALL_FUNC,
-	IPI_CPU_STOP,
+	IPI_CALL_FUNC_SINGLE,
+	IPI_CPU_STOP
 };
 
 struct ipi_data {
-	spinlock_t lock;
-	unsigned long ipi_count;
 	unsigned long bits;
 };
 
-static DEFINE_PER_CPU(struct ipi_data, ipi_data) = {
-.lock = SPIN_LOCK_UNLOCKED,};
+static DEFINE_PER_CPU(struct ipi_data, ipi_data);
 
-struct smp_call_struct {
-	void (*func) (void *info);
-	void *info;
-	int wait;
-	cpumask_t pending;
-	cpumask_t unfinished;
-};
-
-static struct smp_call_struct *volatile smp_call_function_data;
-static DEFINE_SPINLOCK(smp_call_function_lock);
-
-static void ipi_send_msg(cpumask_t callmap, enum ipi_msg_type msg)
+static void ipi_send_msg(const struct cpumask *callmap, enum ipi_msg_type msg)
 {
 	unsigned long flags;
 	unsigned int cpu;
 
 	local_irq_save(flags);
 
-	for_each_cpu_mask(cpu, callmap) {
+	for_each_cpu(cpu, callmap) {
 		struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-
-		spin_lock(&ipi->lock);
-		ipi->bits |= 1 << msg;
-		spin_unlock(&ipi->lock);
+		set_bit(msg, &ipi->bits);
 	}
 
-	/*
-	 * Call the platform specific cross-CPU call function.
-	 */
+	/* Call the platform specific cross-CPU call function  */
 	arc_platform_ipi_send(callmap);
 
 	local_irq_restore(flags);
@@ -259,158 +230,81 @@ static void ipi_send_msg(cpumask_t callmap, enum ipi_msg_type msg)
 
 void smp_send_reschedule(int cpu)
 {
-	ipi_send_msg(cpumask_of_cpu(cpu), IPI_RESCHEDULE);
+	ipi_send_msg(cpumask_of(cpu), IPI_RESCHEDULE);
 }
 
 void smp_send_stop(void)
 {
-	cpumask_t mask = cpu_online_map;
-	cpu_clear(smp_processor_id(), mask);
-	ipi_send_msg(mask, IPI_CPU_STOP);
+	struct cpumask targets;
+	cpumask_copy(&targets, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &targets);
+	ipi_send_msg(&targets, IPI_CPU_STOP);
 }
 
-/**
- * smp_call_function(): Run a function on all other CPUs.
- * @func: The function to run. This must be fast and non-blocking.
- * @info: An arbitrary pointer to pass to the function.
- * @nonatomic: currently unused.
- * @wait: If true, wait (atomically) until function has completed on other CPUs.
- *
- * Returns 0 on success, else a negative status code. Does not return until
- * remote CPUs are nearly ready to execute <<func>> or are or have executed.
- *
- * You must not call this function with disabled interrupts or from a
- * hardware interrupt handler or from a bottom half handler.
- */
-int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
-		      int wait)
+void arch_send_call_function_single_ipi(int cpu)
 {
-	struct smp_call_struct data;
-	cpumask_t callmap = cpu_online_map;
-	int ret = 0;
+	ipi_send_msg(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
+}
 
-	data.func = func;
-	data.info = info;
-	data.wait = wait;
-
-	cpu_clear(smp_processor_id(), callmap);
-	if (cpus_empty(callmap))
-		goto out;
-
-	data.pending = callmap;
-	if (wait)
-		data.unfinished = callmap;
-
-	/*
-	 * try to get the mutex on smp_call_function_data
-	 */
-	spin_lock(&smp_call_function_lock);
-	smp_call_function_data = &data;
-
-	ipi_send_msg(callmap, IPI_CALL_FUNC);
-
-	/* Wait for response */
-	while (!cpus_empty(data.pending))
-		barrier();
-
-	/* TODO_rajesh: should we have to timeout? timeout value? */
-
-	if (wait)
-		while (!cpus_empty(data.unfinished))
-			barrier();
-
-	smp_call_function_data = NULL;
-	spin_unlock(&smp_call_function_lock);
-
-out:
-	return ret;
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
+{
+	ipi_send_msg(mask, IPI_CALL_FUNC);
 }
 
 /*
- * ipi_call_function - handle IPI from smp_call_function()
- *
- * We copy data out of the cross-call structure and then
- * let the caller know that we are here and done with their data
- *
- */
-static void ipi_call_function(unsigned int cpu)
-{
-	struct smp_call_struct *data = smp_call_function_data;
-	void (*func) (void *info) = data->func;
-	void *info = data->info;
-	int wait = data->wait;
-
-	cpu_clear(cpu, data->pending);
-
-	func(info);
-
-	if (wait)
-		cpu_clear(cpu, data->unfinished);
-}
-
-/*
- * ipi_cpu_sto - handle IPI from smp_send_stop()
- *
+ * ipi_cpu_stop - handle IPI from smp_send_stop()
  */
 static void ipi_cpu_stop(unsigned int cpu)
 {
 	__asm__("flag 1");
 }
 
+static inline void __do_IPI(unsigned long *ops, struct ipi_data *ipi, int cpu)
+{
+	unsigned long msg = 0;
+
+	do {
+		msg = find_next_bit(ops, BITS_PER_LONG, msg+1);
+
+		switch (msg) {
+		case IPI_RESCHEDULE:
+			scheduler_ipi();
+			break;
+
+		case IPI_CALL_FUNC:
+			generic_smp_call_function_interrupt();
+			break;
+
+		case IPI_CALL_FUNC_SINGLE:
+			generic_smp_call_function_single_interrupt();
+			break;
+
+		case IPI_CPU_STOP:
+			ipi_cpu_stop(cpu);
+			break;
+		}
+	} while (msg < BITS_PER_LONG);
+
+}
+
 /*
  * arch-common ISR to handle for inter-processor interrupts
  * Has hooks for platform specific IPI
  */
-irqreturn_t do_IPI(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t do_IPI(int irq, void *dev_id)
 {
-	unsigned int cpu = smp_processor_id();
+	int cpu = smp_processor_id();
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-
-	ipi->ipi_count++;
+	unsigned long ops;
 
 	arc_platform_ipi_clear(cpu, irq);
 
-	for (;;) {
-		unsigned long msgs;
-
-		spin_lock(&ipi->lock);
-		msgs = ipi->bits;
-		ipi->bits = 0;
-		spin_unlock(&ipi->lock);
-
-		if (!msgs)
-			break;
-
-		do {
-			unsigned long nextmsg;
-			nextmsg = msgs & -msgs;
-			msgs &= ~nextmsg;
-
-			nextmsg = ffz(~nextmsg);
-
-			switch (nextmsg) {
-			case IPI_RESCHEDULE:
-				/*
-				 * Do nothing. On return from interrupt,
-				 * resched flag will be checked anyways
-				 */
-				break;
-
-			case IPI_CALL_FUNC:
-				ipi_call_function(cpu);
-				break;
-
-			case IPI_CPU_STOP:
-				ipi_cpu_stop(cpu);
-				break;
-
-			default:
-				pr_crit("CPU%u: Unknown IPI message 0x%lx\n",
-					cpu, nextmsg);
-				break;
-			}
-		} while (msgs);
-	}
+	/*
+	 * XXX: is this loop really needed
+	 * And do we need to move ipi_clean inside
+	 */
+	while ((ops = xchg(&ipi->bits, 0)) != 0)
+		__do_IPI(&ops, ipi, cpu);
 
 	return IRQ_HANDLED;
 }
@@ -420,7 +314,7 @@ irqreturn_t do_IPI(int irq, void *dev_id, struct pt_regs *regs)
  */
 int smp_ipi_irq_setup(int cpu, int irq)
 {
-	request_irq(irq, do_IPI, IRQ_FLG_LOCK, "IPI Interrupt", NULL);
+	return request_irq(irq, do_IPI, 0, "IPI Interrupt", NULL);
 }
 
 struct cpu cpu_topology[NR_CPUS];

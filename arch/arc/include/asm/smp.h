@@ -11,14 +11,21 @@
 
 #ifdef CONFIG_SMP
 
+#include <linux/types.h>
+#include <linux/init.h>
 #include <linux/threads.h>
 #include <plat/smp.h>
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
+/* including cpumask.h leads to cyclic deps hence this Forward declaration */
+struct cpumask;
+
 /*
- * APIs provided by arch SMP code to rest of arch code
+ * APIs provided by arch SMP code to generic code
  */
+extern void arch_send_call_function_single_ipi(int cpu);
+extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 typedef struct {
 	void *stack;
@@ -26,6 +33,9 @@ typedef struct {
 	int cpu_id;
 } secondary_boot_t;
 
+/*
+ * APIs provided by arch SMP code to rest of arch code
+ */
 extern void smp_ipi_init(void);
 extern void __init smp_init_cpus(void)
 extern void wakeup_secondary(void);
@@ -58,17 +68,10 @@ extern int smp_ipi_irq_setup(int cpu, int irq);
  */
 extern const char *arc_platform_smp_cpuinfo(void);
 extern void arc_platform_smp_init_cpu(void);
-extern void arc_platform_ipi_send(cpumask_t callmap);
+extern void arc_platform_ipi_send(const struct cpumask *callmap);
 extern void arc_platform_ipi_clear(int cpu, int irq);
 
-#else  /* !CONFIG_SMP */
-
-#define arc_platform_smp_cpuinfo()	((const char *)"")
-#define arc_platform_smp_init_cpu()
-#define arc_platform_ipi_send(callmap)
-#define arc_platform_ipi_clear(cpu, irq)
-
-#endif
+#endif  /* CONFIG_SMP */
 
 /*
  * ARC700 doesn't support native R-M-W ops.

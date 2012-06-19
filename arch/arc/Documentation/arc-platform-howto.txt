@@ -71,7 +71,7 @@ to register the callbacks as needed by on-chip/off-chip IRQ controller
     Called from start_kernel_secondary to do any CPU local setup
     such as starting a timer, setting up IPI etc
 
-  void arc_platform_ipi_send(cpumask_t callmap);
+  void arc_platform_ipi_send(const struct cpumask *callmap);
     Takes @cpumask to which IPI(s) would be sent.
     The actual msg-id/buffer is manager in arch-common code
 

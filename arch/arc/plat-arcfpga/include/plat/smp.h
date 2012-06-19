@@ -11,6 +11,8 @@
 #ifndef __PLAT_ARCFPGA_SMP_H
 #define __PLAT_ARCFPGA_SMP_H
 
+#ifdef CONFIG_SMP
+
 #include <linux/types.h>
 #include <asm/arcregs.h>
 
