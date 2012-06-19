@@ -33,8 +33,7 @@ void __init trap_init(void)
 void die(const char *str, struct pt_regs *regs, unsigned long address,
 	 unsigned long cause_reg)
 {
-	if (running_on_hw)
-		show_kernel_fault_diag(str, regs, address, cause_reg);
+	show_kernel_fault_diag(str, regs, address, cause_reg);
 
 	/* DEAD END */
 	__asm__("flag 1");

@@ -113,7 +113,8 @@ static void show_ecr_verbose(struct pt_regs *regs)
 		       (cause_code == 0x01) ? "Read From" :
 		       ((cause_code == 0x02) ? "Write to" : "EX"),
 		       address, regs->ret);
-
+	} else if (vec == ECR_V_ITLB_MISS) {
+		pr_cont("Insn could not be fetched\n");
 	} else if (vec == ECR_V_MACH_CHK) {
 		pr_cont("%s\n", (cause_code == 0x0) ?
 					"Double Fault" : "Other Fatal Err");
@@ -129,6 +130,8 @@ static void show_ecr_verbose(struct pt_regs *regs)
 			pr_cont("Data exchange protection violation\n");
 		else if (cause_code == ECR_C_PROTV_MISALIG_DATA)
 			pr_cont("Misaligned r/w from 0x%08lx\n", address);
+	} else {
+		pr_cont("Check Programmer's Manual\n");
 	}
 }
 
@@ -152,7 +155,7 @@ void show_regs(struct pt_regs *regs)
 		show_ecr_verbose(regs);
 
 	pr_info("[EFA]: 0x%08lx\n", current->thread.fault_address);
-	pr_info("[ERET]: 0x%08lx (Faulting instruction)\n", regs->ret);
+	pr_info("[ERET]: 0x%08lx (PC of Faulting Instr)\n", regs->ret);
 
 	show_faulting_vma(regs->ret, buf);	/* faulting code, not data */
 
@@ -184,7 +187,6 @@ void show_regs(struct pt_regs *regs)
 void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
 			    unsigned long address, unsigned long cause_reg)
 {
-
 	current->thread.fault_address = address;
 	current->thread.cause_code = cause_reg;
 

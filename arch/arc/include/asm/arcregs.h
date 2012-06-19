@@ -67,6 +67,7 @@
 
 /* Exception Cause Vector Values */
 #define ECR_V_MACH_CHK			0x20
+#define ECR_V_ITLB_MISS			0x21
 #define ECR_V_DTLB_MISS			0x22
 #define ECR_V_PROTV			0x23
 

@@ -80,9 +80,11 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 	return 0;
 }
 
-int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
-		       unsigned int symindex, unsigned int relsec,
-		       struct module *module)
+int apply_relocate_add(Elf32_Shdr *sechdrs,
+			const char *strtab,
+			unsigned int symindex,	/* sec index for sym tbl */
+			unsigned int relsec,	/* sec index for relo sec */
+			struct module *module)
 {
 	int i, n;
 	Elf32_Rela *rel_entry = (void *)sechdrs[relsec].sh_addr;
@@ -114,9 +116,10 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 
 		relocation = sym_entry->st_value + rel_entry[i].r_addend;
 
-		pr_debug("\t%x\t\t%x\t\t%x  %x %x\n",
-			 rel_entry[i].r_offset, rel_entry[i].r_addend,
-			 sym_entry->st_value, location, relocation);
+		pr_debug("\t%x\t\t%x\t\t%x  %x %x [%s]\n",
+			rel_entry[i].r_offset, rel_entry[i].r_addend,
+			sym_entry->st_value, location, relocation,
+			strtab + sym_entry->st_name);
 
 		/* This assumes modules are built with -mlong-calls
 		 * so any branches/jumps are absolute 32 bit jmps
