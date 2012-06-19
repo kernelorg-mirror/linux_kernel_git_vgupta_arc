@@ -14,7 +14,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/threads.h>
-#include <plat/smp.h>
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
@@ -27,18 +26,11 @@ struct cpumask;
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
-typedef struct {
-	void *stack;
-	void *c_entry;
-	int cpu_id;
-} secondary_boot_t;
-
 /*
  * APIs provided by arch SMP code to rest of arch code
  */
 extern void smp_ipi_init(void);
-extern void __init smp_init_cpus(void)
-extern void wakeup_secondary(void);
+extern void __init smp_init_cpus(void);
 extern void first_lines_of_secondary(void);
 
 /*
@@ -59,6 +51,9 @@ extern int smp_ipi_irq_setup(int cpu, int irq);
  *	Called from start_kernel_secondary to do any CPU local setup
  *	such as starting a timer, setting up IPI etc
  *
+ * arc_platform_smp_wakeup_cpu:
+ *	Called from __cpu_up (Master CPU) to kick start another one
+ *
  * arc_platform_ipi_send:
  *	Takes @cpumask to which IPI(s) would be sent.
  *	The actual msg-id/buffer is manager in arch-common code
@@ -68,6 +63,7 @@ extern int smp_ipi_irq_setup(int cpu, int irq);
  */
 extern const char *arc_platform_smp_cpuinfo(void);
 extern void arc_platform_smp_init_cpu(void);
+extern void arc_platform_smp_wakeup_cpu(int cpu, unsigned long pc);
 extern void arc_platform_ipi_send(const struct cpumask *callmap);
 extern void arc_platform_ipi_clear(int cpu, int irq);
 

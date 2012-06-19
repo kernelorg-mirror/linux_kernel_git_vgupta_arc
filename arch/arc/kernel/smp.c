@@ -36,8 +36,8 @@ arch_spinlock_t smp_bitops_lock;
 
 extern struct task_struct *_current_task[NR_CPUS];
 
-
-secondary_boot_t secondary_boot_data;
+/* XXX: per cpu ? Only needed once in early seconday boot */
+struct task_struct *secondary_idle_tsk;
 
 /* Called from start_kernel */
 void __init smp_prepare_boot_cpu(void)
@@ -140,19 +140,12 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		return PTR_ERR(idle);
 	}
 
-	/* TODO-vineetg: 256 is arbit for now.
-	   copy_thread saves some things near top of kernel stack.
-	   Thus leaving some margin for actual stack to begin
-	   Need to revisit this later
-	 */
-	secondary_boot_data.stack = task_stack_page(idle) + THREAD_SIZE - 256;
-
-	secondary_boot_data.c_entry = first_lines_of_secondary;
-	secondary_boot_data.cpu_id = cpu;
+	secondary_idle_tsk = idle;
 
 	pr_info("Trying to bring up CPU%u ...\n", cpu);
 
-	wakeup_secondary();
+	arc_platform_smp_wakeup_cpu(cpu,
+				(unsigned long)first_lines_of_secondary);
 
 	/* vineetg, Dec 11th 2007, Boot waits for 2nd to come-up
 	   Wait for 1 sec for 2nd CPU to comeup and then chk it's online bit

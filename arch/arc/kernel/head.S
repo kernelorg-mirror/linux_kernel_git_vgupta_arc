@@ -118,40 +118,6 @@ __clear_bss_loop:
 	jal start_kernel
 
 #ifdef CONFIG_SMP
-;----------------------------------------------------------
-;     Routine called by Master to kick-start secondary
-;       TODO-vineetg: secondary_boot_data is one entry wide,
-;       so only 1 secondary CPU supported
-;----------------------------------------------------------
-
-	.section .init.text, "ax",@progbits
-	.type wakeup_secondary, @function
-	.globl wakeup_secondary
-
-wakeup_secondary:
-
-	; (2)------- Set the PC of 2nd CPU  --------
-
-	mov r1, @secondary_boot_data    ; primary sets boot params here
-	mov r2, ARC_XTL_CMD_WRITE_PC
-	ld r3, [r1, SECONDARY_BOOT_CPU_ID]        ; Fetch cpu-id
-	asl r3, r3, ARC_XTL_REG_SYNTAX_CMD_CPU_ID ; shift left as per reg syntax
-	or r2, r2, r3                             ; club cpu-id and write-pc cmd
-	ld r0, [r1, SECONDARY_BOOT_C_ENTRY]       ; Fetch entry point
-
-	; Need to do these one-after-other
-	sr r0, [ARC_AUX_XTL_REG_PARAM]            ; Params all set for WRITE_PC
-	sr r2, [ARC_AUX_XTL_REG_CMD]              ; Trigger WRITE_PC
-
-	; (3)------- take the cpu out of Halt -----------
-
-	mov r2, ARC_XTL_CMD_CLEAR_HALT
-	or r2, r2, r3                   ; club cpu-id and clear-hlt cmd.
-	;   r3 already has cpu-id nicely shifted
-	sr r2, [ARC_AUX_XTL_REG_CMD]    ; trigger CLEAR_HTL
-
-	j [blink]   ; function epilogue, return to caller
-
 ;----------------------------------------------------------------
 ;     First lines of code run by secondary before jumping to 'C'
 ;----------------------------------------------------------------
@@ -161,17 +127,19 @@ wakeup_secondary:
 
 first_lines_of_secondary:
 
-	; extract processor id
-	lr  r1,[identity]
-	asr r1, r1, 8
-	and r1, r1, 0x000000ff
+	; setup idle task for this cpu as "current"
+	ld  r0, [@secondary_idle_tsk]
+#ifdef CONFIG_ARC_CURR_IN_REG
+	mov  r25, r0
+#endif
 
 	; setup stack
-	mov r2, @secondary_boot_data
-	ld r3, [r2, SECONDARY_BOOT_STACK]
-	mov sp, r3
-
 	mov fp, 0
-	jal start_kernel_secondary
+
+	; set it's stack base to tsk->thread_info bottom
+	ld  r0, [r0, TASK_THREAD_INFO]	 ; tsk->thread_info
+	add2 sp, r0, (THREAD_SIZE - 4)/4 ; one word GUTTER at bottom
+
+	j start_kernel_secondary
 
 #endif

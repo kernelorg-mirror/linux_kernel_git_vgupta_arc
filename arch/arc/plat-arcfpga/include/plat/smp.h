@@ -24,9 +24,6 @@
 
 #define ARC_REG_MP_BCR			0x2021
 
-#define ARC_XTL_REG_SYNTAX_PARAM_PC	1	/* Left shift by 1 */
-#define ARC_XTL_REG_SYNTAX_CMD_CPU_ID		8	/* Left shift by 8 */
-
 #define ARC_XTL_CMD_WRITE_PC		0x04
 #define ARC_XTL_CMD_CLEAR_HALT		0x02
 
@@ -66,8 +63,8 @@ do {							\
 #define idu_enable()		IDU_SET_COMMAND(0, IDU_ENABLE)
 #define idu_disable()		IDU_SET_COMMAND(0, IDU_DISABLE)
 
-#define idu_irq_assert(irq)	IDU_SET_COMMAND(irq, IDU_IRQ_ASSERT)
-#define idu_irq_clear(irq)	IDU_SET_COMMAND(irq, IDU_IRQ_CLEAR)
+#define idu_irq_assert(irq)	IDU_SET_COMMAND((irq), IDU_IRQ_ASSERT)
+#define idu_irq_clear(irq)	IDU_SET_COMMAND((irq), IDU_IRQ_CLEAR)
 
 /* IDU Interrupt Mode - Destination Encoding */
 #define IDU_IRQ_MOD_DISABLE		0x00
@@ -82,19 +79,24 @@ do {							\
 #define IDU_IRQ_MODE_PARAM(dest_mode, trig_mode)   \
 	(((trig_mode & 0x01) << 15) | (dest_mode & 0xFF))
 
-struct {
+struct idu_irq_config {
 	uint8_t irq;
 	uint8_t dest_mode;
 	uint8_t trig_mode;
-} idu_irq_config;
+};
 
-struct {
+struct idu_irq_status {
 	uint8_t irq;
 	bool enabled;
 	bool status;
 	bool ack;
 	bool pend;
 	uint8_t next_rr;
-} idu_irq_status;
+};
+
+extern void idu_irq_set_tgtcpu(uint8_t irq, uint32_t mask);
+extern void idu_irq_set_mode(uint8_t irq, uint8_t dest_mode, uint8_t trig_mode);
+
+#endif	/* CONFIG_SMP */
 
 #endif

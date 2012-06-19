@@ -41,15 +41,9 @@ int main(void)
 	DEFINE(THREAD_INFO_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(THREAD_INFO_PREEMPT_COUNT,
 	       offsetof(struct thread_info, preempt_count));
+	DEFINE(THREAD_INFO_TSK, offsetof(struct thread_info, task));
 
 	BLANK();
-
-#ifdef CONFIG_SMP
-	DEFINE(SECONDARY_BOOT_STACK, offsetof(secondary_boot_t, stack));
-	DEFINE(SECONDARY_BOOT_C_ENTRY, offsetof(secondary_boot_t, c_entry));
-	DEFINE(SECONDARY_BOOT_CPU_ID, offsetof(secondary_boot_t, cpu_id));
-	BLANK();
-#endif
 
 	DEFINE(TASK_ACT_MM, offsetof(struct task_struct, active_mm));
 	DEFINE(TASK_TGID, offsetof(struct task_struct, tgid));

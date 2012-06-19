@@ -12,6 +12,7 @@
  */
 
 #include <linux/smp.h>
+#include <asm/irq.h>
 #include <plat/smp.h>
 
 static char smp_cpuinfo_buf[128];
@@ -36,12 +37,32 @@ const char *arc_platform_smp_cpuinfo(void)
 	return smp_cpuinfo_buf;
 }
 
+/*
+ * Master kick starting another CPU
+ */
+void arc_platform_smp_wakeup_cpu(int cpu, unsigned long pc)
+{
+	/* setup the start PC */
+	write_aux_reg(ARC_AUX_XTL_REG_PARAM, pc);
+
+	/* Trigger WRITE_PC cmd for this cpu */
+	write_aux_reg(ARC_AUX_XTL_REG_CMD,
+			(ARC_XTL_CMD_WRITE_PC | (cpu << 8)));
+
+	/* Take the cpu out of Halt */
+	write_aux_reg(ARC_AUX_XTL_REG_CMD,
+			(ARC_XTL_CMD_CLEAR_HALT | (cpu << 8)));
+
+}
+
+/*
+ * Any SMP specific init CPU does when it comes up
+ * Called from start_kernel_secondary()
+ */
 void arc_platform_smp_init_cpu(void)
 {
 	/* Owner of the Idu Interrupt determines who is SELF */
 	int cpu = smp_processor_id();
-
-	board_setup_timer();
 
 	/* Check if CPU is configured for more than 16 interrupts */
 	if (NR_IRQS <= 16 || get_hw_config_num_irq() <= 16)
@@ -89,47 +110,10 @@ void idu_irq_set_mode(uint8_t irq, uint8_t dest_mode, uint8_t trig_mode)
 	IDU_SET_COMMAND(irq, IDU_IRQ_WMODE);
 }
 
-int idu_irq_get_mode(uint8_t irq, struct idu_irq_config *config)
-{
-	uint32_t val;
-
-	IDU_SET_COMMAND(irq, IDU_IRQ_RMODE);
-	val = IDU_GET_PARAM();
-
-	config->irq = irq;
-	config->dest_mode = val & 0xFF;
-	config->trig_mode = (val >> 15) & 0x1;
-
-	return 0;
-}
-
 void idu_irq_set_tgtcpu(uint8_t irq, uint32_t mask)
 {
 	IDU_SET_PARAM(mask);
 	IDU_SET_COMMAND(irq, IDU_IRQ_WBITMASK);
-}
-
-uint32_t idu_irq_get_tgtcpu(uint8_t irq)
-{
-	IDU_SET_COMMAND(irq, IDU_IRQ_RBITMASK);
-	return IDU_GET_PARAM();
-}
-
-int idu_irq_get_status(uint8_t irq, struct idu_irq_status *status)
-{
-	uint32_t val;
-
-	IDU_SET_COMMAND(irq, IDU_IRQ_STATUS);
-	val = IDU_GET_PARAM();
-
-	status->irq = irq;
-	status->enabled = val & 0x01;
-	status->status = val & 0x02;
-	status->ack = val & 0x04;
-	status->pend = val & 0x08;
-	status->next_rr = (val & 0x1F00) >> 8;
-
-	return 0;
 }
 
 bool idu_irq_get_ack(uint8_t irq)
