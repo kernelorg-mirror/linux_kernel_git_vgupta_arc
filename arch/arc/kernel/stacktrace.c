@@ -34,7 +34,7 @@
 #include <asm/switch_to.h>
 
 /*-------------------------------------------------------------------------
- *              Unwinding Core
+ *              Unwinder Iterator
  *-------------------------------------------------------------------------
  */
 
@@ -135,18 +135,17 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 }
 
 /*-------------------------------------------------------------------------
- *  iterators called by unwinding core to implement APIs expected by kernel
+ * callbacks called by unwinder iterator to implement kernel APIs
  *
- *  Return value protocol:
- *      (-1) to stop unwinding
- *      (xx) continue unwinding
+ * The callback can return -1 to force the iterator to stop, which by default
+ * keeps going till the bottom-most frame.
  *-------------------------------------------------------------------------
  */
 
 /* Call-back which plugs into unwinding core to dump the stack in
  * case of panic/OOPs/BUG etc
  */
-int verbose_dump_stack(unsigned int address, void *unused)
+static int __print_sym(unsigned int address, void *unused)
 {
 	__print_symbol("  %s\n", address);
 	return 0;
@@ -157,7 +156,7 @@ int verbose_dump_stack(unsigned int address, void *unused)
 /* Call-back which plugs into unwinding core to capture the
  * traces needed by kernel on /proc/<pid>/stack
  */
-int fill_backtrace(unsigned int address, void *arg)
+static int __collect_all(unsigned int address, void *arg)
 {
 	struct stack_trace *trace = arg;
 
@@ -172,7 +171,7 @@ int fill_backtrace(unsigned int address, void *arg)
 	return 0;
 }
 
-int fill_backtrace_nosched(unsigned int address, void *arg)
+static int __collect_all_but_sched(unsigned int address, void *arg)
 {
 	struct stack_trace *trace = arg;
 
@@ -192,7 +191,7 @@ int fill_backtrace_nosched(unsigned int address, void *arg)
 
 #endif
 
-int get_first_nonsched_frame(unsigned int address, void *unused)
+static int __get_first_nonsched(unsigned int address, void *unused)
 {
 	if (in_sched_functions(address))
 		return 0;
@@ -208,7 +207,7 @@ int get_first_nonsched_frame(unsigned int address, void *unused)
 noinline void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs)
 {
 	pr_info("\nStack Trace:\n");
-	arc_unwind_core(tsk, regs, verbose_dump_stack, NULL);
+	arc_unwind_core(tsk, regs, __print_sym, NULL);
 }
 EXPORT_SYMBOL(show_stacktrace);
 
@@ -231,7 +230,7 @@ EXPORT_SYMBOL(dump_stack);
  */
 unsigned int get_wchan(struct task_struct *tsk)
 {
-	return arc_unwind_core(tsk, NULL, get_first_nonsched_frame, NULL);
+	return arc_unwind_core(tsk, NULL, __get_first_nonsched, NULL);
 }
 
 #ifdef CONFIG_STACKTRACE
@@ -239,15 +238,14 @@ unsigned int get_wchan(struct task_struct *tsk)
 /*
  * API required by CONFIG_STACKTRACE, CONFIG_LATENCYTOP.
  * A typical use is when /proc/<pid>/stack is queried by userland
- * and also by LatencyTop
  */
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
-	arc_unwind_core(tsk, NULL, fill_backtrace_nosched, trace);
+	arc_unwind_core(tsk, NULL, __collect_all_but_sched, trace);
 }
 
 void save_stack_trace(struct stack_trace *trace)
 {
-	arc_unwind_core(current, NULL, fill_backtrace, trace);
+	arc_unwind_core(current, NULL, __collect_all, trace);
 }
 #endif
