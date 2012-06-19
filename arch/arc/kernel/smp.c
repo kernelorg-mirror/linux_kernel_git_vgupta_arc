@@ -153,8 +153,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	   jiffies + HZ => wait for 1 sec
 	 */
 
-	/* TODO-vineetg: workaround for 3.4 bug, replace the 3 with HZ later */
-	wait_till = jiffies + 3;
+	wait_till = jiffies + HZ;
 	while (time_before(jiffies, wait_till)) {
 		if (cpu_online(cpu))
 			break;

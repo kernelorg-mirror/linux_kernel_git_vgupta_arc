@@ -187,7 +187,7 @@
  *      Essentially invocation of lr/sr insns from "C"
  */
 
-#if 0
+#if 1
 
 #define read_aux_reg(reg)			\
 		__builtin_arc_lr(reg)
@@ -373,6 +373,18 @@ struct arc_fpu {
 	tmp = read_aux_reg(reg);			\
 	if (sizeof(tmp) == sizeof(into))		\
 		into = *((typeof(into) *)&tmp);		\
+	else  {						\
+		extern void bogus_undefined(void);	\
+		bogus_undefined();			\
+	}						\
+}
+
+#define WRITE_BCR(reg, into)				\
+{							\
+	unsigned int tmp;				\
+	if (sizeof(tmp) == sizeof(into))		\
+		tmp = (*(unsigned int *)(into));	\
+		write_aux_reg(reg, tmp);		\
 	else  {						\
 		extern void bogus_undefined(void);	\
 		bogus_undefined();			\

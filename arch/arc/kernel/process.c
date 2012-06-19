@@ -50,29 +50,6 @@ static inline void arch_idle(void)
 
 void cpu_idle(void)
 {
-
-	/* vineetg May 23 2008: Merge from SMP branch to Mainline
-	 *
-	 * In the mainline kernel, To conserve power when idle, we "sleep"
-	 * in arch_idle and thus don't poll the need resched flag.
-	 * But the TIF_POLLING flag is enabled.
-	 *
-	 * This is fine in UNI, since nobody is looking at the TIF_POLLING flag
-	 * but in SMP, this is an indication to other CPU that "hey I'm polling,
-	 * don't waste time sending Inter Processor Interrupt (IPI) to
-	 * resched me. Conseq other CPU's sched sets my resched flag, which
-	 * I can't see immediately since I'm sleeping. Only when I get a local
-	 * local interrupt such as TIMER, I break out of sleep, check the
-	 * resched flag. This will work but not precisely what we want.
-	 *
-	 * Thus it is IMP to NOT set the TIF_POLLING flag in SMP and use
-	 * IPIs to resched.
-	 */
-
-#if defined(CONFIG_SMP) && !defined(ARC_SLEEP_WHEN_IDLE)
-	set_tsk_thread_flag(current, TIF_POLLING_NRFLAG);
-#endif
-
 	/* endless idle loop with no priority at all */
 	while (1) {
 		tick_nohz_stop_sched_tick(1);

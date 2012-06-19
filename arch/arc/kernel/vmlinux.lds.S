@@ -80,6 +80,8 @@ SECTIONS
 
     }
 
+	PERCPU_SECTION(64)
+
 	/*
 	 * .exit.text is discard at runtime, not link time, to deal with
 	 *  references from .debug_frame

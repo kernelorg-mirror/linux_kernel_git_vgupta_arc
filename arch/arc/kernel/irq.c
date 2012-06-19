@@ -75,9 +75,7 @@ void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-#ifdef CONFIG_SMP
-
-int get_hw_config_num_irq()
+int get_hw_config_num_irq(void)
 {
 	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
 
@@ -94,8 +92,6 @@ int get_hw_config_num_irq()
 
 	return 0;
 }
-
-#endif
 
 /*
  * arch_local_irq_enable - Enable interrupts.
