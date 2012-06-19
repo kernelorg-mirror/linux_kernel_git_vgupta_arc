@@ -9,31 +9,27 @@
 #ifndef __ASM_SPINLOCK_TYPES_H
 #define __ASM_SPINLOCK_TYPES_H
 
-#ifndef __LINUX_SPINLOCK_TYPES_H
-#error "please don't include this file directly"
-#endif
-
 typedef struct {
 	volatile unsigned int slock;
-} raw_spinlock_t;
+} arch_spinlock_t;
 
-#define RAW_SPIN_LOCK_UNLOCKED	0
-#define RAW_SPIN_LOCK_LOCKED	1
+#define __ARCH_SPIN_LOCK_UNLOCKED__	0
+#define __ARCH_SPIN_LOCK_LOCKED__	1
 
-#define __RAW_SPIN_LOCK_UNLOCKED	{ RAW_SPIN_LOCK_UNLOCKED }
+#define __ARCH_SPIN_LOCK_UNLOCKED	{ __ARCH_SPIN_LOCK_UNLOCKED__ }
+#define __ARCH_SPIN_LOCK_LOCKED		{ __ARCH_SPIN_LOCK_LOCKED__ }
 
 /*
-   On ARC 800, the only atomic operation that is supported is exchange,
-   instruction ex. We need atomic increment and decrement operations to
-   implement the read write locks. The work around is to use a spinlock to
-   get exclusive access to the read write lock
-*/
-
+ * Unlocked:     0x01_00_00_00
+ * Read lock(s): 0x00_FF_00_00 to say 0x01
+ * Write lock:   0x0, but only possible if prior value "unlocked" 0x0100_0000
+ */
 typedef struct {
-	raw_spinlock_t lock_mutex;
-	volatile unsigned int lock;
-} raw_rwlock_t;
+	volatile unsigned int	counter;
+	arch_spinlock_t		lock_mutex;
+} arch_rwlock_t;
 
-#define __RAW_RW_LOCK_UNLOCKED	{ __RAW_SPIN_LOCK_UNLOCKED, RW_LOCK_BIAS }
+#define __ARCH_RW_LOCK_UNLOCKED__	0x01000000
+#define __ARCH_RW_LOCK_UNLOCKED		{ .counter = __ARCH_RW_LOCK_UNLOCKED__ }
 
 #endif
