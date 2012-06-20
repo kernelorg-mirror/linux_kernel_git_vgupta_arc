@@ -48,7 +48,7 @@ no_params:
 
 	; processor ID [ 3 2 <1> 0 ]
 	; For ARC700 it is 0. For ARC800 it is core-ID (0, 1, ...)
-	asr r1, r0, 8
+	lsr r1, r0, 8
 	and.f r1, r1, 0x000000ff
 
 	; Whether it be single core in ARC700 or Boot CPU of ARC800,
@@ -56,10 +56,14 @@ no_params:
 	; In either case, jump to master_proceed.
 	; Code same for SMP and Non-SMP
 
-	jz master_proceed
+	bz master_proceed
 
+.Lmyself:
 	; Secondary Halt self. Later master will set PC and clear halt bit
 	flag 1
+	; When debugging, Metaware debugger steps thru both, hence this loop
+	b .Lmyself
+
 
 master_proceed:
 #endif
