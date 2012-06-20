@@ -45,15 +45,30 @@ __switch_to(struct task_struct *prev_task, struct task_struct *next_task)
 #ifndef CONFIG_ARC_CURR_IN_REG
 		"st.a    r25, [sp, -4]   \n\t"
 #endif
-		"sub     sp, sp, %4      \n\t"
+		"sub     sp, sp, %4      \n\t"	/* create gutter at top */
+
+		/* set ksp of outgoing task in tsk->thread.ksp */
 		"st.as   sp, [%3, %1]    \n\t"
+
 		"sync   \n\t"
-		"st  %2, [_current_task]   \n\t"
+
+		/*
+		 * setup _current_task with incoming tsk.
+		 * optionally, set r25 to that as well
+		 * (open coded SET_CURR_TASK_ON_CPU)
+		 */
+		"st  %2, [@_current_task]	\n\t"
 #ifdef CONFIG_ARC_CURR_IN_REG
 		"mov r25, %2   \n\t"
 #endif
+
+		/* get ksp of incoming task from tsk->thread.ksp */
 		"ld.as  sp, [%2, %1]   \n\t"
-		"add    sp, sp, %4     \n\t"
+
+		/* start loading it's CALLEE reg file */
+
+		"add    sp, sp, %4     \n\t"	/* skip gutter at top */
+
 #ifndef CONFIG_ARC_CURR_IN_REG
 		"ld.ab   r25, [sp, 4]   \n\t"
 #endif

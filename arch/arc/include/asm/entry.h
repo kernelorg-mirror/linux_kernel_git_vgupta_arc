@@ -602,23 +602,26 @@
  */
 .macro  GET_CURR_TASK_ON_CPU   reg
 	GET_CPU_ID  \reg
-	ld.as  \reg, [_current_task, \reg]
+	ld.as  \reg, [@_current_task, \reg]
 .endm
 
 /*-------------------------------------------------
  * Save a new task as the "current" task on this CPU
  * 1. Determine curr CPU id.
  * 2. Use it to index into _current_task[ ]
- * Note that ST insn doesn't have scaled addressing mode
+ *
+ * Coded differently than GET_CURR_TASK_ON_CPU (which uses LD.AS)
+ * because ST r0, [r1, offset] can ONLY have s9 @offset
+ * while   LD can take s9 (4 byte insn) or LIMM (8 byte insn)
  */
 
-.macro  SET_CURR_TASK_ON_CPU    out_reg, tmp_reg
-	GET_CPU_ID  \tmp_reg
-	lsl \tmp_reg, \tmp_reg, 2
-	add \tmp_reg, \tmp_reg, _current_task
-	st  \out_reg, [\tmp_reg]
+.macro  SET_CURR_TASK_ON_CPU    tsk, tmp
+	GET_CPU_ID  \tmp
+	lsl \tmp, \tmp, 2
+	add \tmp, \tmp, @_current_task
+	st  \tsk, [\tmp]
 #ifdef CONFIG_ARC_CURR_IN_REG
-	mov r25, \out_reg
+	mov r25, \tsk
 #endif
 
 .endm
@@ -627,13 +630,13 @@
 #else   /* Uniprocessor implementation of macros */
 
 .macro  GET_CURR_TASK_ON_CPU    reg
-	ld  \reg, [_current_task]
+	ld  \reg, [@_current_task]
 .endm
 
-.macro  SET_CURR_TASK_ON_CPU    out_reg, tmp_reg
-	st  \out_reg, [_current_task]
+.macro  SET_CURR_TASK_ON_CPU    tsk, tmp
+	st  \tsk, [@_current_task]
 #ifdef CONFIG_ARC_CURR_IN_REG
-	mov r25, \out_reg
+	mov r25, \tsk
 #endif
 .endm
 
