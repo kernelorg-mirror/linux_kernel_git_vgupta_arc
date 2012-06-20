@@ -83,6 +83,8 @@ void __cpuinit start_kernel_secondary(void)
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
 
+	_current_task[cpu] = current;
+
 	/* Do CPU init
 	   1. Detect CPU Type and its config
 	   2. TLB Init
@@ -95,7 +97,6 @@ void __cpuinit start_kernel_secondary(void)
 
 	arc_platform_smp_init_cpu();
 
-	_current_task[cpu] = current;
 
 	atomic_inc(&mm->mm_users);
 	atomic_inc(&mm->mm_count);
