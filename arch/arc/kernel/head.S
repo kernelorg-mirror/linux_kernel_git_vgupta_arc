@@ -44,19 +44,14 @@ stext:
 
 no_params:
 #ifdef CONFIG_SMP
-	lr  r0,[identity]
 
-	; processor ID [ 3 2 <1> 0 ]
-	; For ARC700 it is 0. For ARC800 it is core-ID (0, 1, ...)
-	lsr r1, r0, 8
-	and.f r1, r1, 0x000000ff
+	; CPU ID [ 3 2 <1> 0 ]
+	; For ARC700 it is 0.
+	; For ARC700-smp-extn: core-ID (0,1,...)  Master ID is always 0
+	GET_CPU_ID  r1
 
-	; Whether it be single core in ARC700 or Boot CPU of ARC800,
-	; both have processor-ID = 0.
-	; In either case, jump to master_proceed.
-	; Code same for SMP and Non-SMP
-
-	bz master_proceed
+	; For Boot(Master) CPU, proceed to master
+	breq r1, 0, .Lmaster_proceed
 
 .Lmyself:
 	; Secondary Halt self. Later master will set PC and clear halt bit
@@ -65,7 +60,7 @@ no_params:
 	b .Lmyself
 
 
-master_proceed:
+.Lmaster_proceed:
 #endif
 
 #ifdef CONFIG_ARC_UBOOT_CMDLINE
@@ -108,18 +103,16 @@ __clear_bss_loop:
 	sub r3, 0xffff, r3
 	st  r3, [@running_on_hw] ; 0 for sim, non-zero for real hw
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-	; setup init_task as "current"
-	mov r25, [@init_task]
-	st r25, [@_current_task]
-#endif
+	mov r9, @init_task
+	SET_CURR_TASK_ON_CPU  r9, r0	; r9 = tsk, r0 = scratch
 
 	; setup stack (fp, sp)
 	mov fp, 0
-	mov sp,init_thread_union + THREAD_SIZE
 
-	/* Jump to start of kernel initialization routine */
-	jal start_kernel
+	; tsk->thread_info is really a PAGE, whose bottom hoists stack
+	GET_TSK_STACK_BASE r9, sp	; r9 = tsk, sp = stack base(output)
+
+	j start_kernel	; "C" entry point
 
 #ifdef CONFIG_SMP
 ;----------------------------------------------------------------
@@ -131,18 +124,15 @@ __clear_bss_loop:
 
 first_lines_of_secondary:
 
-	; setup idle task for this cpu as "current"
+	; setup per-cpu idle task as "current" on this CPU
 	ld  r0, [@secondary_idle_tsk]
-#ifdef CONFIG_ARC_CURR_IN_REG
-	mov  r25, r0
-#endif
+	SET_CURR_TASK_ON_CPU  r0, r1
 
-	; setup stack
+	; setup stack (fp, sp)
 	mov fp, 0
 
 	; set it's stack base to tsk->thread_info bottom
-	ld  r0, [r0, TASK_THREAD_INFO]	 ; tsk->thread_info
-	add2 sp, r0, (THREAD_SIZE - 4)/4 ; one word GUTTER at bottom
+	GET_TSK_STACK_BASE r0, sp
 
 	j start_kernel_secondary
 

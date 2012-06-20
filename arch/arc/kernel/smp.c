@@ -34,8 +34,6 @@
 arch_spinlock_t smp_atomic_ops_lock;
 arch_spinlock_t smp_bitops_lock;
 
-extern struct task_struct *_current_task[NR_CPUS];
-
 /* XXX: per cpu ? Only needed once in early seconday boot */
 struct task_struct *secondary_idle_tsk;
 
@@ -77,13 +75,12 @@ void __init smp_cpus_done(unsigned int max_cpus)
 /*
  * The very first "C" code executed by secondary
  * Called from asm stub in head.S
+ * "current"/R25 already setup by low level boot code
  */
 void __cpuinit start_kernel_secondary(void)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
-
-	_current_task[cpu] = current;
 
 	/* Do CPU init
 	   1. Detect CPU Type and its config

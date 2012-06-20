@@ -220,6 +220,22 @@
 	ld  r25, [r25, TASK_THREAD + THREAD_USER_R25]
 .endm
 
+/*-------------------------------------------------------------
+ * given a tsk struct, get to the base of it's kernel mode stack
+ * tsk->thread_info is really a PAGE, whose bottom hoists stack
+ * which grows upwards towards thread_info
+ *------------------------------------------------------------*/
+
+.macro GET_TSK_STACK_BASE tsk, out
+
+	/* Get task->thread_info (this is essentially start of a PAGE) */
+	ld  \out, [\tsk, TASK_THREAD_INFO]
+
+	/* Go to end of page where stack begins (grows upwards) */
+	add2 \out, \out, (THREAD_SIZE - 4)/4   /* one word GUTTER */
+
+.endm
+
 /*--------------------------------------------------------------
  * Switch to Kernel Mode stack if SP points to User Mode stack
  *
@@ -292,13 +308,8 @@
 	mov	r25, r9
 #endif
 
-	/* Get task->thread_info (this is essentially start of a PAGE) */
-	ld  r9, [r9, TASK_THREAD_INFO]
-
-	/* Go to end of page pointed to by task->thread_info.
-	*  This is start of THE kernel stack (grows upwards remember)
-	*/
-	add2	r9, r9, (THREAD_SIZE - 4)/4   /* 0ne word GUTTER */
+	/* With current tsk in r9, get it's kernel mode stack base */
+	GET_TSK_STACK_BASE  r9, r9
 
 #ifdef PT_REGS_CANARY
 	st	0xabcdabcd, [r9, 0]
@@ -586,14 +597,14 @@
 	switching to kernel mode stack
 ----------------------------------------------------*/
 
-#ifdef CONFIG_SMP
-
 /* Get CPU-ID of this core */
 .macro  GET_CPU_ID  reg
 	lr  \reg, [identity]
 	lsr \reg, \reg, 8
-	and \reg, \reg, 0xFF
+	bmsk \reg, \reg, 7
 .endm
+
+#ifdef CONFIG_SMP
 
 /*-------------------------------------------------
  * Get current running task on this CPU
@@ -617,9 +628,8 @@
 
 .macro  SET_CURR_TASK_ON_CPU    tsk, tmp
 	GET_CPU_ID  \tmp
-	lsl \tmp, \tmp, 2
-	add \tmp, \tmp, @_current_task
-	st  \tsk, [\tmp]
+	add2 \tmp, @_current_task, \tmp
+	st   \tsk, [\tmp]
 #ifdef CONFIG_ARC_CURR_IN_REG
 	mov r25, \tsk
 #endif
