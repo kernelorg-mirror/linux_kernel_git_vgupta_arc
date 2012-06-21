@@ -299,23 +299,6 @@ void arc_chk_ccms(void)
 #endif
 }
 
-/* BVCI Bus Profiler: Latency Unit */
-
-#undef CONFIG_ARC_BVCI_LAT_UNIT
-
-#ifdef CONFIG_ARC_BVCI_LAT_UNIT
-
-int mem_lat = 64;
-
-static unsigned int *ID = (unsigned int *)BVCI_LAT_UNIT_BASE;
-
-/* CTRL1 selects the Latency unit to program (0-8) */
-static unsigned int *LAT_CTRL1 = (unsigned int *)BVCI_LAT_UNIT_BASE + 21;
-
-/* CRTL2 provides the actual latency value to be programmed */
-static unsigned int *LAT_CTRL2 = (unsigned int *)BVCI_LAT_UNIT_BASE + 22;
-
-#endif
 
 /* Ensure that FP hardware and kernel config match
  * -If hardware contains DPFP, kernel needs to save/restore FPU state
@@ -340,26 +323,6 @@ void __init probe_fpu(void)
 		panic("H/w lacks DPFP support, kernel won't work\n");
 #endif
 	}
-}
-
-void __init probe_lat_unit(void)
-{
-#ifdef CONFIG_ARC_BVCI_LAT_UNIT
-	unsigned int id = *ID;
-
-	pr_info("BVCI Profiler Ver %x\n", id);
-
-	/* *LAT_CTRL1 = 0; Unit #0 : Adds latency to all mem accesses */
-
-	/* By default we want to simulate the delays
-	 * between (I$|D$) and memory
-	 */
-	*LAT_CTRL1 = 1;		/* Unit #1 : I$ and system Bus */
-	*LAT_CTRL2 = mem_lat;
-
-	*LAT_CTRL1 = 2;		/* Unit #2 : D$ and system Bus */
-	*LAT_CTRL2 = mem_lat;
-#endif
 }
 
 /*
@@ -391,8 +354,6 @@ void __init setup_processor(void)
 #endif
 
 	probe_fpu();
-
-	probe_lat_unit();
 }
 
 static int __init parse_tag_core(struct tag *tag)
