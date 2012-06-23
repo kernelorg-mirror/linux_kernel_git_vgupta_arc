@@ -11,7 +11,8 @@ UTS_MACHINE := arc
 KBUILD_DEFCONFIG := fpga_defconfig
 
 # For ARC FPGA Platforms
-platform-$(CONFIG_ARC_SOC_GENERIC)	:= arcfpga
+platform-$(CONFIG_ARC_PLAT_FPGA_LEGACY)	:= arcfpga
+#New platform adds here
 
 PLATFORM := $(platform-y)
 export PLATFORM

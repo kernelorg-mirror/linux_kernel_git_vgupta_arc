@@ -19,29 +19,16 @@ How To add a Platform
 
 (1) create arch/arc/plat-xxx
 
-(2) create arch/arc/plat-xxx/Kconfig
-	Define CONFIG_ARC_SOC_1
-	Define CONFIG_ARC_SOC_1
+(2) Add ARC_PLAT_xyz to the platform choice menu in arch/arc/Kconfig
 
-(3) source above Kconfig in arch/arc/Kconfig
+(3) create arch/arc/plat-xxx/Kconfig and source it in arch/arc/Kconfig
 
 (4) Add entry in arch/arc/Makefile
-	platform-$CONFIG_ARC_SOC_1 := xxx
-	platform-$CONFIG_ARC_SOC_2 := xxx
+	platform-$CONFIG_ARC_PLAT_xyz := xxx
 
-==================================================================
-How to Organise you Platform's Kconfig
-==================================================================
-
-(1) ARC Platform code organisation requires all SoC Family members, of a
-    Platform plat-xxx, be enlisted in arch/arc/plat-xxx/Kconfig
-    For more than 1 SoCs, this needs to be [ choice config* encdchoice ]
-
-(2) Then depending on the complexity of family, the rest of organisation is
-    left to the SoC folks. They may choose to have seperate Kconfig files for
-    the following or decide to dump everything in arch/arc/plat-xxx/Kconfig
-      -SoC specific stuff: e.g. if it has 32 vs. 64 b Cache Line
-      -Board specific Stuff: e.g. List of Boards based on SoC and their quirks.
+Depending on the complexity of platform, the rest of organisation in plat-xxx
+is left to the SoC folks. They may choose to have SoC/board specific Kconfig
+files/code or decide to dump everything in one set.
 
 ==================================================================
 APIs/callbacks expected from platform code

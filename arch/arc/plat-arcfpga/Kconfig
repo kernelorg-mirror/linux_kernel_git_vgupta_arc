@@ -6,33 +6,23 @@
 # published by the Free Software Foundation.
 #
 
-# The FPGA platform is pretty simple, No real SoC, nothing SoC specific and a
-# bunch of boards.
+if ARC_PLAT_FPGA_LEGACY
 
-
-# ARC FPGA platform corresponds to a "generic" SOC.
-config ARC_SOC_GENERIC
-	def_bool y
-
-# All ARC FPGA boards
 choice
 	prompt "FPGA Board"
 
 config ARC_BOARD_ANGEL4
 	bool "ARC Angel4"
-	depends on ARC_SOC_GENERIC
 	help
 	  ARC Angel4 FPGA Ref Platform (Xilinx Virtex Based)
 
 config ARC_BOARD_ML509
 	bool "ML509"
-	depends on ARC_SOC_GENERIC
 	help
 	  ARC ML509 FPGA Ref Platform (Xilinx Virtex-5 Based)
 
 config ARC_ISS_VIRT_PERIP
 	bool "ISS Virtual Peripherals"
-	depends on ARC_SOC_GENERIC
 	help
 	  ARC Linux can run on ARC Instruction set Simulator.
 	  The binary built for AA4/ML509 can run on ISS, despite lack of
@@ -115,3 +105,5 @@ source "drivers/pci/hotplug/Kconfig"
 source "drivers/pcmcia/Kconfig"
 
 endmenu     # Bus options
+
+endif

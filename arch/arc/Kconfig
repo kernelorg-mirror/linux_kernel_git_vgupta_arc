@@ -103,6 +103,22 @@ menu "ARC Architecture Configuration"
 menu "ARC CPU Configuration"
 
 choice
+	prompt "ARC Platform"
+	default ARC_PLAT_FPGA_LEGACY
+
+config ARC_PLAT_FPGA_LEGACY
+	bool "\"Legacy\" ARC FPGA dev platform"
+	help
+	  Support for ARC development platforms, provided by Synopsys.
+	  These are based on FPGA or ISS. e.g.
+	  - ARCAngel4
+	  - ML509
+	  - MetaWare ISS
+
+#New platform adds here
+endchoice
+
+choice
 	prompt "ARC Core"
 	default ARC_CPU_770
 
@@ -320,6 +336,7 @@ endmenu   # "ARC CPU Configuration"
 menu "Platform Board Configuration"
 
 source "arch/arc/plat-arcfpga/Kconfig"
+#New platform adds here
 
 config ARC_PLAT_CLK
 	int "Clock speed"
