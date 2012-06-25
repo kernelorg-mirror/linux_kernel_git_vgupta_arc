@@ -437,7 +437,7 @@ static void arc_serial_shutdown(struct uart_port *port)
 	free_irq(uart->port.irq, uart);
 }
 
-static void arc_serial_set_ldisc(struct uart_port *port)
+static void arc_serial_set_ldisc(struct uart_port *port, int ld)
 {
 	/* this might need implementing for the touch driver */
 }
@@ -536,9 +536,10 @@ static void arc_serial_config_port(struct uart_port *port, int flags)
 #ifdef CONFIG_CONSOLE_POLL
 static void arc_serial_poll_put_char(struct uart_port *port, unsigned char chr)
 {
-	while (!((status = UART_GET_STATUS(uart)) & TXEMPTY)) {
+	struct arc_serial_port *uart = (struct arc_serial_port *)port;
+
+	while(!(UART_GET_STATUS(uart) & TXEMPTY))
 		cpu_relax();
-	}
 
 	UART_SET_DATA(uart, chr);
 }
@@ -548,12 +549,12 @@ static int arc_serial_poll_get_char(struct uart_port *port)
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
 	unsigned char chr;
 
-	while (!((status = UART_GET_STATUS(uart)) & RXEMPTY)) {
+	while(!(UART_GET_STATUS(uart) & RXEMPTY))
 		cpu_relax();
 
-		chr = UART_GET_DATA(uart);
-		return chr;
-	}
+	chr = UART_GET_DATA(uart);
+	return chr;
+}
 #endif
 
 static struct uart_ops arc_serial_pops = {
