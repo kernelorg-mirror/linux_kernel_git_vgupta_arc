@@ -16,4 +16,7 @@ extern void __init arc_init_IRQ(void);
 extern void __init plat_init_IRQ(void);
 extern int get_hw_config_num_irq(void);
 
+void __cpuinit arc_clocksource_init(void);
+void __cpuinit arc_clockevent_init(void);
+
 #endif

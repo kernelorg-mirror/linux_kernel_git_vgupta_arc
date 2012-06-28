@@ -92,9 +92,6 @@ void __cpuinit start_kernel_secondary(void)
 	 */
 	setup_processor();
 
-	arc_platform_smp_init_cpu();
-
-
 	atomic_inc(&mm->mm_users);
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
@@ -114,12 +111,19 @@ void __cpuinit start_kernel_secondary(void)
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
+	arc_platform_smp_init_cpu();
+
+	arc_clocksource_init();
+	arc_clockevent_init();
+
 	local_irq_enable();
 	preempt_disable();
 	cpu_idle();
 }
 
 /*
+ * Called from kernel_init( ) -> smp_init( ) - for each CPU
+ *
  * At this point, Secondary Processor  is "HALT"ed:
  *  -It booted, but was halted in head.S
  *  -It was configured to halt-on-reset
@@ -141,6 +145,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	secondary_idle_tsk = idle;
 
 	pr_info("Trying to bring up CPU%u ...\n", cpu);
+	pr_info("Idle Task [%d] %p", cpu, idle);
 
 	arc_platform_smp_wakeup_cpu(cpu,
 				(unsigned long)first_lines_of_secondary);
@@ -188,7 +193,8 @@ int __init setup_profiling_timer(unsigned int multiplier)
  * IPI Timer not needed because each ARC has an individual Interrupting Timer
  */
 enum ipi_msg_type {
-	IPI_RESCHEDULE,
+	IPI_NOP = 0,
+	IPI_RESCHEDULE = 1,
 	IPI_CALL_FUNC,
 	IPI_CALL_FUNC_SINGLE,
 	IPI_CPU_STOP

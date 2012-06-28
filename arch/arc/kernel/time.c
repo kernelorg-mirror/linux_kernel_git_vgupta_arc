@@ -107,7 +107,7 @@ static struct clocksource clocksource_t1 = {
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init arc_clocksource_init(void)
+void __cpuinit arc_clocksource_init(void)
 {
 	arc_timer1_setup_free_flow(ARC_TIMER_MAX);
 
@@ -129,7 +129,7 @@ static int arc_next_event(unsigned long delta, struct clock_event_device *dev)
 static void arc_set_mode(enum clock_event_mode mode,
 			 struct clock_event_device *dev)
 {
-	pr_info("clockevent mode switch to [%d]\n", mode);
+	pr_info("Device [%s] clockevent mode now [%d]\n", dev->name, mode);
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		arc_timer0_setup_event(CONFIG_ARC_PLAT_CLK / HZ);
@@ -143,7 +143,7 @@ static void arc_set_mode(enum clock_event_mode mode,
 	return;
 }
 
-struct clock_event_device arc_clockevent_device = {
+static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
 	.name		= "ARC Timer0",
 	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
 	.mode		= CLOCK_EVT_MODE_UNUSED,
@@ -156,7 +156,7 @@ struct clock_event_device arc_clockevent_device = {
 static irqreturn_t timer_irq_handler(int irq, void *dev_id);
 
 static struct irqaction arc_timer_irq = {
-	.name = "ARC Timer0",
+	.name = "Timer0 (clock-evt-dev)",
 	.flags = IRQF_TIMER | IRQF_DISABLED,
 	.handler = timer_irq_handler,
 	.dev_id = &arc_clockevent_device,
@@ -164,21 +164,23 @@ static struct irqaction arc_timer_irq = {
 
 irqreturn_t timer_irq_handler(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = dev_id;
+	unsigned int cpu = smp_processor_id();
+	struct clock_event_device *evt = &per_cpu(arc_clockevent_device, cpu);
 
 	arc_timer0_ack_event(evt->mode == CLOCK_EVT_MODE_PERIODIC);
 	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
 
-static void __cpuinit arc_clockevent_init(void)
+void __cpuinit arc_clockevent_init(void)
 {
-	struct clock_event_device *evt = &arc_clockevent_device;
+	unsigned int cpu = smp_processor_id();
+	struct clock_event_device *evt = &per_cpu(arc_clockevent_device, cpu);
 
 	clockevents_calc_mult_shift(evt, CONFIG_ARC_PLAT_CLK, 5);
 
 	evt->max_delta_ns = clockevent_delta2ns(ARC_TIMER_MAX, evt);
-	evt->cpumask = cpumask_of(0);
+	evt->cpumask = cpumask_of(cpu);
 
 	clockevents_register_device(evt);
 
