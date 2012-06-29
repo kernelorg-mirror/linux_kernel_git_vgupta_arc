@@ -49,14 +49,21 @@
 
 ;--------------------------------------------------------------------------
 ; scratch memory to save the registers (r0-r3) used to code TLB refill Handler
-; TODO: This wont work in SMP
+; For details refer to comments before TLBMISS_FREEUP_REGS below
 ;--------------------------------------------------------------------------
+
 ARCFP_DATA ex_saved_reg1
 	.align 1 << L1_CACHE_SHIFT	; IMP: Must be Cache Line aligned
 	.type   ex_saved_reg1, @object
+#ifdef CONFIG_SMP
+	.size   ex_saved_reg1, (CONFIG_NR_CPUS << L1_CACHE_SHIFT)
+ex_saved_reg1:
+	.zero (CONFIG_NR_CPUS << L1_CACHE_SHIFT)
+#else
 	.size   ex_saved_reg1, 16
 ex_saved_reg1:
 	.zero 16
+#endif
 
 ;============================================================================
 ;  Troubleshooting Stuff
@@ -197,9 +204,40 @@ ex_saved_reg1:
 #endif
 .endm
 
-.macro FREEUP_SCRATCH_REGS
+;-----------------------------------------------------------------
+; ARC700 Exception Handling doesn't auto-switch stack and it only provides
+; ONE scratch AUX reg "ARC_REG_SCRATCH_DATA0"
+;
+; For Non-SMP, the scratch AUX reg is repurposed to cache task PGD, so a
+; "global" is used to free-up FIRST core reg to be able to code the rest of
+; exception prologue (IRQ auto-disabled on Exceptions, so it IRQ-safe).
+; Since, the Fast Path TLB Miss handler is coded with a handful of regs(4),
+; it doesn't need to save the complete reg file. And to avoid having to switch
+; the stack (to save other 3 regs) we extend the above "global" to be 4 words
+; deep. Hence
+;	".size   ex_saved_reg1, 16"
+;
+; For ARC700 SMP, the "global" obviously can't be used for free up the FIRST
+; core reg as it will not be SMP safe.
+; Thus scratch AUX reg is used (and no longer used to cache task PGD).
+; To save the rest of 3 regs - per cpu, the global is made "per-cpu".
+; Epilogue thus has to locate the "per-cpu" storage for regs.
+; To avoid cache line bouncing the per-cpu global is aligned/sized per
+; L1_CACHE_SHIFT, despite fundamentally needing to be 12 bytes only. Hence
+;	".size   ex_saved_reg1, (CONFIG_NR_CPUS << L1_CACHE_SHIFT)"
+
+; As simple as that....
+
+.macro TLBMISS_FREEUP_REGS
+#ifdef CONFIG_SMP
+	sr  r0, [ARC_REG_SCRATCH_DATA0]	; freeup r0 to code with
+	GET_CPU_ID  r0			; get to per cpu scratch mem,
+	lsl r0, r0, L1_CACHE_SHIFT	; cache line wide per cpu
+	add r0, @ex_saved_reg1, r0
+#else
 	st    r0, [@ex_saved_reg1]
 	mov_s r0, @ex_saved_reg1
+#endif
 	st_s  r1, [r0, 4]
 	st_s  r2, [r0, 8]
 	st_s  r3, [r0, 12]
@@ -213,12 +251,23 @@ ex_saved_reg1:
 	DBG_ASID_MISMATCH
 .endm
 
-.macro RESTORE_SCRATCH_REGS
+;-----------------------------------------------------------------
+.macro TLBMISS_RESTORE_REGS
+#ifdef CONFIG_SMP
+	GET_CPU_ID  r0			; get to per cpu scratch mem
+	lsl r0, r0, L1_CACHE_SHIFT	; each is cache line wide
+	add r0, @ex_saved_reg1, r0
+	ld_s  r3, [r0,12]
+	ld_s  r2, [r0, 8]
+	ld_s  r1, [r0, 4]
+	lr    r0, [ARC_REG_SCRATCH_DATA0]
+#else
 	mov_s r0, @ex_saved_reg1
 	ld_s  r3, [r0,12]
 	ld_s  r2, [r0, 8]
 	ld_s  r1, [r0, 4]
 	ld_s  r0, [r0]
+#endif
 .endm
 
 ARCFP_CODE	;Fast Path Code, candidate for ICCM
@@ -229,7 +278,7 @@ ARCFP_CODE	;Fast Path Code, candidate for ICCM
 
 ARC_ENTRY EV_TLBMissI
 
-	FREEUP_SCRATCH_REGS
+	TLBMISS_FREEUP_REGS
 
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	ld  r0, [@numitlb]
@@ -257,7 +306,7 @@ ARC_ENTRY EV_TLBMissI
 
 	CONV_PTE_TO_TLB
 	COMMIT_ENTRY_TO_MMU
-	RESTORE_SCRATCH_REGS
+	TLBMISS_RESTORE_REGS
 	rtie
 
 ARC_EXIT EV_TLBMissI
@@ -268,7 +317,7 @@ ARC_EXIT EV_TLBMissI
 
 ARC_ENTRY EV_TLBMissD
 
-	FREEUP_SCRATCH_REGS
+	TLBMISS_FREEUP_REGS
 
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	ld  r0, [@numdtlb]
@@ -327,12 +376,14 @@ ARC_ENTRY EV_TLBMissD
 #endif
 
 	COMMIT_ENTRY_TO_MMU
-	RESTORE_SCRATCH_REGS
+	TLBMISS_RESTORE_REGS
 	rtie
 
 ;-------- Common routine to call Linux Page Fault Handler -----------
 do_slow_path_pf:
-	RESTORE_SCRATCH_REGS
+
+	; Restore the 4-scratch regs saved by fast path miss handler
+	TLBMISS_RESTORE_REGS
 
 	; Slow path TLB Miss handled as a regular ARC Exception
 	; (stack switching / save the complete reg-file).
