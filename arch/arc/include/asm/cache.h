@@ -11,7 +11,7 @@
 
 /* In case $$ not config, setup a dummy number for rest of kernel */
 #ifndef CONFIG_ARC_CACHE_LINE_SHIFT
-#define L1_CACHE_SHIFT		5
+#define L1_CACHE_SHIFT		6
 #else
 #define L1_CACHE_SHIFT		CONFIG_ARC_CACHE_LINE_SHIFT
 #endif

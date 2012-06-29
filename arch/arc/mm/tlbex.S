@@ -45,20 +45,18 @@
 #include <asm/pgtable.h>
 #include <asm/event-log-asm.h>
 #include <asm/arcregs.h>
+#include <asm/cache.h>
 
 ;--------------------------------------------------------------------------
-; Temporary Variables used to Free UP a REG at the entry of Exception
-; ARC 700 doesnt have any scratch REG which can be used to free up a REG
-;   for low level stack switching and saving pre-exception REGS
-; Thus need these globals.
+; scratch memory to save the registers (r0-r3) used to code TLB refill Handler
 ; TODO: This wont work in SMP
 ;--------------------------------------------------------------------------
-ARCFP_DATA ex_saved_reg1	; Holds r0-r3 for duration of TLB Refill Code
-	.align 32		; IMP: Must be Cache Line aligned
+ARCFP_DATA ex_saved_reg1
+	.align 1 << L1_CACHE_SHIFT	; IMP: Must be Cache Line aligned
 	.type   ex_saved_reg1, @object
 	.size   ex_saved_reg1, 16
 ex_saved_reg1:
-	.zero 4
+	.zero 16
 
 ;============================================================================
 ;  Troubleshooting Stuff
@@ -200,8 +198,8 @@ ex_saved_reg1:
 .endm
 
 .macro FREEUP_SCRATCH_REGS
-	st    r0, [ex_saved_reg1]
-	mov_s r0, ex_saved_reg1
+	st    r0, [@ex_saved_reg1]
+	mov_s r0, @ex_saved_reg1
 	st_s  r1, [r0, 4]
 	st_s  r2, [r0, 8]
 	st_s  r3, [r0, 12]
@@ -216,7 +214,7 @@ ex_saved_reg1:
 .endm
 
 .macro RESTORE_SCRATCH_REGS
-	mov_s r0, ex_saved_reg1
+	mov_s r0, @ex_saved_reg1
 	ld_s  r3, [r0,12]
 	ld_s  r2, [r0, 8]
 	ld_s  r1, [r0, 4]
@@ -234,9 +232,9 @@ ARC_ENTRY EV_TLBMissI
 	FREEUP_SCRATCH_REGS
 
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-	ld  r0, [numitlb]
+	ld  r0, [@numitlb]
 	add r0, r0, 1
-	st  r0, [numitlb]
+	st  r0, [@numitlb]
 #endif
 
 	;----------------------------------------------------------------
@@ -273,9 +271,9 @@ ARC_ENTRY EV_TLBMissD
 	FREEUP_SCRATCH_REGS
 
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-	ld  r0, [numdtlb]
+	ld  r0, [@numdtlb]
 	add r0, r0, 1
-	st  r0, [numdtlb]
+	st  r0, [@numdtlb]
 #endif
 
 	;----------------------------------------------------------------
