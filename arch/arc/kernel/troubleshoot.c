@@ -43,6 +43,7 @@ void print_task_path_n_nm(struct task_struct *task, char *buf)
 	char *nm = NULL;
 	struct mm_struct *mm;
 	struct file *exe_file;
+	char comm_buf[TASK_COMM_LEN];
 
 	mm = get_task_mm(task);
 	if (!mm)
@@ -60,9 +61,10 @@ void print_task_path_n_nm(struct task_struct *task, char *buf)
 	}
 
 done:
-	pr_info("task = %s '%s', TGID %u PID = %u\n", nm, task->comm,
-		task->tgid, task->pid);
+	pr_info("task = %s '%s', TGID %u PID = %u\n", nm,
+		get_task_comm(comm_buf, task), task->tgid, task->pid);
 }
+EXPORT_SYMBOL(print_task_path_n_nm);
 
 static void show_faulting_vma(unsigned long address, char *buf)
 {
