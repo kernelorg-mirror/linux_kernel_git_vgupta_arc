@@ -355,6 +355,30 @@
 .endm
 
 /*--------------------------------------------------------------
+ * For early Exception Prologue, a core reg is temporarily needed to
+ * code the rest of prolog (stack switching). This is done by stashing
+ * it to memory (non-SMP case) or SCRATCH0 Aux Reg (SMP).
+ *
+ * Before saving the full regfile - this reg is restored back, only
+ * to be saved again on kernel mode stack, as part of ptregs.
+ *-------------------------------------------------------------*/
+.macro EXCPN_PROLOG_FREEUP_REG	reg
+#ifdef CONFIG_SMP
+	sr  \reg, [ARC_REG_SCRATCH_DATA0]
+#else
+	st  \reg, [@ex_saved_reg1]
+#endif
+.endm
+
+.macro EXCPN_PROLOG_RESTORE_REG	reg
+#ifdef CONFIG_SMP
+	lr  \reg, [ARC_REG_SCRATCH_DATA0]
+#else
+	ld  \reg, [@ex_saved_reg1]
+#endif
+.endm
+
+/*--------------------------------------------------------------
  * Save all registers used by Exceptions (TLB Miss, Prot-V, Mem err etc)
  * Requires SP to be already switched to kernel mode Stack
  * sp points to the next free element on the stack at exit of this macro.
@@ -365,14 +389,12 @@
  *-------------------------------------------------------------*/
 .macro SAVE_ALL_EXCEPTION   marker
 
-	/* restore original r9 , saved in ex_saved_reg1
-	* It will be saved on stack in macro: SAVE_CALLER_SAVED
-	*/
-	ld  r9, [@ex_saved_reg1]
+	/* Restore r9 used to code the early prologue */
+	EXCPN_PROLOG_RESTORE_REG  r9
 
-	/* now we are ready to save the remaining context */
+	/* Save the complete regfile now */
 
-	/* orig_r8:
+	/* orig_r8 marker:
 	 * syscalls   -> 1 to NR_SYSCALLS
 	 * Exceptions -> NR_SYSCALLS + 1
 	 * Break-point-> NR_SYSCALLS + 2

@@ -333,7 +333,11 @@ ARC_ENTRY EV_TLBMissD
 ;-------- Common routine to call Linux Page Fault Handler -----------
 do_slow_path_pf:
 	RESTORE_SCRATCH_REGS
-	st  r9, [@ex_saved_reg1]
+
+	; Slow path TLB Miss handled as a regular ARC Exception
+	; (stack switching / save the complete reg-file).
+	; That requires freeing up r9
+	EXCPN_PROLOG_FREEUP_REG r9
 
 	; take a snapshot of upon entering SLOW Path TLB Hdlr
 	TAKE_SNAP_ASM r8, r9, SNAP_DO_PF_ENTER

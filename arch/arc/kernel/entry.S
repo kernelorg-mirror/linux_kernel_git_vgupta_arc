@@ -318,7 +318,7 @@ ARC_EXIT handle_interrupt_level1
 
 ARC_ENTRY instr_service
 
-	st  r9, [@ex_saved_reg1]
+	EXCPN_PROLOG_FREEUP_REG r9
 
 	TAKE_SNAP_ASM r8, r9, SNAP_EXCP_IN
 
@@ -344,7 +344,7 @@ ARC_EXIT instr_service
 
 ARC_ENTRY mem_service
 
-	st  r9, [@ex_saved_reg1]
+	EXCPN_PROLOG_FREEUP_REG r9
 
 	TAKE_SNAP_ASM r8, r9, SNAP_EXCP_IN
 
@@ -366,7 +366,7 @@ ARC_EXIT mem_service
 
 ARC_ENTRY EV_MachineCheck
 
-	st  r9, [@ex_saved_reg1]
+	EXCPN_PROLOG_FREEUP_REG r9
 	lr  r9, [erstatus]
 
 	SWITCH_TO_KERNEL_STK
@@ -397,8 +397,7 @@ ARC_EXIT EV_MachineCheck
 
 ARC_ENTRY EV_TLBProtV
 
-	; free up r9 as scratchpad
-	st  r9, [@ex_saved_reg1]
+	EXCPN_PROLOG_FREEUP_REG r9
 
 	TAKE_SNAP_ASM r8, r9, SNAP_EXCP_IN
 
@@ -471,7 +470,8 @@ ARC_EXIT EV_TLBProtV
 ; Privilege Violation Exception Handler
 ; ---------------------------------------------
 ARC_ENTRY EV_PrivilegeV
-	st  r9, [@ex_saved_reg1]
+
+	EXCPN_PROLOG_FREEUP_REG r9
 
 	TAKE_SNAP_ASM r8, r9, SNAP_EXCP_IN
 
@@ -494,7 +494,8 @@ ARC_EXIT EV_PrivilegeV
 ; Extension Instruction Exception Handler
 ; ---------------------------------------------
 ARC_ENTRY EV_Extension
-	st  r9, [@ex_saved_reg1]
+
+	EXCPN_PROLOG_FREEUP_REG r9
 	lr  r9, [erstatus]
 
 	SWITCH_TO_KERNEL_STK
@@ -595,8 +596,8 @@ trap_with_param:
 
 ARC_ENTRY EV_Trap
 
-	; free up r9 as scratchpad
-	st  r9, [@ex_saved_reg1]
+	; Need at least 1 reg to code the early exception prolog
+	EXCPN_PROLOG_FREEUP_REG r9
 
 	TAKE_SNAP_ASM r10, r9,  SNAP_TRAP_IN
 
@@ -616,7 +617,7 @@ ARC_ENTRY EV_Trap
 	; Before doing anything, return from CPU Exception Mode
 	FAKE_RET_FROM_EXCPN r11
 
-	; Is this task being TRACED and Is Tracer interested in System Call tracing
+	; If TRACED, is the Tracer interested in System Call tracing
 	GET_CURR_THR_INFO_FROM_SP   r9
 	ld  r10, [r9, THREAD_INFO_FLAGS]
 	and.f   0, r10, _TIF_SYSCALL_TRACE
