@@ -6,9 +6,9 @@
 # published by the Free Software Foundation.
 #
 
-obj-y += platform.o
+obj-y := platform.o
 
-obj-$(CONFIG_ARC_HAS_SMP_EXTN_MODEL)	= smp.o
+obj-$(CONFIG_ARC_HAS_SMP_EXTN_MODEL)	+= smp.o
 
-obj-$(CONFIG_ARC_AHB_PCI_BRIDGE) 	= aa4_pci.o
+obj-$(CONFIG_ARC_AHB_PCI_BRIDGE) 	+= aa4_pci.o
 export CFLAGS_aa4_pci.o = -mlong-calls

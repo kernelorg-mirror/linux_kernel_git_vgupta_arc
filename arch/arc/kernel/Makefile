@@ -8,9 +8,9 @@
 # Pass UTS_MACHINE for user_regset definition
 CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
-obj-y	+= arcksyms.o ptrace.o sys_arc.o setup.o irq.o time.o reset.o
-obj-y	+= troubleshoot.o stacktrace.o
-obj-y	+= entry.o process.o signal.o traps.o
+obj-y	:= arcksyms.o ptrace.o sys_arc.o setup.o irq.o time.o reset.o	\
+	   troubleshoot.o stacktrace.o \
+	   entry.o process.o signal.o traps.o
 
 obj-$(CONFIG_ARC_DBG_EVENT_TIMELINE)	+= event-log.o
 obj-$(CONFIG_MODULES)			+= arcksyms.o module.o
