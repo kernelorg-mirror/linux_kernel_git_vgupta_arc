@@ -1,51 +1,29 @@
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2011-12 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Vineetg: Mar 2009
- *  -use generic irqaction to store IRQ requests
- *  -device ISRs no longer take pt_regs (rest of the kernel convention)
- *  -request_irq( ) definition matches declaration in inc/linux/interrupt.h
- *
- * Vineetg: Mar 2009 (Supporting 2 levels of Interrupts)
- *  -local_irq_enable shd be cognizant of current IRQ state
- *    It is lot more involved now and thus re-written in "C"
- *  -set_irq_regs in common ISR now always done and not dependent
- *      on CONFIG_PROFILEas it is used by
- *
- * Vineetg: Jan 2009
- *  -Cosmetic change to display the registered ISR name for an IRQ
- *  -free_irq( ) cleaned up to not have special first-node/other node cases
- *
- * Vineetg: June 17th 2008
- *  -Added set_irq_regs() to top level ISR for profiling
- *  -Don't Need __cli just before irq_exit(). Intr already disabled
- *  -Disabled compile time ARC_IRQ_DBG
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/seq_file.h>
-#include <linux/errno.h>
-#include <linux/kallsyms.h>
-#include <linux/kernel_stat.h>
-#include <linux/slab.h>
 #include <asm/sections.h>
 #include <asm/irq.h>
 
-/* table for system interrupt handlers */
-
-static struct irqaction *irq_list[NR_IRQS];
-static int irq_depth[NR_IRQS];
-
-/* IRQ status spinlock - enable, disable */
-static spinlock_t irq_controller_lock;
-
-void __init arc_irq_init(void)
+/*
+ * Early Interrupt sub-system setup
+ * -Called very early (start_kernel -> setup_arch -> setup_processor)
+ * -Platform Independent (must for any ARC700)
+ * -Needed for each CPU (hence not foldable into init_IRQ)
+ *
+ * what it does ?
+ * -setup Vector Table Base Reg - in case Linux not linked at 0x8000_0000
+ * -Disable all IRQs (on CPU side)
+ * -Optionally, setup the High priority Interrupts as Level 2 IRQs
+ */
+void __init arc_init_IRQ(void)
 {
 	int level_mask = level_mask;
 
@@ -71,257 +49,31 @@ void __init arc_irq_init(void)
                write_aux_reg(AUX_IRQ_LEV, level_mask);
        }
 #endif
-
-	/* initialise platform interrupt controller */
-	platform_irq_init();
 }
 
+/*
+ * Late Interrupt system init called from start_kernel for Boot CPU only
+ *
+ * Since slab must already be initialized, platforms can start doing any
+ * needed setup_irq( )s
+ */
 void __init init_IRQ(void)
 {
-#ifdef CONFIG_SMP
-	smp_ipi_init();
-#endif
+	plat_init_IRQ();
 }
 
 /*
- * setup_irq - Attach an ISR to a IRQ (variant #1, takes @irqaction)
- *
- * Typically used by architecure special interrupts for
- * registering handler to IRQ line
+ * "C" Entry point for any ARC ISR, called from low level vector handler
  */
-
-int setup_irq(unsigned int irq, struct irqaction *node)
+void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
-	unsigned long flags;
-	struct irqaction **curr;
-	int rc;
-
-	pr_info("---IRQ Request (%d) ISR ", irq);
-	__print_symbol("%s\n", (unsigned long)node->handler);
-
-	spin_lock_irqsave(&irq_controller_lock, flags);	/* insert atomically */
-
-	rc = platform_setup_irq(irq, node->flags);
-	if (rc)
-		goto finish;
-
-	/* IRQ might be shared, thus we need a link list per IRQ for all ISRs
-	 * Adds to tail of list
-	 */
-	curr = &irq_list[irq];
-
-	while (*curr)
-		curr = &((*curr)->next);
-
-	*curr = node;
-
-	/* If this IRQ slot is enabled for first time (shared IRQ),
-	 * enable vector on CPU side
-	 */
-	if (irq_list[irq] == node)
-		unmask_interrupt((1 << irq));	/* AUX_IEMABLE */
-
-finish:
-	spin_unlock_irqrestore(&irq_controller_lock, flags);
-	return 0;
-}
-
-/*
- * request_irq - Attach an ISR to a IRQ (variant #2, all params itemised)
- *
- * Exported to device drivers / modules to assign handler to IRQ line
- */
-int request_irq(unsigned int irq,
-		irqreturn_t(*handler) (int, void *),
-		unsigned long flags, const char *name, void *dev_id)
-{
-	struct irqaction *node;
-	int retval;
-
-	if (irq >= NR_IRQS) {
-		pr_warn("%s: Unknown IRQ %d\n", __func__, irq);
-		return -ENXIO;
-	}
-
-	node = kmalloc(sizeof(struct irqaction), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
-
-	node->handler = handler;
-	node->flags = flags;
-	node->dev_id = dev_id;
-	node->name = name;
-	node->next = NULL;
-
-	/* insert the new irq registered into the irq list */
-
-	retval = setup_irq(irq, node);
-	if (retval)
-		kfree(node);
-	return retval;
-}
-EXPORT_SYMBOL(request_irq);
-
-/* free an irq node for the irq list */
-
-void free_irq(unsigned int irq, void *dev_id)
-{
-	unsigned long flags;
-	struct irqaction *tmp = NULL, **node;
-
-	if (irq >= NR_IRQS) {
-		pr_warn("%s: Invalid IRQ %d\n", __func__, irq);
-		return;
-	}
-
-	spin_lock_irqsave(&irq_controller_lock, flags);
-
-	node = &irq_list[irq];
-
-	while (*node) {
-		if ((*node)->dev_id == dev_id) {
-			tmp = *node;
-			(*node) = (*node)->next;
-			kfree(tmp);
-		} else {
-			node = &((*node)->next);
-		}
-	}
-
-	platform_free_irq(irq);
-
-	spin_unlock_irqrestore(&irq_controller_lock, flags);
-
-	if (!tmp)
-		pr_warn("%s: IRQ not registered", __func__);
-
-}
-EXPORT_SYMBOL(free_irq);
-
-/* handle the irq */
-void process_interrupt(unsigned int irq, struct pt_regs *fp)
-{
-	struct pt_regs *old = set_irq_regs(fp);
-	struct irqaction *node;
-	const int cpu = smp_processor_id();
+	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	irq_enter();
-
-	platform_process_interrupt(irq);
-
-	/* call all the ISR's in the list for that interrupt source */
-	node = irq_list[irq];
-	while (node) {
-		kstat_cpu(cpu).irqs[irq]++;
-		node->handler(irq, node->dev_id);
-		node = node->next;
-	}
-
-	if (!irq_list[irq])
-		pr_crit("Spurious Interrupt: irq %u cpu %u", irq, cpu);
-
+	generic_handle_irq(irq);
 	irq_exit();
-
-	set_irq_regs(old);
-	return;
+	set_irq_regs(old_regs);
 }
-
-/*
- * IRQ Autodetect not required for ARC
- * However the stubs still need to be exported for IDE et all
- */
-unsigned long probe_irq_on(void)
-{
-	return 0;
-}
-EXPORT_SYMBOL(probe_irq_on);
-
-int probe_irq_off(unsigned long irqs)
-{
-	return 0;
-}
-EXPORT_SYMBOL(probe_irq_off);
-
-void init_irq_proc(void)
-{
-	/* for implementing /proc/irq/xxx */
-}
-
-int show_interrupts(struct seq_file *p, void *v)
-{
-	int i = *(loff_t *) v, j;
-
-	if (i == 0) {		/* First line, first CPU */
-		seq_printf(p, "\t");
-		for_each_online_cpu(j)
-		    seq_printf(p, "CPU%-8d", j);
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS && irq_list[i] != NULL) {
-		seq_printf(p, "%u:\t", i);
-		if (strlen(irq_list[i]->name) < 8)
-			for_each_online_cpu(j)
-			    seq_printf(p, "%s\t\t\t%u\n", irq_list[i]->name,
-				       kstat_cpu(j).irqs[i]);
-
-		else
-			for_each_online_cpu(j)
-			    seq_printf(p, "%s\t\t%u\n", irq_list[i]->name,
-				       kstat_cpu(j).irqs[i]);
-	}
-
-	return 0;
-
-}
-
-/*
- * disable_irq - disable an irq and wait for completion
- * @irq: Interrupt to disable
- */
-void disable_irq(unsigned int irq)
-{
-	unsigned long flags;
-
-	if (irq < NR_IRQS && irq_list[irq]) {
-		spin_lock_irqsave(&irq_controller_lock, flags);
-		if (!irq_depth[irq]++) {
-			platform_disable_irq(irq);
-			mask_interrupt(1 << irq);
-		}
-		spin_unlock_irqrestore(&irq_controller_lock, flags);
-	}
-}
-EXPORT_SYMBOL(disable_irq);
-
-/*
- * enable_irq - enable interrupt handling on an irq
- * @irq: Interrupt to enable
- *
- * Re-enables the processing of interrupts on this IRQ line.
- * Note that this may call the interrupt handler, so you may
- * get unexpected results if you hold IRQs disabled.
- *
- * This function may be called from IRQ context.
- */
-void enable_irq(unsigned int irq)
-{
-	unsigned long flags;
-
-	if (irq < NR_IRQS && irq_list[irq]) {
-		spin_lock_irqsave(&irq_controller_lock, flags);
-		if (irq_depth[irq]) {
-			if (!--irq_depth[irq])
-				platform_enable_irq(irq);
-				unmask_interrupt(1 << irq);
-		} else {
-			pr_warn("Unbalanced IRQ action %d %s\n", irq,
-				__func__);
-		}
-		spin_unlock_irqrestore(&irq_controller_lock, flags);
-	}
-}
-EXPORT_SYMBOL(enable_irq);
 
 #ifdef CONFIG_SMP
 

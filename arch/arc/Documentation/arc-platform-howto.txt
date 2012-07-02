@@ -36,17 +36,12 @@ APIs/callbacks expected from platform code
 
 (1) IRQ handling Hooks
 
-void __init platform_irq_init(void);
-void platform_free_irq(unsigned int irq);
-int platform_setup_irq(unsigned int irq, unsigned int flags);
-void platform_process_interrupt(int irq);
-void platform_enable_irq(int irq);
-void platform_disable_irq(int irq);
+void __init platform_init_IRQ(void);
 
--setup/free/enable/disable are done with arch-common spinlock held,
- so there is no need for platform specific locking
--Look at arch/arc/kernel/irq.c for the order in which plat hooks are
- called w.r.t arch-common work.
+This needs to define a struct irq_chip and call irq_set_chip_and_handler( )
+to register the callbacks as needed by on-chip/off-chip IRQ controller
+-mask/unmask IRQ
+-optionally disable/enable
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 (2) High Priority Device IRQs (ARCompact ISA Level 2 Interrupts)

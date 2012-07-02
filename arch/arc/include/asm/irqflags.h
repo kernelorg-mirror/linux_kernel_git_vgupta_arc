@@ -89,32 +89,6 @@ static inline long arch_local_save_flags(void)
 }
 
 /*
- * mask/unmask an interrupt (@x = IRQ bitmap)
- * e.g. to Disable IRQ 3 and 4, pass 0x18
- *
- * mask = disable IRQ = CLEAR bit in AUX_I_ENABLE
- * unmask = enable IRQ = SET bit in AUX_I_ENABLE
- */
-
-#define mask_interrupt(x)			\
-	__asm__ __volatile__(			\
-	"	lr  r20, [auxienable]	\n"	\
-	"	and r20, r20, %0	\n"	\
-	"	sr  r20, [auxienable]	\n"	\
-	:					\
-	: "r" (~(x))				\
-	: "r20", "memory")
-
-#define unmask_interrupt(x)			\
-	__asm__ __volatile__(			\
-	"	lr r20, [auxienable]	\n"	\
-	"	or r20, r20, %0		\n"	\
-	"	sr r20, [auxienable]	\n"	\
-	:					\
-	: "r" (x)				\
-	: "r20", "memory")
-
-/*
  * Query IRQ state
  */
 static inline int arch_irqs_disabled_flags(unsigned long flags)
@@ -131,6 +105,24 @@ static inline int arch_irqs_disabled(void)
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
-#endif
+static void inline arch_mask_irq(unsigned int irq)
+{
+	unsigned int ienb;
+
+	ienb = read_aux_reg(AUX_IENABLE);
+	ienb &= ~(1 << irq);
+	write_aux_reg(AUX_IENABLE, ienb);
+}
+
+static void inline arch_unmask_irq(unsigned int irq)
+{
+	unsigned int ienb;
+
+	ienb = read_aux_reg(AUX_IENABLE);
+	ienb |= (1 << irq);
+	write_aux_reg(AUX_IENABLE, ienb);
+}
+
+#endif	/* KERNEL */
 
 #endif

@@ -264,9 +264,9 @@ ARC_ENTRY handle_interrupt_level2
 	;------------------------------------------------------
 	lr  r0, [icause2]
 	and r0, r0, 0x1f
-	mov r1, sp
 
-	bl  @process_interrupt
+	bl.d  @arch_do_IRQ
+	mov r1, sp
 
 	mov r8,0x2
 	sr r8, [AUX_IRQ_LV12]       ; clear bit in Sticky Status Reg
@@ -301,9 +301,8 @@ ARC_ENTRY handle_interrupt_level1
 	lr  r0, [icause1]
 	and r0, r0, 0x1f
 
+	bl.d  @arch_do_IRQ
 	mov r1, sp
-
-	bl  @process_interrupt
 
 	mov r8,0x1
 	sr r8, [AUX_IRQ_LV12]       ; clear bit in Sticky Status Reg

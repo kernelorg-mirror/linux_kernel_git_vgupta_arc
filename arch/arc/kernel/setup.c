@@ -336,7 +336,7 @@ void __init setup_processor(void)
 	char str[512];
 	int cpu_id = read_arc_build_cfg_regs();
 
-	arc_irq_init();
+	arc_init_IRQ();
 
 	printk(arc_cpu_mumbojumbo(cpu_id, str));
 
