@@ -45,7 +45,6 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
-
 #include <linux/in.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -56,6 +55,7 @@
 #include <linux/inet.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
+#include <linux/interrupt.h>
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
 #include <plat/memmap.h>

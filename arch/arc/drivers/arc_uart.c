@@ -407,11 +407,6 @@ static int arc_serial_startup(struct uart_port *port)
 	struct arc_serial_port *uart = (struct arc_serial_port *)port;
 	unsigned int tmp;
 
-	/* Edge Triggered Interrupts to eliminate Spurious Interrupts */
-	tmp = read_aux_reg(AUX_ITRIGGER);
-	tmp |= (1 << uart->port.irq);
-	write_aux_reg(AUX_ITRIGGER, tmp);
-
 	/* Before we hook up the ISR, Disable all UART Interrupts */
 	UART_ALL_IRQ_DISABLE(uart);
 
@@ -419,7 +414,7 @@ static int arc_serial_startup(struct uart_port *port)
 	 * We don't need IRQF_DISABLED since further IRQ auto-disabled
 	 */
 
-	if (request_irq(uart->port.irq, arc_serial_isr, IRQ_FLG_LOCK,
+	if (request_irq(uart->port.irq, arc_serial_isr, 0,
 			"ARC_UART_RX", uart)) {
 		pr_warn("Unable to attach ARC UART interrupt\n");
 		return -EBUSY;

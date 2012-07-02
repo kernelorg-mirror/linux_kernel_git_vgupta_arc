@@ -6,7 +6,7 @@
 # published by the Free Software Foundation.
 #
 
-obj-y := platform.o
+obj-y := platform.o irq.o
 
 obj-$(CONFIG_ARC_HAS_SMP_EXTN_MODEL)	+= smp.o
 
