@@ -30,10 +30,34 @@ extern void *dma_alloc_coherent(struct device *dev, size_t size,
 extern void dma_free_coherent(struct device *dev, size_t size, void *kvaddr,
 			      dma_addr_t dma_handle);
 
-/* Can possibly use __dma_cache_maint(a,b,c,current_text_addr()) */
-#define _dma_cache_maint(a, b, c) __dma_cache_maint(a, b, c, 0)
+/*
+ * Intermediate glue to identify the immediate caller of dma mapping API.
+ * Both __func__ and __builtin_return_address(0) are not appropriate given the
+ * current layering of API. A typical call stack would look like following:
+ *
+ * generic_irq_handler()
+ * ->  xyz_driver_routine()
+ * -->   dma_map_single() 	[is "C" inline]
+ * --->     _dma_cache_maint() 	["C" macro, becomes __dma_cache_maint]
+ * --->     __dma_cache_maint()
+ *
+ * __builtin_return_address(0) will yield "generic_irq_hander" while
+ * __func__ will show "dma_map_single", whereas we really want to see
+ * "xyz_driver_routine".
+ *
+ * The over-head of calling current_text_addr() unconditionally (vs. on DEBUG)
+ * is just one insn to read PCL. Doing it based on DEBUG, would have meant
+ * building all potential callers of dma API with DEBUG to find the caller,
+ * which is kind of useless since we don't know the caller in first place.
+ *
+ * __dma_cache_maint() however will only print the caller info if DEBUG or
+ * CONFIG_DYNAMIC_DEBUG
+ */
+#define CALLER_IDENT ((unsigned long)current_text_addr())
+#define _dma_cache_maint(a, b, c) __dma_cache_maint(a, b, c, CALLER_IDENT)
 
-extern void __dma_cache_maint(void *start, size_t sz, int dir, void *caller);
+extern void __dma_cache_maint(void *start, size_t sz, int dir,
+				unsigned long caller);
 
 /*******************************************************************
  * Streaming DMA Mapping APIs:

@@ -70,17 +70,20 @@ EXPORT_SYMBOL(dma_free_coherent);
  * Helper which invokes the appropriate Cache routines
  */
 
-void __dma_cache_maint(void *start, size_t sz, int dir, void *caller_for_dbg)
+void __dma_cache_maint(void *start, size_t sz, int dir, unsigned long caller)
 {
 	unsigned long addr = (unsigned long)start;
 
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	/* Check for buffer's Cache line alignment
 	 *  otherwise there could be ugly side effects.
 	 */
 	if (is_not_cache_aligned(start)) {
-		pr_debug("Non-align Cache op for %#lx at", addr);
-		__print_symbol("%s\n", (unsigned long)caller_for_dbg);
+		char nm[KSYM_SYMBOL_LEN];
+		sprint_symbol(nm, caller);
+		pr_debug("Non-align Cache op for %#lx from %s\n", addr, nm);
 	}
+#endif
 
 	switch (dir) {
 	case DMA_FROM_DEVICE:
