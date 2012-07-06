@@ -39,6 +39,7 @@
  * We've designated TIMER0 for events (clockevents)
  * while TIMER1 for free running (clocksource)
  */
+#define ARC_TIMER_MAX	0xFFFFFFFF
 
 /******************************************************************
  * Hardware Interface routines to program the ARC TIMERs
@@ -108,46 +109,16 @@ static struct clocksource clocksource_t1 = {
 
 static void __init arc_clocksource_init(void)
 {
-	u64 temp;
-	u32 shift;
-	struct clocksource *cs = &clocksource_t1;
+	arc_timer1_setup_free_flow(ARC_TIMER_MAX);
 
-	/* Find a shift value */
-	for (shift = 32; shift > 0; shift--) {
-		temp = (u64) NSEC_PER_SEC << shift;
-		do_div(temp, CONFIG_ARC_PLAT_CLK);
-		if ((temp >> 32) == 0)
-			break;
-	}
-	cs->shift = shift;
-	cs->mult = (u32) temp;
-
-	arc_timer1_setup_free_flow(0xFFFFFFFF);
-
-	clocksource_register(&clocksource_t1);
+	/*
+	 * CLK upto 4.29 GHz can be safely represented in 32 bits because
+	 * Max 32 bit number is 4,294,967,295
+	 */
+	clocksource_register_hz(&clocksource_t1, CONFIG_ARC_PLAT_CLK);
 }
 
 /********** Clock Event Device *********/
-
-struct clock_event_device arc_clockevent_device;
-
-static irqreturn_t timer_irq_handler(int irq, void *dev_id);
-
-static struct irqaction arc_timer_irq = {
-	.name = "ARC Timer0",
-	.flags = IRQF_TIMER | IRQF_DISABLED,
-	.handler = timer_irq_handler,
-	.dev_id = &arc_clockevent_device,
-};
-
-irqreturn_t timer_irq_handler(int irq, void *dev_id)
-{
-	struct clock_event_device *evt = dev_id;
-
-	arc_timer0_ack_event(evt->mode == CLOCK_EVT_MODE_PERIODIC);
-	evt->event_handler(evt);
-	return IRQ_HANDLED;
-}
 
 static int arc_next_event(unsigned long delta, struct clock_event_device *dev)
 {
@@ -172,45 +143,44 @@ static void arc_set_mode(enum clock_event_mode mode,
 	return;
 }
 
+struct clock_event_device arc_clockevent_device = {
+	.name		= "ARC Timer0",
+	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
+	.mode		= CLOCK_EVT_MODE_UNUSED,
+	.rating		= 300,
+	.irq		= TIMER0_INT,
+	.set_next_event = arc_next_event,
+	.set_mode 	= arc_set_mode,
+};
+
+static irqreturn_t timer_irq_handler(int irq, void *dev_id);
+
+static struct irqaction arc_timer_irq = {
+	.name = "ARC Timer0",
+	.flags = IRQF_TIMER | IRQF_DISABLED,
+	.handler = timer_irq_handler,
+	.dev_id = &arc_clockevent_device,
+};
+
+irqreturn_t timer_irq_handler(int irq, void *dev_id)
+{
+	struct clock_event_device *evt = dev_id;
+
+	arc_timer0_ack_event(evt->mode == CLOCK_EVT_MODE_PERIODIC);
+	evt->event_handler(evt);
+	return IRQ_HANDLED;
+}
+
 static void __cpuinit arc_clockevent_init(void)
 {
-	u64 temp;
-	u32 shift;
-	struct clock_event_device *cd = &arc_clockevent_device;
+	struct clock_event_device *evt = &arc_clockevent_device;
 
-	cd->name = "ARC Clock";
-	cd->features = CLOCK_EVT_FEAT_ONESHOT;
-	cd->features |= CLOCK_EVT_FEAT_PERIODIC;
-	cd->mode = CLOCK_EVT_MODE_UNUSED;
+	clockevents_calc_mult_shift(evt, CONFIG_ARC_PLAT_CLK, 5);
 
-	/* Find a shift value */
-	for (shift = 32; shift > 0; shift--) {
-		temp = (u64) CONFIG_ARC_PLAT_CLK << shift;
-		do_div(temp, NSEC_PER_SEC);
-		if ((temp >> 32) == 0)
-			break;
-	}
-	cd->shift = shift;
-	cd->mult = (u32) temp;
+	evt->max_delta_ns = clockevent_delta2ns(ARC_TIMER_MAX, evt);
+	evt->cpumask = cpumask_of(0);
 
-	/* configuring min_delta_ns as nanoseconds for 1 tick
-	 * and max_delta_ns as 0xffffffff, max limit value accepted by hardware
-	 * for any event at less than the min_delta_ns is rounded to this time
-	 * and for any event at more than the max_delta_ns we configure the max
-	 * and end up having intermediate ticks before the event
-	 * This is taken care in clockevent_program_event
-	 */
-
-	cd->max_delta_ns = clockevent_delta2ns(0xffffffff, cd);
-	cd->min_delta_ns = clockevent_delta2ns(0x1, cd);
-
-	cd->rating = 300;
-	cd->irq = TIMER0_INT;
-	cd->cpumask = cpumask_of(0);
-	cd->set_next_event = arc_next_event;
-	cd->set_mode = arc_set_mode;
-
-	clockevents_register_device(cd);
+	clockevents_register_device(evt);
 
 	setup_irq(TIMER0_INT, &arc_timer_irq);
 }
