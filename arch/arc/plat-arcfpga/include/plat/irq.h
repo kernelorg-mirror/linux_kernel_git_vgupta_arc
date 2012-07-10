@@ -21,9 +21,9 @@
 #define TIMER0_INT      3
 #define TIMER1_INT      4
 
-#define VUART_IRQ       5
-#define VUART1_IRQ      10
-#define VUART2_IRQ      11
+#define UART0_IRQ       5
+#define UART1_IRQ      10
+#define UART2_IRQ      11
 
 #define VMAC_IRQ        6
 

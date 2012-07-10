@@ -423,6 +423,7 @@ __tagtable(ATAG_CACHE, parse_tag_cache);
 #ifdef CONFIG_ARC_SERIAL
 static int __init parse_tag_serial(struct tag *tag)
 {
+	int serial_baudrate;
 	printk_init("ATAG_SERIAL: serial_nr = %d\n", tag->u.serial.serial_nr);
 	/* when we have multiple uart's serial_nr should also be processed */
 	printk_init("ATAG_SERIAL: serial baudrate = %d\n",
@@ -567,6 +568,12 @@ void __init setup_arch(char **cmdline_p)
 		printk_init("SKIPPING ATAG parsing...\n");
 	}
 
+	/* Save unparsed command line copy for /proc/cmdline */
+	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
+	*cmdline_p = command_line;
+
+	_current_task[0] = &init_task;
+
 	/* Platform/board specific: e.g. early console registration */
 	arc_platform_early_init();
 
@@ -577,15 +584,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	setup_arch_memory();
-
-	*cmdline_p = command_line;
-	/*
-	 *  save a copy of he unparsed command line for the
-	 *  /proc/cmdline interface
-	 */
-	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
-
-	_current_task[0] = &init_task;
 
 	/* If no initramfs provided to kernel, and no NFS root, we fall back to
 	 * /dev/hda2 as ROOT device, assuming it has busybox and other

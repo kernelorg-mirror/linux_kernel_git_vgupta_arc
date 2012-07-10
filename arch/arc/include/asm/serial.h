@@ -9,13 +9,6 @@
 #ifndef _ASM_ARC_SERIAL_H
 #define _ASM_ARC_SERIAL_H
 
-/* XXX: This is driver specific. Will go away soon */
-#if defined(CONFIG_ARC_SERIAL) && defined(CONFIG_EARLY_PRINTK)
-extern void __init arc_early_serial_reg(void);
-#endif
-
-extern unsigned long serial_baudrate;
-
 #include <asm-generic/serial.h>
 
 #endif /* _ASM_ARC_SERIAL_H */

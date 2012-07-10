@@ -12,7 +12,8 @@
 #ifndef __PLAT_MEMMAP_H
 #define __PLAT_MEMMAP_H
 
-#define UART_BASE0              0xC0FC1000
+#define UART0_BASE              0xC0FC1000
+#define UART1_BASE              0xC0FC1100
 
 #define VMAC_REG_BASEADDR       0xC0FC2000
 
