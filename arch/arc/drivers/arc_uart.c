@@ -583,7 +583,13 @@ static int __devinit arc_serial_console_setup(struct console *co, char *options)
 	if (co->index < 0 || co->index >= CONFIG_ARC_SERIAL_NR_PORTS)
 		return -ENODEV;
 
+	/*
+	 * The uart port backing the console (e.g. ttyS1) might not have been
+	 * init yet. If so, defer the console setup to after the port.
+	 */
 	port = &arc_uart_ports[co->index].port;
+	if (!port->membase)
+		return -ENODEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);

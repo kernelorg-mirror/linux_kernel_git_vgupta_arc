@@ -79,28 +79,35 @@ static unsigned long arc_uart_info[] = {
 	CONFIG_ARC_SERIAL_BAUD, CONFIG_ARC_PLAT_CLK, 0
 };
 
-static struct resource arc_uart0_res[] = {
-	{
-		.start = UART0_BASE,
-		.end   = UART0_BASE + 0xFF,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = UART0_IRQ,
-		.end   = UART0_IRQ,
-		.flags = IORESOURCE_IRQ,
-	},
-};
+#define ARC_UART_DEV(n)					\
+							\
+static struct resource arc_uart##n##_res[] = {		\
+	{						\
+		.start = UART##n##_BASE,			\
+		.end   = UART##n##_BASE + 0xFF,		\
+		.flags = IORESOURCE_MEM,		\
+	},						\
+	{						\
+		.start = UART##n##_IRQ,			\
+		.end   = UART##n##_IRQ,			\
+		.flags = IORESOURCE_IRQ,		\
+	},						\
+};							\
+							\
+static struct platform_device arc_uart##n##_dev = {	\
+	.name = "arc-uart",				\
+	.id = n,					\
+	.num_resources = ARRAY_SIZE(arc_uart##n##_res),	\
+	.resource = arc_uart##n##_res,			\
+	.dev = {					\
+		.platform_data = &arc_uart_info,	\
+	},						\
+}
 
-static struct platform_device arc_uart0_dev = {
-	.name = "arc-uart",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(arc_uart0_res),
-	.resource = arc_uart0_res,
-	.dev = {
-		.platform_data = &arc_uart_info, /* Passed to driver */
-	},
-};
+ARC_UART_DEV(0);
+#if CONFIG_ARC_SERIAL_NR_PORTS > 1
+ARC_UART_DEV(1);
+#endif
 
 static struct platform_device *fpga_early_devs[] __initdata = {
 #if defined(CONFIG_ARC_SERIAL_CONSOLE)
@@ -151,6 +158,9 @@ void __init arc_platform_early_init(void)
 static struct platform_device *fpga_devs[] __initdata = {
 #if defined(CONFIG_ARC_SERIAL)
 	&arc_uart0_dev,
+#if CONFIG_ARC_SERIAL_NR_PORTS > 1
+	&arc_uart1_dev,
+#endif
 #endif
 };
 
