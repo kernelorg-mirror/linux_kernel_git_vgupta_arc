@@ -36,6 +36,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
+#include <linux/io.h>
 
 /*************************************
  * ARC UART Hardware Specs
@@ -549,7 +550,11 @@ arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 		return -ENODEV;
 
 	uart->port.mapbase = res->start;
-	uart->port.membase = (void *)res->start;
+	uart->port.membase = ioremap_nocache(res->start, resource_size(res));
+	if (!uart->port.membase)
+		/* No point of pr_err since UART itself is hosed here */
+		return -ENXIO;
+
 	uart->port.irq = res2->start;
 	uart->port.dev = &pdev->dev;
 	uart->port.iotype = UPIO_MEM;
