@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <asm/cacheflush.h>
+#include <asm/cache.h>
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
 
@@ -28,6 +29,17 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	last_addr = phys_addr + size - 1;
 	if (!size || last_addr < phys_addr)
 		return NULL;
+
+	/* If the region is h/w uncached, nothing special needed */
+	if (phys_addr >= ARC_UNCACHED_ADDR_SPACE) {
+		if (!uncached) {
+			pr_err("cached ioremap req for uncached addr [%lx]\n",
+				phys_addr);
+			return NULL;
+		} else {
+			return (void __iomem *)phys_addr;
+		}
+	}
 
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
@@ -82,6 +94,9 @@ EXPORT_SYMBOL(__ioremap);
 void iounmap(const void __iomem *addr)
 {
 	struct vm_struct *p;
+
+	if (addr >= (void __iomem *)ARC_UNCACHED_ADDR_SPACE)
+		return;
 
 	p = remove_vm_area((void *)(PAGE_MASK & (unsigned long __force)addr));
 	if (!p)

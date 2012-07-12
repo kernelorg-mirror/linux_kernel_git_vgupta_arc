@@ -14,15 +14,10 @@
 extern void *__ioremap(unsigned long physaddr, unsigned long size,
 		       unsigned long flags);
 
-static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
-{
-	return __ioremap(offset, size, 0);
-}
+#define ioremap_nocache(phy, sz)	__ioremap(phy, sz, 1)
 
-static inline void *ioremap_nocache(unsigned long physaddr, unsigned long size)
-{
-	return __ioremap(physaddr, size, 1);
-}
+/* Wrokaroud the braindead drivers which don't know what to do */
+#define ioremap(phy, sz)		ioremap_nocache(phy, sz)
 
 extern void iounmap(const void __iomem *addr);
 

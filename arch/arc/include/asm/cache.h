@@ -59,6 +59,13 @@ extern unsigned int ARC_shmlba;
 
 #define ARCH_DMA_MINALIGN      L1_CACHE_BYTES
 
+/*
+ * ARC700 doesn't cache any access in top 256M.
+ * Ideal for wiring memory mapped peripherals as we don't need to do
+ * explicit uncached accesses (LD.di/ST.di) hence more portable drivers
+ */
+#define ARC_UNCACHED_ADDR_SPACE	0xc0000000
+
 extern void arc_cache_init(void);
 extern char *arc_cache_mumbojumbo(int cpu_id, char *buf);
 extern void __init read_decode_cache_bcr(void);
