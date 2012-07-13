@@ -24,7 +24,7 @@
  *  -check if sysreq works
  */
 
-#if defined(CONFIG_ARC_SERIAL_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#if defined(CONFIG_SERIAL_ARC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
 
@@ -46,17 +46,18 @@
 /*
  * UART Register set (this is not a Standards Compliant IP)
  * Also each reg is Word aligned, but only 8 bits wide
+ * volatile needed so that gcc doesn't optimize away some of the I/O ops
  */
-typedef volatile struct {
-	unsigned char id0 __attribute__ ((aligned(4)));
-	unsigned char id1 __attribute__ ((aligned(4)));
-	unsigned char id2 __attribute__ ((aligned(4)));
-	unsigned char id3 __attribute__ ((aligned(4)));
-	unsigned char data __attribute__ ((aligned(4)));
-	unsigned char status __attribute__ ((aligned(4)));
-	unsigned char baudl __attribute__ ((aligned(4)));
-	unsigned char baudh __attribute__ ((aligned(4)));
-} arc_uart_registers;
+struct arc_uart_reg {
+	unsigned char __aligned(4) id0;
+	unsigned char __aligned(4) id1;
+	unsigned char __aligned(4) id2;
+	unsigned char __aligned(4) id3;
+	unsigned char __aligned(4) data;
+	unsigned char __aligned(4) status;
+	unsigned char __aligned(4) baudl;
+	unsigned char __aligned(4) baudh;
+};
 
 /* Bits for UART Status Reg (R/W) */
 #define RXIENB  0x04	/* Receive Interrupt Enable */
@@ -72,7 +73,7 @@ typedef volatile struct {
 #define RXOERR  0x02	/* OverFlow Err: Char recv but RXFULL still set */
 
 /* Uart bit fiddling helpers: lowest level */
-#define RBASE(uart)	((arc_uart_registers *)(uart->port.membase))
+#define RBASE(uart)	((volatile struct arc_uart_reg *)(uart->port.membase))
 
 #define UART_REG_SET(u, reg, val) (RBASE(u)->reg = (val))
 #define UART_REG_OR(u, reg, val)  (RBASE(u)->reg |= (val))
@@ -80,22 +81,22 @@ typedef volatile struct {
 #define UART_REG_GET(u, reg)      (RBASE(u)->reg)
 
 /* Uart bit fiddling helpers: API level */
-#define UART_SET_DATA(uart, val)   UART_REG_SET(uart,data,val)
-#define UART_GET_DATA(uart)        UART_REG_GET(uart,data)
+#define UART_SET_DATA(uart, val)   UART_REG_SET(uart, data, val)
+#define UART_GET_DATA(uart)        UART_REG_GET(uart, data)
 
-#define UART_SET_BAUDH(uart, val)  UART_REG_SET(uart,baudh,val)
-#define UART_SET_BAUDL(uart, val)  UART_REG_SET(uart,baudl,val)
+#define UART_SET_BAUDH(uart, val)  UART_REG_SET(uart, baudh, val)
+#define UART_SET_BAUDL(uart, val)  UART_REG_SET(uart, baudl, val)
 
-#define UART_CLR_STATUS(uart, val) UART_REG_CLR(uart,status,val)
-#define UART_GET_STATUS(uart)      UART_REG_GET(uart,status)
+#define UART_CLR_STATUS(uart, val) UART_REG_CLR(uart, status, val)
+#define UART_GET_STATUS(uart)      UART_REG_GET(uart, status)
 
-#define UART_ALL_IRQ_DISABLE(uart) UART_REG_CLR(uart,status,RXIENB|TXIENB)
-#define UART_RX_IRQ_DISABLE(uart)  UART_REG_CLR(uart,status,RXIENB)
-#define UART_TX_IRQ_DISABLE(uart)  UART_REG_CLR(uart,status,TXIENB)
+#define UART_ALL_IRQ_DISABLE(uart) UART_REG_CLR(uart, status, RXIENB|TXIENB)
+#define UART_RX_IRQ_DISABLE(uart)  UART_REG_CLR(uart, status, RXIENB)
+#define UART_TX_IRQ_DISABLE(uart)  UART_REG_CLR(uart, status, TXIENB)
 
-#define UART_ALL_IRQ_ENABLE(uart)  UART_REG_OR(uart,status,RXIENB|TXIENB)
-#define UART_RX_IRQ_ENABLE(uart)   UART_REG_OR(uart,status,RXIENB)
-#define UART_TX_IRQ_ENABLE(uart)   UART_REG_OR(uart,status,TXIENB)
+#define UART_ALL_IRQ_ENABLE(uart)  UART_REG_OR(uart, status, RXIENB|TXIENB)
+#define UART_RX_IRQ_ENABLE(uart)   UART_REG_OR(uart, status, RXIENB)
+#define UART_TX_IRQ_ENABLE(uart)   UART_REG_OR(uart, status, TXIENB)
 
 #define ARC_SERIAL_DEV_NAME	"ttyS"
 
@@ -108,11 +109,11 @@ struct arc_uart_port {
 	unsigned long baud;
 };
 
-static struct arc_uart_port arc_uart_ports[CONFIG_ARC_SERIAL_NR_PORTS];
+static struct arc_uart_port arc_uart_ports[CONFIG_SERIAL_ARC_NR_PORTS];
 
-#ifdef CONFIG_ARC_SERIAL_CONSOLE
+#ifdef CONFIG_SERIAL_ARC_CONSOLE
 static struct console arc_serial_console;
-#define ARC_SERIAL_CONSOLE	&arc_serial_console
+#define ARC_SERIAL_CONSOLE	(&arc_serial_console)
 #else
 #define ARC_SERIAL_CONSOLE	NULL
 #endif
@@ -127,7 +128,7 @@ static struct uart_driver arc_uart_driver = {
 	.dev_name	= ARC_SERIAL_DEV_NAME,
 	.major		= ARC_SERIAL_MAJOR,
 	.minor		= ARC_SERIAL_MINOR,
-	.nr		= CONFIG_ARC_SERIAL_NR_PORTS,
+	.nr		= CONFIG_SERIAL_ARC_NR_PORTS,
 	.cons		= ARC_SERIAL_CONSOLE,
 };
 
@@ -319,9 +320,8 @@ static irqreturn_t arc_serial_isr(int irq, void *dev_id)
 
 		spin_lock(&uart->port.lock);
 
-		if (!uart_tx_stopped(&uart->port)) {
+		if (!uart_tx_stopped(&uart->port))
 			arc_serial_tx_chars(uart);
-		}
 
 		spin_unlock(&uart->port.lock);
 	}
@@ -417,9 +417,8 @@ arc_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * This happens with BAUD=115200 and the formaula above
 	 * Until that is fixed, when runnign on ISS, we will set baudh to !0
 	 */
-	if (!running_on_hw) {
+	if (!running_on_hw)
 		uarth = 1;
-	}
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -483,7 +482,7 @@ static void arc_serial_poll_putchar(struct uart_port *port, unsigned char chr)
 {
 	struct arc_uart_port *uart = (struct arc_uart_port *)port;
 
-	while(!(UART_GET_STATUS(uart) & TXEMPTY))
+	while (!(UART_GET_STATUS(uart) & TXEMPTY))
 		cpu_relax();
 
 	UART_SET_DATA(uart, chr);
@@ -495,7 +494,7 @@ static int arc_serial_poll_getchar(struct uart_port *port)
 	struct arc_uart_port *uart = (struct arc_uart_port *)port;
 	unsigned char chr;
 
-	while(!(UART_GET_STATUS(uart) & RXEMPTY))
+	while (!(UART_GET_STATUS(uart) & RXEMPTY))
 		cpu_relax();
 
 	chr = UART_GET_DATA(uart);
@@ -533,7 +532,7 @@ arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 	struct resource *res, *res2;
 	unsigned long *plat_data;
 
-	if (pdev->id < 0 || pdev->id >= CONFIG_ARC_SERIAL_NR_PORTS) {
+	if (pdev->id < 0 || pdev->id >= CONFIG_SERIAL_ARC_NR_PORTS) {
 		dev_err(&pdev->dev, "Wrong uart platform device id.\n");
 		return -ENOENT;
 	}
@@ -575,17 +574,17 @@ arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 	return 0;
 }
 
-#ifdef CONFIG_ARC_SERIAL_CONSOLE
+#ifdef CONFIG_SERIAL_ARC_CONSOLE
 
 static int __devinit arc_serial_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
-	int baud = CONFIG_ARC_SERIAL_BAUD;
+	int baud = 115200;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
 
-	if (co->index < 0 || co->index >= CONFIG_ARC_SERIAL_NR_PORTS)
+	if (co->index < 0 || co->index >= CONFIG_SERIAL_ARC_NR_PORTS)
 		return -ENODEV;
 
 	/*
@@ -700,7 +699,7 @@ static struct platform_driver arc_platform_driver = {
 	 },
 };
 
-#ifdef CONFIG_ARC_SERIAL_CONSOLE
+#ifdef CONFIG_SERIAL_ARC_CONSOLE
 /*
  * Register an early platform driver of "earlyprintk" class.
  * ARCH platform code installs the driver and probes the early devices
@@ -710,7 +709,7 @@ static struct platform_driver arc_platform_driver = {
  */
 early_platform_init("earlyprintk", &arc_platform_driver);
 
-#endif  /* CONFIG_ARC_SERIAL_CONSOLE */
+#endif  /* CONFIG_SERIAL_ARC_CONSOLE */
 
 static int __init arc_serial_init(void)
 {

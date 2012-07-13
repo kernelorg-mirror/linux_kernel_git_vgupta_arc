@@ -32,6 +32,13 @@ config ARC_ISS_VIRT_PERIP
 
 endchoice
 
+config ARC_SERIAL_BAUD
+	int "UART Baud rate"
+	default "115200"
+	depends on SERIAL_ARC
+	help
+	  Baud rate for the ARC UART
+
 # TBD: The drivers would eventually move into drivers/xxx folders
 # Right now, this will make the "ARC Platform Menu cobbled up"
 source "arch/arc/drivers/Kconfig"

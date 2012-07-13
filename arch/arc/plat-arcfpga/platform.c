@@ -73,7 +73,7 @@ static void setup_bvci_lat_unit(void)
 
 /*----------------------- Platform Devices -----------------------------*/
 
-#ifdef CONFIG_ARC_SERIAL
+#ifdef CONFIG_SERIAL_ARC
 
 static unsigned long arc_uart_info[] = {
 	CONFIG_ARC_SERIAL_BAUD, CONFIG_ARC_PLAT_CLK, 0
@@ -105,17 +105,17 @@ static struct platform_device arc_uart##n##_dev = {	\
 }
 
 ARC_UART_DEV(0);
-#if CONFIG_ARC_SERIAL_NR_PORTS > 1
+#if CONFIG_SERIAL_ARC_NR_PORTS > 1
 ARC_UART_DEV(1);
 #endif
 
 static struct platform_device *fpga_early_devs[] __initdata = {
-#if defined(CONFIG_ARC_SERIAL_CONSOLE)
+#if defined(CONFIG_SERIAL_ARC_CONSOLE)
 	&arc_uart0_dev,
 #endif
 };
 
-#endif	/* CONFIG_ARC_SERIAL */
+#endif	/* CONFIG_SERIAL_ARC */
 
 /*
  * Early Platform Initialization called from setup_arch()
@@ -126,7 +126,7 @@ void __init arc_platform_early_init(void)
 
 	setup_bvci_lat_unit();
 
-#ifdef CONFIG_ARC_SERIAL
+#ifdef CONFIG_SERIAL_ARC
 	early_platform_add_devices(fpga_early_devs,
 				   ARRAY_SIZE(fpga_early_devs));
 
@@ -156,9 +156,9 @@ void __init arc_platform_early_init(void)
 }
 
 static struct platform_device *fpga_devs[] __initdata = {
-#if defined(CONFIG_ARC_SERIAL)
+#if defined(CONFIG_SERIAL_ARC)
 	&arc_uart0_dev,
-#if CONFIG_ARC_SERIAL_NR_PORTS > 1
+#if CONFIG_SERIAL_ARC_NR_PORTS > 1
 	&arc_uart1_dev,
 #endif
 #endif
