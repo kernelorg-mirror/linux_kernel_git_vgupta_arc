@@ -46,18 +46,15 @@
 /*
  * UART Register set (this is not a Standards Compliant IP)
  * Also each reg is Word aligned, but only 8 bits wide
- * volatile needed so that gcc doesn't optimize away some of the I/O ops
  */
-struct arc_uart_reg {
-	unsigned char __aligned(4) id0;
-	unsigned char __aligned(4) id1;
-	unsigned char __aligned(4) id2;
-	unsigned char __aligned(4) id3;
-	unsigned char __aligned(4) data;
-	unsigned char __aligned(4) status;
-	unsigned char __aligned(4) baudl;
-	unsigned char __aligned(4) baudh;
-};
+#define R_ID0	0
+#define R_ID1	1
+#define R_ID2	2
+#define R_ID3	3
+#define R_DATA	4
+#define R_STS	5
+#define R_BAUDL	6
+#define R_BAUDH	7
 
 /* Bits for UART Status Reg (R/W) */
 #define RXIENB  0x04	/* Receive Interrupt Enable */
@@ -73,30 +70,30 @@ struct arc_uart_reg {
 #define RXOERR  0x02	/* OverFlow Err: Char recv but RXFULL still set */
 
 /* Uart bit fiddling helpers: lowest level */
-#define RBASE(uart)	((volatile struct arc_uart_reg *)(uart->port.membase))
+#define RBASE(uart, reg)      ((unsigned int *)uart->port.membase + reg)
+#define UART_REG_SET(u, r, v) writeb((v), RBASE(u, r))
+#define UART_REG_GET(u, r)    readb(RBASE(u, r))
 
-#define UART_REG_SET(u, reg, val) (RBASE(u)->reg = (val))
-#define UART_REG_OR(u, reg, val)  (RBASE(u)->reg |= (val))
-#define UART_REG_CLR(u, reg, val) (RBASE(u)->reg &= (~(val)))
-#define UART_REG_GET(u, reg)      (RBASE(u)->reg)
+#define UART_REG_OR(u, r, v)  UART_REG_SET(u, r, UART_REG_GET(u, r) | (v))
+#define UART_REG_CLR(u, r, v) UART_REG_SET(u, r, UART_REG_GET(u, r) & ~(v))
 
 /* Uart bit fiddling helpers: API level */
-#define UART_SET_DATA(uart, val)   UART_REG_SET(uart, data, val)
-#define UART_GET_DATA(uart)        UART_REG_GET(uart, data)
+#define UART_SET_DATA(uart, val)   UART_REG_SET(uart, R_DATA, val)
+#define UART_GET_DATA(uart)        UART_REG_GET(uart, R_DATA)
 
-#define UART_SET_BAUDH(uart, val)  UART_REG_SET(uart, baudh, val)
-#define UART_SET_BAUDL(uart, val)  UART_REG_SET(uart, baudl, val)
+#define UART_SET_BAUDH(uart, val)  UART_REG_SET(uart, R_BAUDH, val)
+#define UART_SET_BAUDL(uart, val)  UART_REG_SET(uart, R_BAUDL, val)
 
-#define UART_CLR_STATUS(uart, val) UART_REG_CLR(uart, status, val)
-#define UART_GET_STATUS(uart)      UART_REG_GET(uart, status)
+#define UART_CLR_STATUS(uart, val) UART_REG_CLR(uart, R_STS, val)
+#define UART_GET_STATUS(uart)      UART_REG_GET(uart, R_STS)
 
-#define UART_ALL_IRQ_DISABLE(uart) UART_REG_CLR(uart, status, RXIENB|TXIENB)
-#define UART_RX_IRQ_DISABLE(uart)  UART_REG_CLR(uart, status, RXIENB)
-#define UART_TX_IRQ_DISABLE(uart)  UART_REG_CLR(uart, status, TXIENB)
+#define UART_ALL_IRQ_DISABLE(uart) UART_REG_CLR(uart, R_STS, RXIENB|TXIENB)
+#define UART_RX_IRQ_DISABLE(uart)  UART_REG_CLR(uart, R_STS, RXIENB)
+#define UART_TX_IRQ_DISABLE(uart)  UART_REG_CLR(uart, R_STS, TXIENB)
 
-#define UART_ALL_IRQ_ENABLE(uart)  UART_REG_OR(uart, status, RXIENB|TXIENB)
-#define UART_RX_IRQ_ENABLE(uart)   UART_REG_OR(uart, status, RXIENB)
-#define UART_TX_IRQ_ENABLE(uart)   UART_REG_OR(uart, status, TXIENB)
+#define UART_ALL_IRQ_ENABLE(uart)  UART_REG_OR(uart, R_STS, RXIENB|TXIENB)
+#define UART_RX_IRQ_ENABLE(uart)   UART_REG_OR(uart, R_STS, RXIENB)
+#define UART_TX_IRQ_ENABLE(uart)   UART_REG_OR(uart, R_STS, TXIENB)
 
 #define ARC_SERIAL_DEV_NAME	"ttyS"
 

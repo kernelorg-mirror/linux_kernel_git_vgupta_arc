@@ -9,6 +9,7 @@
 #ifndef _ASM_ARC_IO_H
 #define _ASM_ARC_IO_H
 
+#include <asm/byteorder.h>
 #include <asm/page.h>
 
 extern void *__ioremap(unsigned long physaddr, unsigned long size,
