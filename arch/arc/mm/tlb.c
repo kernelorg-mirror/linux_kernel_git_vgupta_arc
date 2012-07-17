@@ -611,8 +611,7 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 	local_irq_save(flags);
 
 	/* re-enable the MMU */
-	write_aux_reg(ARC_REG_PID,
-			  MMU_ENABLE | read_aux_reg(ARC_REG_PID));
+	write_aux_reg(ARC_REG_PID, MMU_ENABLE | read_aux_reg(ARC_REG_PID));
 
 	/* loop thru all sets of TLB */
 	for (set = 0; set < mmu->sets; set++) {
@@ -633,11 +632,16 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 
 		/* Scan the set for duplicate ways: needs a nested loop */
 		for (way = 0; way < mmu->ways; way++) {
+			if (!pd0[way])
+				continue;
+
 			for (n = way + 1; n < mmu->ways; n++) {
-				if (pd0[way] == pd0[n]) {
+				if ((pd0[way] & PAGE_MASK) ==
+				    (pd0[n] & PAGE_MASK)) {
 
 					if (dup_pd_verbose) {
-						pr_info("Duplicate PD's @[%d:%d]/[%d:%d]\n",
+						pr_info("Duplicate PD's @"
+							"[%d:%d]/[%d:%d]\n",
 						     set, way, set, n);
 						pr_info("TLBPD0[%u]: %08x\n",
 						     way, pd0[way]);
@@ -649,7 +653,7 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 					 */
 					pd0[way] = pd1[way] = 0;
 					write_aux_reg(ARC_REG_TLBINDEX,
-							SET_WAY_TO_IDX(mmu, set, way));
+						SET_WAY_TO_IDX(mmu, set, way));
 					__tlb_entry_erase();
 				}
 			}
