@@ -11,6 +11,7 @@
 
 #include <asm/spinlock_types.h>
 #include <asm/processor.h>
+#include <asm/barrier.h>
 
 #define arch_spin_is_locked(x)	((x)->slock != __ARCH_SPIN_LOCK_UNLOCKED__)
 #define arch_spin_lock_flags(lock, flags)	arch_spin_lock(lock)
@@ -45,6 +46,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	lock->slock = __ARCH_SPIN_LOCK_UNLOCKED__;
+	smp_mb();
 }
 
 /*
@@ -80,6 +82,7 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 
 	arch_spin_unlock(&(rw->lock_mutex));
 
+	smp_mb();
 	return ret;
 }
 
