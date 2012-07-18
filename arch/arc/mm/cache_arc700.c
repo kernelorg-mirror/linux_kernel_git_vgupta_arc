@@ -708,7 +708,7 @@ static void __arc_icache_inv_lines_vaddr(unsigned long phy_start,
  */
 void flush_icache_range(unsigned long kstart, unsigned long kend)
 {
-	int tot_sz;
+	unsigned int tot_sz, off, sz;
 	unsigned long phy, pfn;
 	unsigned long flags;
 
@@ -723,39 +723,39 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 	/* Shortcut for bigger flush ranges.
 	 * Here we don't care if this was kernel virtual or phy addr
 	 */
-	tot_sz = kend - kstart + 1;
+	tot_sz = kend - kstart;
 	if (tot_sz > PAGE_SIZE) {
 		flush_cache_all();
 		return;
 	}
 
-	/*
-	 * This flush request could be for
-	 * kernel virtual addr space (0x7000_0000 to 0x7FFF_FFFF)
-	 * or Kernel Physical addr space (0x8000_0000 onwards)
-	 * The caveat is ARC700 Cache flushes require PHY address,
-	 * thus need for seperate handling for virtual addr
-	 */
-
-	/* Kernel Paddr */
+	/* Case: Kernel Phy addr (0x8000_0000 onwards) */
 	if (likely(kstart > PAGE_OFFSET)) {
 		__arc_icache_inv_lines(kstart, kend - kstart);
 		__arc_dcache_flush_lines(kstart, kend - kstart);
 		return;
 	}
 
-	/* Kernel Vaddr */
+	/*
+	 * Case: Kernel Vaddr (0x7000_0000 to 0x7fff_ffff)
+	 * (1) ARC Cache Maintenance ops only take Phy addr, hence special
+	 *     handling of kernel vaddr.
+	 *
+	 * (2) Despite @tot_sz being < PAGE_SIZE (bigger cases handled already),
+	 *     it still needs to handle  a 2 page scenario, where the range
+	 *     straddles across 2 virtual pages and hence need for loop
+	 */
 	while (tot_sz > 0) {
-		int sz;
+		off = kstart % PAGE_SIZE;
 		pfn = vmalloc_to_pfn((void *)kstart);
-		phy = pfn << PAGE_SHIFT;
-		sz = (tot_sz >= PAGE_SIZE) ? PAGE_SIZE : tot_sz;
+		phy = (pfn << PAGE_SHIFT) + off;
+		sz = min_t(unsigned int, tot_sz, PAGE_SIZE - off);
 		local_irq_save(flags);
 		__arc_dcache_flush_lines(phy, sz);
 		__arc_icache_inv_lines(phy, sz);
 		local_irq_restore(flags);
-		kstart += PAGE_SIZE;
-		tot_sz -= PAGE_SIZE;
+		kstart += sz;
+		tot_sz -= sz;
 	}
 
 }
