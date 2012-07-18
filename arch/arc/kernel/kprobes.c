@@ -128,8 +128,8 @@ static void __kprobes resume_execution(struct kprobe *p, unsigned long addr,
 
 static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
-	unsigned long fall_thru;
-	unsigned long target = 0;
+	unsigned long next_pc;
+	unsigned long tgt_if_br = 0;
 	int is_branch;
 	unsigned long bta;
 
@@ -152,14 +152,14 @@ static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs)
 	if (regs->status32 & 0x40) {
 		/* We are in a delay slot with the branch taken */
 
-		fall_thru = bta & ~0x01;
+		next_pc = bta & ~0x01;
 
 		if (!p->ainsn.is_short) {
 			if (bta & 0x01)
 				regs->blink += 2;
 			else {
 				/* Branch not taken */
-				fall_thru += 2;
+				next_pc += 2;
 
 				/* next pc is taken from bta after executing the
 				 * delay slot instruction
@@ -173,9 +173,9 @@ static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs)
 		is_branch =
 		    disasm_next_pc((unsigned long)p->addr, regs,
 			(struct callee_regs *) current->thread.callee_reg,
-			&fall_thru, &target);
+			&next_pc, &tgt_if_br);
 
-	p->ainsn.t1_addr = (kprobe_opcode_t *) fall_thru;
+	p->ainsn.t1_addr = (kprobe_opcode_t *) next_pc;
 	p->ainsn.t1_opcode = *(p->ainsn.t1_addr);
 	*(p->ainsn.t1_addr) = TRAP_S_2_INSTRUCTION;
 
@@ -184,7 +184,7 @@ static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs)
 			   sizeof(kprobe_opcode_t));
 
 	if (is_branch) {
-		p->ainsn.t2_addr = (kprobe_opcode_t *) target;
+		p->ainsn.t2_addr = (kprobe_opcode_t *) tgt_if_br;
 		p->ainsn.t2_opcode = *(p->ainsn.t2_addr);
 		*(p->ainsn.t2_addr) = TRAP_S_2_INSTRUCTION;
 
@@ -194,7 +194,7 @@ static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs)
 	}
 }
 
-int __kprobes kprobe_handler(unsigned long addr, struct pt_regs *regs)
+int __kprobes arc_kprobe_handler(unsigned long addr, struct pt_regs *regs)
 {
 	struct kprobe *p;
 	struct kprobe_ctlblk *kcb;
@@ -251,7 +251,7 @@ int __kprobes kprobe_handler(unsigned long addr, struct pt_regs *regs)
 	return 0;
 }
 
-static int __kprobes post_kprobe_handler(unsigned long addr,
+static int __kprobes arc_post_kprobe_handler(unsigned long addr,
 					 struct pt_regs *regs)
 {
 	struct kprobe *cur = kprobe_running();
@@ -371,12 +371,12 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 
 	switch (val) {
 	case DIE_IERR:
-		if (kprobe_handler(addr, args->regs))
+		if (arc_kprobe_handler(addr, args->regs))
 			return NOTIFY_STOP;
 		break;
 
 	case DIE_TRAP:
-		if (post_kprobe_handler(addr, args->regs))
+		if (arc_post_kprobe_handler(addr, args->regs))
 			return NOTIFY_STOP;
 		break;
 

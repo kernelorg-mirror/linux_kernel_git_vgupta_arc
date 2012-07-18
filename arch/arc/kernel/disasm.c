@@ -491,20 +491,29 @@ void __kprobes set_reg(int reg, long val, struct pt_regs *regs,
 	}
 }
 
+/*
+ * Disassembles the insn at @pc and sets @next_pc to next PC (which could be
+ * @pc +2/4/6 (ARCompact ISA allows free intermixing of 16/32 bit insns).
+ *
+ * If @pc is a branch
+ * 	-@tgt_if_br is set to branch target.
+ * 	-If branch has delay slot, @next_pc updated with actual next PC.
+ *
+ */
 int __kprobes disasm_next_pc(unsigned long pc, struct pt_regs *regs,
 			     struct callee_regs *cregs,
-			     unsigned long *fall_thru, unsigned long *target)
+			     unsigned long *next_pc, unsigned long *tgt_if_br)
 {
 	struct disasm_state instr;
 
 	memset(&instr, 0, sizeof(struct disasm_state));
 	disasm_instr(pc, &instr, 0, regs, cregs);
 
-	*fall_thru = pc + instr.instr_len;
+	*next_pc = pc + instr.instr_len;
 
 	/* Instruction with possible two targets branch, jump and loop */
 	if (instr.is_branch)
-		*target = instr.target;
+		*tgt_if_br = instr.target;
 
 	/* For the instructions with delay slots, the fall through is the
 	 * instruction following the instruction in delay slot.
@@ -512,15 +521,15 @@ int __kprobes disasm_next_pc(unsigned long pc, struct pt_regs *regs,
 	 if (instr.delay_slot) {
 		struct disasm_state instr_d;
 
-		disasm_instr(*fall_thru, &instr_d, 0, regs, cregs);
+		disasm_instr(*next_pc, &instr_d, 0, regs, cregs);
 
-		*fall_thru += instr_d.instr_len;
+		*next_pc += instr_d.instr_len;
 	 }
 
 	 /* Zero Overhead Loop - end of the loop */
-	if (!(regs->status32 & STATUS32_L) && (*fall_thru == regs->lp_end)
+	if (!(regs->status32 & STATUS32_L) && (*next_pc == regs->lp_end)
 		&& (regs->lp_count > 1)) {
-		*fall_thru = regs->lp_start;
+		*next_pc = regs->lp_start;
 	}
 
 	return instr.is_branch;
