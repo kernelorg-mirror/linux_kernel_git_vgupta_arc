@@ -82,8 +82,10 @@ static void arc_timer0_ack_event(unsigned int irq_reenable)
 /*
  * Arm the timer to keep counting monotonically
  */
-static void arc_timer1_setup_free_flow(unsigned int limit)
+void __cpuinit arc_clock_counter_setup(void)
 {
+	unsigned int limit = ARC_TIMER_MAX;
+
 	/* although for free flowing case, limit would alway be max 32 bits
 	 * still we've kept the interface open, just in case ...
 	 */
@@ -109,7 +111,7 @@ static struct clocksource clocksource_t1 = {
 
 void __cpuinit arc_clocksource_init(void)
 {
-	arc_timer1_setup_free_flow(ARC_TIMER_MAX);
+	arc_clock_counter_setup();
 
 	/*
 	 * CLK upto 4.29 GHz can be safely represented in 32 bits because
