@@ -180,7 +180,7 @@ void __cpuinit arc_clockevent_init(void)
 	clockevents_register_device(evt);
 
 	rc = request_irq(TIMER0_INT, timer_irq_handler,
-			 IRQF_TIMER | IRQF_DISABLED | IRQF_PERCPU,
+			 IRQF_TIMER | IRQF_DISABLED | IRQF_PERCPU | IRQF_SHARED,
 			 "Timer0 (clock-evt-dev)", evt);
 
 	if (rc)
