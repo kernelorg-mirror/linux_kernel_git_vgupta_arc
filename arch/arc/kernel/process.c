@@ -50,6 +50,8 @@ static inline void arch_idle(void)
 
 void cpu_idle(void)
 {
+        /* Since we SLEEP in idle loop, TIF_POLLING_NRFLAG can't be set */
+
 	/* endless idle loop with no priority at all */
 	while (1) {
 		tick_nohz_stop_sched_tick(1);

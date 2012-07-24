@@ -48,7 +48,7 @@
 /*
  * Arm the timer to interrupt after @limit cycles
  */
-static void arc_timer0_setup_event(unsigned int limit)
+static void arc_periodic_timer_setup(unsigned int limit)
 {
 	/* setup start and end markers */
 	write_aux_reg(ARC_REG_TIMER0_LIMIT, limit);
@@ -63,7 +63,7 @@ static void arc_timer0_setup_event(unsigned int limit)
 /*
  * Acknowledge the interrupt & enable/disable the interrupt
  */
-static void arc_timer0_ack_event(unsigned int irq_reenable)
+static void arc_periodic_timer_ack(unsigned int irq_reenable)
 {
 	/* 1. Ack the interrupt by writing to CTRL reg.
 	 *    Any write will cause intr to be ack, however it has to be one of
@@ -122,19 +122,20 @@ void __cpuinit arc_clocksource_init(void)
 
 /********** Clock Event Device *********/
 
-static int arc_next_event(unsigned long delta, struct clock_event_device *dev)
+static int arc_clkevent_set_next_event(unsigned long delta,
+				    struct clock_event_device *dev)
 {
-	arc_timer0_setup_event(delta);
+	arc_periodic_timer_setup(delta);
 	return 0;
 }
 
-static void arc_set_mode(enum clock_event_mode mode,
-			 struct clock_event_device *dev)
+static void arc_clkevent_set_mode(enum clock_event_mode mode,
+			       struct clock_event_device *dev)
 {
 	pr_info("Device [%s] clockevent mode now [%d]\n", dev->name, mode);
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		arc_timer0_setup_event(CONFIG_ARC_PLAT_CLK / HZ);
+		arc_periodic_timer_setup(CONFIG_ARC_PLAT_CLK / HZ);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		break;
@@ -150,9 +151,9 @@ static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
 	.mode		= CLOCK_EVT_MODE_UNUSED,
 	.rating		= 300,
-	.irq		= TIMER0_INT,
-	.set_next_event = arc_next_event,
-	.set_mode 	= arc_set_mode,
+	.irq		= TIMER0_INT,	/* hardwired, no need for resources */
+	.set_next_event = arc_clkevent_set_next_event,
+	.set_mode	= arc_clkevent_set_mode,
 };
 
 static irqreturn_t timer_irq_handler(int irq, void *dev_id);
@@ -169,7 +170,7 @@ irqreturn_t timer_irq_handler(int irq, void *dev_id)
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(arc_clockevent_device, cpu);
 
-	arc_timer0_ack_event(evt->mode == CLOCK_EVT_MODE_PERIODIC);
+	arc_periodic_timer_ack(evt->mode == CLOCK_EVT_MODE_PERIODIC);
 	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
