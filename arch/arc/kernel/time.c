@@ -156,15 +156,6 @@ static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
 	.set_mode	= arc_clkevent_set_mode,
 };
 
-static irqreturn_t timer_irq_handler(int irq, void *dev_id);
-
-static struct irqaction arc_timer_irq = {
-	.name = "Timer0 (clock-evt-dev)",
-	.flags = IRQF_TIMER | IRQF_DISABLED,
-	.handler = timer_irq_handler,
-	.dev_id = &arc_clockevent_device,
-};
-
 irqreturn_t timer_irq_handler(int irq, void *dev_id)
 {
 	unsigned int cpu = smp_processor_id();
@@ -177,6 +168,7 @@ irqreturn_t timer_irq_handler(int irq, void *dev_id)
 
 void __cpuinit arc_clockevent_init(void)
 {
+	int rc;
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(arc_clockevent_device, cpu);
 
@@ -187,7 +179,13 @@ void __cpuinit arc_clockevent_init(void)
 
 	clockevents_register_device(evt);
 
-	setup_irq(TIMER0_INT, &arc_timer_irq);
+	rc = request_irq(TIMER0_INT, timer_irq_handler,
+			 IRQF_TIMER | IRQF_DISABLED | IRQF_PERCPU,
+			 "Timer0 (clock-evt-dev)", evt);
+
+	if (rc)
+		pr_err("#$*@#$ Timer0: can't register IRQ on cpu%d\n", cpu);
+
 }
 
 void __init time_init(void)

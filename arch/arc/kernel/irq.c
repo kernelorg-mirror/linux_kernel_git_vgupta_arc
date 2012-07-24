@@ -55,7 +55,7 @@ void __init arc_init_IRQ(void)
  * Late Interrupt system init called from start_kernel for Boot CPU only
  *
  * Since slab must already be initialized, platforms can start doing any
- * needed setup_irq( )s
+ * needed request_irq( )s
  */
 void __init init_IRQ(void)
 {
