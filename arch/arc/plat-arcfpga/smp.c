@@ -17,7 +17,8 @@
 
 static char smp_cpuinfo_buf[128];
 
-/*-------------------------------------------------------------------
+/*
+ *-------------------------------------------------------------------
  * Platform specific callbacks expected by arch SMP code
  *-------------------------------------------------------------------
  */
@@ -56,25 +57,44 @@ void arc_platform_smp_wakeup_cpu(int cpu, unsigned long pc)
 }
 
 /*
- * Any SMP specific init CPU does when it comes up
- * Called from start_kernel_secondary()
+ * Any SMP specific init any CPU does when it comes up.
+ * Here we setup the CPU to enable Inter-Processor-Interrupts
+ * Called for each CPU
+ * -Master      : init_IRQ()
+ * -Other(s)    : start_kernel_secondary()
  */
 void arc_platform_smp_init_cpu(void)
 {
-	/* Owner of the Idu Interrupt determines who is SELF */
 	int cpu = smp_processor_id();
 
 	/* Check if CPU is configured for more than 16 interrupts */
 	if (NR_IRQS <= 16 || get_hw_config_num_irq() <= 16)
 		panic("[arcfpga] IRQ system can't support IDU IPI\n");
 
-	/* Setup the interrupt in IDU */
 	idu_disable();
 
-	idu_irq_set_tgtcpu(cpu,	/* IDU IRQ assoc with CPU */
-			   (0x1 << cpu)	/* target cpus mask, here single cpu */
-	    );
+        /****************************************************************
+         * IDU provides a set of Common IRQs, each of which can be dynamically
+         * attached to (1|many|all) CPUs.
+         * The Common IRQs [0-15] are mapped as CPU pvt [16-31]
+         *
+         * Here we use a simple 1:1 mapping:
+         * A CPU 'x' is wired to Common IRQ 'x'.
+         * So an IDU ASSERT on IRQ 'x' will trigger Interupt on CPU 'x', which
+         * makes up for our simple IPI plumbing.
+         *
+         * TBD: Have a dedicated multicast IRQ for sending IPIs to all CPUs
+         *      w/o having to do one-at-a-time
+         ******************************************************************/
 
+        /*
+         * Claim an IRQ which would trigger IPI on this CPU.
+         * In IDU parlance it involves setting up a cpu bitmask for the IRQ
+         * The bitmap here contains only 1 CPU (self).
+         */
+	idu_irq_set_tgtcpu(cpu, 0x1 << cpu);
+
+        /* Set the IRQ destination to use the bitmask above */
 	idu_irq_set_mode(cpu, 7, /* XXX: IDU_IRQ_MOD_TCPU_ALLRECP: ISS bug */
                          IDU_IRQ_MODE_PULSE_TRIG);
 
@@ -97,11 +117,13 @@ void arc_platform_ipi_clear(int cpu, int irq)
 	idu_irq_clear(IDU_INTERRUPT_0 + cpu);
 }
 
-/*-------------------------------------------------------------------
- * IDU helpers
+/*
+ *-------------------------------------------------------------------
+ * Low level Platform IPI Providers
  *-------------------------------------------------------------------
  */
 
+/* Set the Mode for the Common IRQ */
 void idu_irq_set_mode(uint8_t irq, uint8_t dest_mode, uint8_t trig_mode)
 {
 	uint32_t par = IDU_IRQ_MODE_PARAM(dest_mode, trig_mode);
@@ -110,12 +132,14 @@ void idu_irq_set_mode(uint8_t irq, uint8_t dest_mode, uint8_t trig_mode)
 	IDU_SET_COMMAND(irq, IDU_IRQ_WMODE);
 }
 
+/* Set the target cpu Bitmask for Common IRQ */
 void idu_irq_set_tgtcpu(uint8_t irq, uint32_t mask)
 {
 	IDU_SET_PARAM(mask);
 	IDU_SET_COMMAND(irq, IDU_IRQ_WBITMASK);
 }
 
+/* Get the Interrupt Acknowledged status for IRQ (as CPU Bitmask) */
 bool idu_irq_get_ack(uint8_t irq)
 {
 	uint32_t val;
@@ -126,6 +150,12 @@ bool idu_irq_get_ack(uint8_t irq)
 	return val & (1 << irq);
 }
 
+/*
+ * Get the Interrupt Pending status for IRQ (as CPU Bitmask)
+ * -Pending means CPU has not yet noticed the IRQ (e.g. disabled)
+ * -After Interrupt has been taken, the IPI expcitily needs to be
+ *  cleared, to be acknowledged.
+ */
 bool idu_irq_get_pend(uint8_t irq)
 {
 	uint32_t val;
