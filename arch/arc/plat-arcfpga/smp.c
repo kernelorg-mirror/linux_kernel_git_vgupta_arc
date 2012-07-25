@@ -66,7 +66,7 @@ void arc_platform_smp_init_cpu(void)
 
 	/* Check if CPU is configured for more than 16 interrupts */
 	if (NR_IRQS <= 16 || get_hw_config_num_irq() <= 16)
-		BUG();
+		panic("[arcfpga] IRQ system can't support IDU IPI\n");
 
 	/* Setup the interrupt in IDU */
 	idu_disable();
@@ -75,8 +75,8 @@ void arc_platform_smp_init_cpu(void)
 			   (0x1 << cpu)	/* target cpus mask, here single cpu */
 	    );
 
-	idu_irq_set_mode(cpu,	/* IDU IRQ assoc with CPU */
-			 IDU_IRQ_MOD_TCPU_ALLRECP, IDU_IRQ_MODE_PULSE_TRIG);
+	idu_irq_set_mode(cpu, 7, /* XXX: IDU_IRQ_MOD_TCPU_ALLRECP: ISS bug */
+                         IDU_IRQ_MODE_PULSE_TRIG);
 
 	idu_enable();
 

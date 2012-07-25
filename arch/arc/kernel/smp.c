@@ -321,7 +321,7 @@ irqreturn_t do_IPI(int irq, void *dev_id)
  */
 int smp_ipi_irq_setup(int cpu, int irq)
 {
-	return request_irq(irq, do_IPI, 0, "IPI Interrupt", NULL);
+	return request_irq(irq, do_IPI, IRQF_PERCPU, "IPI Interrupt", NULL);
 }
 
 struct cpu cpu_topology[NR_CPUS];
