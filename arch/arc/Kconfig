@@ -145,24 +145,14 @@ config ARC_CPU_770
 
 endchoice
 
-config ARC_HAS_SMP_EXTN_MODEL
-	bool "ARC750 SMP Extensions (ISS Models only)"
-	depends on ARC_CPU_750D
-	default n
-	help
-	  SMP Extensions to ARC750D, in a "simulation only" Model, supported in
-	  ARC ISS (Instruction Set Simulator).
-	  The SMP extensions include:
-	  -IDU (Interrupt Distribution Unit)
-	  -XTL (To enable CPU start/stop/set-PC for another CPU)
-	  It doesn't provide Cross-core Cache coherency or Atomic Ops
-	  Note that LLOCK/SCOND (in 770) are not cross-core safe (in ISS)
-	  hence this is "750" only
+# If a plat can do IPI, same core(s) can do minimal SMP
+config ARC_HAS_IPI
+	bool
 
 config SMP
 	bool "Symmetric Multi-Processing (Incomplete)"
 	default y
-	depends on ARC_HAS_SMP_EXTN_MODEL
+	depends on ARC_HAS_IPI
 	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
