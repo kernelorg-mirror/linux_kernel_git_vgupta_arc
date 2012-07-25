@@ -107,9 +107,16 @@ bootpImage uImage: vmlinux
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-# vineetg Feb 2010:
-# We switched OFF -mlong-calls for overall kernel build
+# Hacks to enable final link due to absence of link-time branch relexation
+# and gcc choosing optimal(shorter) branches at -O3
+#
+# vineetg Feb 2010: -mlong-calls switched off for overall kernel build
 # However lib/decompress_inflate.o (.init.text) calls
-# zlib_inflate_workspacethere (.text) causing relocation error.
+# zlib_inflate_workspacesize (.text) causing relocation errors.
 # Thus forcing all exten calls in this file to be long calls
 export CFLAGS_decompress_inflate.o = -mlong-calls
+
+# some debug printk getting out of range from sched code
+ifdef CONFIG_SMP
+export CFLAGS_sched.o = -mmedium-calls
+endif
