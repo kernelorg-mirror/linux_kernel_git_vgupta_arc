@@ -50,17 +50,10 @@ no_params:
 	; For ARC700-smp-extn: core-ID (0,1,...)  Master ID is always 0
 	GET_CPU_ID  r1
 
-	; For Boot(Master) CPU, proceed to master
-	breq r1, 0, .Lmaster_proceed
-
-.Lmyself:
-	; Secondary Halt self. Later master will set PC and clear halt bit
-	flag 1
-	; When debugging, Metaware debugger steps thru both, hence this loop
-	b .Lmyself
-
-
-.Lmaster_proceed:
+	; Boot(Master) proceeds
+	; Non-Master waits to be booted (mechanims are platform dependent)
+	cmp r1, 0
+	jnz arc_platform_smp_wait_to_boot
 #endif
 
 #ifdef CONFIG_ARC_UBOOT_CMDLINE

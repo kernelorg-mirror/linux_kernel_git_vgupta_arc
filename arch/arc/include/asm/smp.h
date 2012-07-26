@@ -31,7 +31,7 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
  */
 extern void smp_ipi_init(void);
 extern void __init smp_init_cpus(void);
-extern void first_lines_of_secondary(void);
+extern void __init first_lines_of_secondary(void);
 
 /*
  * API expected BY platform smp code (FROM arch smp code)
@@ -51,6 +51,9 @@ extern int smp_ipi_irq_setup(int cpu, int irq);
  *	Called from start_kernel_secondary to do any CPU local setup
  *	such as starting a timer, setting up IPI etc
  *
+ * arc_platform_smp_wait_to_boot:
+ *	Called from early bootup code for non-Master CPUs to "park" them
+ *
  * arc_platform_smp_wakeup_cpu:
  *	Called from __cpu_up (Master CPU) to kick start another one
  *
@@ -63,6 +66,7 @@ extern int smp_ipi_irq_setup(int cpu, int irq);
  */
 extern const char *arc_platform_smp_cpuinfo(void);
 extern void arc_platform_smp_init_cpu(void);
+extern void arc_platform_smp_wait_to_boot(int cpu);
 extern void arc_platform_smp_wakeup_cpu(int cpu, unsigned long pc);
 extern void arc_platform_ipi_send(const struct cpumask *callmap);
 extern void arc_platform_ipi_clear(int cpu, int irq);

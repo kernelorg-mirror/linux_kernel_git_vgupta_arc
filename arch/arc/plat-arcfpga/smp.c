@@ -39,6 +39,31 @@ const char *arc_platform_smp_cpuinfo(void)
 }
 
 /*
+ * After power-up, a non Master CPU needs to wait for Master to kick start it
+ *
+ * W/o hardware assist, it will busy-spin on a token which is eventually set
+ * by Master, preferably from arc_platform_smp_wakeup_cpu(). Once token is
+ * available it needs to jump to @first_lines_of_secondary (using inline asm).
+ *
+ * The XTL H/w module, however allows Master to directly set Other CPU's PC as
+ * well as ability to start/stop them. This allows implementing this function
+ * as a simple dead stop using "FLAG 1" insn.
+ * As a hack for debugging (debugger will single-step over the FLAG insn), we
+ * anyways wrap it in a self loop
+ *
+ * Alert: can NOT use stack here as it has not been determined/setup for CPU.
+ *        If it turns out to be elaborate, it's better to code it in assembly
+ */
+void arc_platform_smp_wait_to_boot(int cpu)
+{
+	/* Secondary Halts self. Later master will set PC and clear halt bit */
+	__asm__ __volatile__(
+	"1:		\n"
+	"	flag 1	\n"
+	"	b 1b	\n");
+}
+
+/*
  * Master kick starting another CPU
  */
 void arc_platform_smp_wakeup_cpu(int cpu, unsigned long pc)
