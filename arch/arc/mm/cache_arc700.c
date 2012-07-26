@@ -83,6 +83,7 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 {
 	int num = 0;
 	struct cpuinfo_arc_cache *p_cache;
+	unsigned int cpu = smp_processor_id();
 
 #ifdef CONFIG_ARC_HAS_ICACHE
 	const int ic_enb = 1;
@@ -96,13 +97,13 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 	const int dc_enb = 0;
 #endif
 
-	p_cache = &cpuinfo_arc700[0].icache;
+	p_cache = &cpuinfo_arc700[cpu].icache;
 	num += sprintf(buf + num,
 			"I-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
 			TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
 			ic_enb ? "" : " (DISABLED)");
 
-	p_cache = &cpuinfo_arc700[0].dcache;
+	p_cache = &cpuinfo_arc700[cpu].dcache;
 	num += sprintf(buf + num,
 			"D-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
 			TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
@@ -120,8 +121,9 @@ void __init read_decode_cache_bcr(void)
 {
 	struct bcr_cache ibcr, dbcr;
 	struct cpuinfo_arc_cache *p_ic, *p_dc;
+	unsigned int cpu = smp_processor_id();
 
-	p_ic = &cpuinfo_arc700[0].icache;
+	p_ic = &cpuinfo_arc700[cpu].icache;
 	READ_BCR(ARC_REG_IC_BCR, ibcr);
 
 	if (ibcr.config == 0x3)
@@ -130,7 +132,7 @@ void __init read_decode_cache_bcr(void)
 	p_ic->sz = 0x200 << ibcr.sz;
 	p_ic->ver = ibcr.ver;
 
-	p_dc = &cpuinfo_arc700[0].dcache;
+	p_dc = &cpuinfo_arc700[cpu].dcache;
 	READ_BCR(ARC_REG_DC_BCR, dbcr);
 
 	if (dbcr.config == 0x2)
@@ -150,6 +152,9 @@ void __init read_decode_cache_bcr(void)
 void __init arc_cache_init(void)
 {
 	unsigned int temp;
+#ifdef CONFIG_ARC_HAS_CACHE
+	unsigned int cpu = smp_processor_id();
+#endif
 #ifdef CONFIG_ARC_HAS_ICACHE
 	struct cpuinfo_arc_cache *ic;
 #endif
@@ -164,7 +169,7 @@ void __init arc_cache_init(void)
 	ARC_shmlba = max_t(unsigned int, ARC_shmlba, PAGE_SIZE);
 
 #ifdef CONFIG_ARC_HAS_ICACHE
-	ic = &cpuinfo_arc700[0].icache;
+	ic = &cpuinfo_arc700[cpu].icache;
 
 	/* 1. Confirm some of I-cache params which Linux assumes */
 	if ((ic->assoc != ARC_ICACHE_WAYS) ||
@@ -223,7 +228,7 @@ void __init arc_cache_init(void)
 	write_aux_reg(ARC_REG_IC_CTRL, temp);
 
 #ifdef CONFIG_ARC_HAS_DCACHE
-	dc = &cpuinfo_arc700[0].dcache;
+	dc = &cpuinfo_arc700[cpu].dcache;
 
 	if ((dc->assoc != ARC_DCACHE_WAYS) ||
 	    (dc->line_len != ARC_DCACHE_LINE_LEN)) {

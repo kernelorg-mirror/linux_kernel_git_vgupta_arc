@@ -81,7 +81,7 @@ void clear_user_page(void *addr, unsigned long vaddr, struct page *page)
 {
 	clear_page(addr);
 
-	if (cpuinfo_arc700[0].dcache.has_aliasing)
+	if (cpuinfo_arc700[smp_processor_id()].dcache.has_aliasing)
 		flush_dcache_page_virt((unsigned long *)page);
 
 }
@@ -91,6 +91,6 @@ void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 {
 	copy_page(vto, vfrom);
 
-	if (cpuinfo_arc700[0].dcache.has_aliasing)
+	if (cpuinfo_arc700[smp_processor_id()].dcache.has_aliasing)
 		flush_dcache_page_virt((unsigned long *)vto);
 }
