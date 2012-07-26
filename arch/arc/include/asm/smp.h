@@ -74,22 +74,31 @@ extern void arc_platform_ipi_clear(int cpu, int irq);
 #endif  /* CONFIG_SMP */
 
 /*
- * ARC700 doesn't support native R-M-W ops.
+ * ARC700 doesn't support atomic Read-Modify-Write ops.
+ * Originally Interrupts had to be disabled around code to gaurantee atomicity.
+ * The LLOCK/SCOND insns allow writing interrupt-hassle-free based atomic ops
+ * based on retry-if-irq-in-atomic (with hardware assist).
+ * However despite these, we provide the IRQ disabling variant
  *
- * For uni-processor builds
- * -llock/scond introduced in 4.10 can be used.
- * -older ARC700, need to disable interrupts.
+ * (1) These insn were introduced only in 4.10 release. So for older released
+ *	support needed.
  *
- * For SMP builds, llock/scond can't be used since the only SMP model we
- * we have so far (ISS) doesn't ensure coherency in multi-cpu env.
- * So the workaround is to use spin-locks for R-M-W ops.
- * However we can't use exported spinlock API due to cyclic hdr dependencies
- * (even after system.h disintegration upstream)
- * asm/bitops.h -> linux/spinlock.h -> linux/preempt.h -> linux/thread_info.h
- *	-> linux/bitops.h -> asm/bitops.h
+ * (2) In a SMP setup, the LLOCK/SCOND atomiticity across CPUs needs to be
+ *	gaurantted by the platform (not something which core handles).
+ *	Assuming a platform won't, SMP Linux needs to use spinlocks + local IRQ
+ *	disabling for atomicity.
  *
- * So the workaround is to use the lowest level arch spinlock API
+ *	However exported spinlock API is not usable due to cyclic hdr deps
+ *	(even after system.h disintegration upstream)
+ *	asm/bitops.h -> linux/spinlock.h -> linux/preempt.h
+ *		-> linux/thread_info.h -> linux/bitops.h -> asm/bitops.h
+ *
+ *	So the workaround is to use the lowest level arch spinlock API.
+ *	The exported spinlock API is smart enough to be NOP for !CONFIG_SMP,
+ *	but same is not true for ARCH backend, hence the need for 2 variants
  */
+#ifndef CONFIG_ARC_HAS_LLSC
+
 #ifdef CONFIG_SMP
 
 #include <linux/irqflags.h>
@@ -118,7 +127,7 @@ extern arch_spinlock_t smp_bitops_lock;
 	local_irq_restore(flags);		\
 } while (0)
 
-#elif !defined(CONFIG_ARC_HAS_LLSC)
+#else /* !CONFIG_SMP */
 
 #define atomic_ops_lock(flags)		local_irq_save(flags)
 #define atomic_ops_unlock(flags)	local_irq_restore(flags)
@@ -126,6 +135,8 @@ extern arch_spinlock_t smp_bitops_lock;
 #define bitops_lock(flags)		local_irq_save(flags)
 #define bitops_unlock(flags)		local_irq_restore(flags)
 
-#endif  /* !CONFIG_SMP */
+#endif /* !CONFIG_SMP */
+
+#endif	/* !CONFIG_ARC_HAS_LLSC */
 
 #endif
