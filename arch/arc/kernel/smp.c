@@ -124,9 +124,6 @@ void __cpuinit start_kernel_secondary(void)
 
 	arc_clockevent_init();
 
-	/* Hack for request_irq() failing on non-boot CPU */
-	arch_unmask_irq(TIMER0_INT);
-
 	local_irq_enable();
 	preempt_disable();
 	cpu_idle();
