@@ -152,7 +152,7 @@ void __init read_decode_cache_bcr(void)
 void __init arc_cache_init(void)
 {
 	unsigned int temp;
-#ifdef CONFIG_ARC_HAS_CACHE
+#ifdef CONFIG_ARC_CACHE
 	unsigned int cpu = smp_processor_id();
 #endif
 #ifdef CONFIG_ARC_HAS_ICACHE
