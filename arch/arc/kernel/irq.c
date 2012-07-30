@@ -59,6 +59,19 @@ void __init arc_init_IRQ(void)
  */
 void __init init_IRQ(void)
 {
+	const int irq = TIMER0_INT;
+
+	/*
+	 * Each CPU needs to register irq of it's private TIMER0.
+	 * The APIs request_percpu_irq()/enable_percpu_irq() will not be
+	 * functional, if we don't "prep" the generic IRQ sub-system with
+	 * the following:
+	 * -Ensure that devid passed to request_percpu_irq() is indeed per cpu
+	 * -disable NOAUTOEN, w/o which the device handler never gets called
+	 */
+	irq_set_percpu_devid(irq);
+	irq_modify_status(irq, IRQ_NOAUTOEN, 0);
+
 	plat_init_IRQ();
 
 #ifdef CONFIG_SMP

@@ -179,12 +179,20 @@ void __cpuinit arc_clockevent_init(void)
 
 	clockevents_register_device(evt);
 
-	rc = request_irq(TIMER0_INT, timer_irq_handler,
-			 IRQF_TIMER | IRQF_DISABLED | IRQF_PERCPU,
-			 "Timer0 (clock-evt-dev)", evt);
+	/*
+	 * Done only on Boot CPU as it would fail on others.
+	 * (Treated a re-registration for a !IRQF_SHARED irq)
+	 */
+	if (cpu == 0) {
+		rc = request_percpu_irq(TIMER0_INT, timer_irq_handler,
+					"Timer0 (clock-evt-dev)", evt);
 
-	if (rc)
-		pr_err("#$*@#$ Timer0: can't register IRQ on cpu%d\n", cpu);
+		if (rc)
+			panic("TIMER0 IRQ reg failed on BOOT cpu\n");
+	}
+
+	/* This is done on each CPU */
+	enable_percpu_irq(TIMER0_INT, 0);
 
 }
 
