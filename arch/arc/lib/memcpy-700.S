@@ -29,11 +29,19 @@ ARC_ENTRY memcpy
 .Lendloop:
 	breq	r2,0,.Last_store
 	ld	r3,[r5,0]
+#ifdef __LITTLE_ENDIAN__
 	add3	r2,-1,r2
 	; uses long immediate
 	xor_s	r12,r12,r3
 	bmsk	r12,r12,r2
     xor_s	r12,r12,r3
+#else /* BIG ENDIAN */
+	sub3	r2,31,r2
+	; uses long immediate
+        xor_s	r3,r3,r12
+        bmsk	r3,r3,r2
+        xor_s	r12,r12,r3
+#endif /* ENDIAN */
 .Last_store:
 	j_s.d	[blink]
 	st	r12,[r5,0]

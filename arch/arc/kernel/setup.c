@@ -155,6 +155,10 @@ char *arc_cpu_mumbojumbo(int cpu_id, char *buf)
 {
 	int i, num = 0;
 	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[cpu_id];
+	int be = 0;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	be = 1;
+#endif
 	FIX_PTR(p_cpu);
 
 	num += sprintf(buf + num, "\nARC IDENTITY\t: Family [%#02x]"
@@ -165,8 +169,9 @@ char *arc_cpu_mumbojumbo(int cpu_id, char *buf)
 	for (i = 0; arc_cpu_tbl[i].id != 0; i++) {
 		if ((p_cpu->core.family >= arc_cpu_tbl[i].id) &&
 		    (p_cpu->core.family <= arc_cpu_tbl[i].up_range)) {
-			num += sprintf(buf + num, "processor\t: %s\n",
-				       arc_cpu_tbl[i].str);
+			num += sprintf(buf + num, "processor\t: %s %s\n",
+				       arc_cpu_tbl[i].str,
+				       be ? "[Big Endian]" : "");
 			break;
 		}
 	}

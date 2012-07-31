@@ -70,7 +70,7 @@ ifndef CONFIG_ARC_HAS_HW_MPY
 	endif
 endif
 
-LIBGCC		:= $(shell $(CC) $(ARC_LIBGCC) --print-libgcc-file-name)
+LIBGCC	:= $(shell $(CC) $(ARC_LIBGCC) $(cflags-y) --print-libgcc-file-name)
 
 # Modules with short calls might break for calls into builtin-kernel
 KBUILD_CFLAGS_MODULE	+= -mlong-calls
@@ -78,7 +78,7 @@ KBUILD_CFLAGS_MODULE	+= -mlong-calls
 # Finally dump eveything into kernel build system
 KBUILD_CFLAGS	+= $(cflags-y)
 KBUILD_AFLAGS	+= $(KBUILD_CFLAGS)
-KBUILD_LDFLAGS	+= $(ldflags-y)
+LDFLAGS		+= $(ldflags-y)
 
 # Needed for Linker script preprocessing
 KBUILD_CPPFLAGS	+= -Iarch/arc/plat-$(PLATFORM)/include

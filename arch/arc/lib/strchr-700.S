@@ -24,7 +24,11 @@ ARC_ENTRY strchr
 	sub_s	r0,r0,r2
 	asl	r7,r2,3
 	ld_s	r2,[r0]
+#ifdef __LITTLE_ENDIAN__
 	asl	r7,r3,r7
+#else
+	lsr	r7,r3,r7
+#endif
 	or	r5,r5,r4
 	ror	r4,r3
 	sub	r12,r2,r7
@@ -56,6 +60,7 @@ ARC_ENTRY strchr
 	and	r7,r12,r4
 	breq	r7,0,.Loop /* ... so that this branch is unaligned.  */
 	; Found searched-for character.  r0 has already advanced to next word.
+#ifdef __LITTLE_ENDIAN__
 /* We only need the information about the first matching byte
    (i.e. the least significant matching byte) to be exact,
    hence there is no problem with carry effects.  */
@@ -85,4 +90,34 @@ ARC_ENTRY strchr
 	sub_s	r0,r0,r12
 	j_s.d	[blink]
 	mov.pl	r0,0
+#else /* BIG ENDIAN */
+.Lfound_char:
+	lsr	r7,r7,7
+
+	bic	r2,r7,r6
+	norm	r2,r2
+	sub_s	r0,r0,4
+	asr_s	r2,r2,3
+	j.d	[blink]
+	add_s	r0,r0,r2
+
+.Lfound0_ua:
+	mov_s	r3,r7
+.Lfound0:
+	asl_s	r2,r2,7
+	or	r7,r6,r4
+	bic_s	r12,r12,r2
+	sub	r2,r7,r3
+	or	r2,r2,r6
+	bic	r12,r2,r12
+	bic.f	r3,r4,r12
+	norm	r3,r3
+
+	add.pl	r3,r3,1
+	asr_s	r12,r3,3
+	asl.f	0,r2,r3
+	add_s	r0,r0,r12
+	j_s.d	[blink]
+	mov.mi	r0,0
+#endif /* ENDIAN */
 ARC_EXIT strchr

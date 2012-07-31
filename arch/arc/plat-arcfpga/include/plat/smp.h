@@ -31,12 +31,25 @@
  * Build Configuration Register which identifies the sub-components
  */
 struct bcr_mp {
-	unsigned int ver:8, scu:1, idu:1, sdu:1, padding:5, mp_arch:16;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int mp_arch:16, pad:5, sdu:1, idu:1, scu:1, ver:8;
+#else
+	unsigned int ver:8, scu:1, idu:1, sdu:1, pad:5, mp_arch:16;
+#endif
 };
 
 /* IDU supports 256 common interrupts */
 #define NR_IDU_IRQS			256
 
+/*
+ * The Aux Regs layout is same bit-by-bit in both BE/LE modes.
+ * However when casted as a bitfield encoded "C" struct, gcc treats it as
+ * memory, generating different code for BE/LE, requiring strcture adj (see
+ * include/asm/arcregs.h)
+ *
+ * However when manually "carving" the value for a Aux, no special handling
+ * of BE is needed because of the property discribed above
+ */
 #define IDU_SET_COMMAND(irq, cmd)			\
 do {							\
 	uint32_t val;					\

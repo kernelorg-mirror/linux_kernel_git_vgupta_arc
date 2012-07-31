@@ -249,18 +249,29 @@
  * bit fiddling ourselves; the compiler can do that for us
  */
 struct bcr_identity {
-	unsigned int
-	 family:8, cpu_id:8, chip_id:16;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int chip_id:16, cpu_id:8, family:8;
+#else
+	unsigned int family:8, cpu_id:8, chip_id:16;
+#endif
 };
 
 struct bcr_mmu_1_2 {
-	unsigned int
-	 u_dtlb:8, u_itlb:8, sets:4, ways:4, ver:8;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ver:8, ways:4, sets:4, u_itlb:8, u_dtlb:8;
+#else
+	unsigned int u_dtlb:8, u_itlb:8, sets:4, ways:4, ver:8;
+#endif
 };
 
 struct bcr_mmu_3 {
-	unsigned int
-	 u_dtlb:4, u_itlb:4, pg_sz:4, reserv:3, osm:1, sets:4, ways:4, ver:8;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ver:8, ways:4, sets:4, osm:1, reserv:3, pg_sz:4,
+		     u_itlb:4, u_dtlb:4;
+#else
+	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, reserv:3, osm:1, sets:4,
+		     ways:4, ver:8;
+#endif
 };
 
 #define EXTN_SWAP_VALID     0x1
@@ -269,46 +280,71 @@ struct bcr_mmu_3 {
 #define EXTN_BARREL_VALID   0x2
 
 struct bcr_extn {
-	unsigned int
-
-	/* Prog Ref Manual */
-	 swap:1, norm:2, minmax:2, barrel:2, mul:2, ext_arith:2, crc:1,
-
-	/* Dual Viterbi Butterfly Instrn: Not used by Linux
-	 * (DSP-LIB Ref Manual)
-	 */
-	 dvfb:1,
-	 padding:1;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:20, crc:1, ext_arith:2, mul:2, barrel:2, minmax:2,
+		     norm:2, swap:1;
+#else
+	unsigned int swap:1, norm:2, minmax:2, barrel:2, mul:2, ext_arith:2,
+		     crc:1, pad:20;
+#endif
 };
 
 /* DSP Options Ref Manual */
 struct bcr_extn_mac_mul {
-	int ver:8, type:8;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:16, type:8, ver:8;
+#else
+	unsigned int ver:8, type:8, pad:16;
+#endif
 };
 
 struct bcr_extn_xymem {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ram_org:2, num_banks:4, bank_sz:4, ver:8;
+#else
 	unsigned int ver:8, bank_sz:4, num_banks:4, ram_org:2;
+#endif
 };
 
 struct bcr_cache {
-	unsigned long ver:8, config:4, sz:4, line_len:4, pad:12;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
+#else
+	unsigned int ver:8, config:4, sz:4, line_len:4, pad:12;
+#endif
 };
 
 struct bcr_perip {
-	unsigned long pad:8, sz:8, pad2:8, start:8;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int start:8, pad2:8, sz:8, pad:8;
+#else
+	unsigned int pad:8, sz:8, pad2:8, start:8;
+#endif
 };
 struct bcr_iccm {
-	unsigned long ver:8, sz:3, reserved:5, base:16;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int base:16, pad:5, sz:3, ver:8;
+#else
+	unsigned int ver:8, sz:3, pad:5, base:16;
+#endif
 };
 
 /* DCCM Base Address Register: ARC_REG_DCCMBASE_BCR */
 struct bcr_dccm_base {
-	unsigned long ver:8, addr:24;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int addr:24, ver:8;
+#else
+	unsigned int ver:8, addr:24;
+#endif
 };
 
-/* DCCM RAM Configuration Register : ARC_REG_DCCM_BCR */
+/* DCCM RAM Configuration Register: ARC_REG_DCCM_BCR */
 struct bcr_dccm {
-	unsigned long ver:8, sz:3, res:21;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int res:21, sz:3, ver:8;
+#else
+	unsigned int ver:8, sz:3, res:21;
+#endif
 };
 
 /* Both SP and DP FPU BCRs have same format */
@@ -316,9 +352,8 @@ struct bcr_fp {
 	unsigned int ver:8, fast:1;
 };
 
-struct bcr_ccm {
-	unsigned int base_addr;
-	unsigned int sz;
+struct cpuinfo_arc_ccm {
+	unsigned int base_addr, sz;
 };
 
 struct cpuinfo_arc_cache {
@@ -326,10 +361,7 @@ struct cpuinfo_arc_cache {
 };
 
 struct cpuinfo_arc_mmu {
-	unsigned int ver, pg_sz,	/* MMU Page Size */
-	 sets, ways,			/* JTLB Geometry */
-	 u_dtlb, u_itlb,		/* Num entries in Micro TLBs */
-	 num_tlb;			/* sets * ways */
+	unsigned int ver, pg_sz, sets, ways, u_dtlb, u_itlb, num_tlb;
 };
 
 /*
@@ -344,11 +376,11 @@ struct cpuinfo_arc {
 	unsigned int timers;
 	unsigned int vec_base;
 	unsigned int perip_base;
+	struct cpuinfo_arc_ccm iccm, dccm;
 	struct bcr_perip uncached_space; /* For mapping Periph Regs etc */
 	struct bcr_extn extn;
 	struct bcr_extn_xymem extn_xymem;
 	struct bcr_extn_mac_mul extn_mac_mul;
-	struct bcr_ccm iccm, dccm;
 	struct bcr_fp fp, dpfp;
 };
 
@@ -391,8 +423,8 @@ struct arc_fpu {
 	}						\
 }
 
-#endif /* __KERNEL__ */
-
 #endif /* __ASEMBLY__ */
+
+#endif /* __KERNEL__ */
 
 #endif /* _ASM_ARC_ARCREGS_H */

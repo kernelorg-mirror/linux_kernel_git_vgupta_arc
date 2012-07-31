@@ -48,8 +48,13 @@ loop_start:
 	tst	r2,r12
 	beq	loop
 	mov_s	r3,r4
+#ifdef __LITTLE_ENDIAN__
 r3z:	bmsk.f	r1,r3,7
 	lsr_s	r3,r3,8
+#else
+r3z:	lsr.f	r1,r3,24
+	asl_s	r3,r3,8
+#endif
 	bne.d	r3z
 	stb.ab	r1,[r10,1]
 	j_s	[blink]

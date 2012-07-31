@@ -145,6 +145,12 @@ config ARC_CPU_770
 
 endchoice
 
+config CPU_BIG_ENDIAN
+	bool "Enable Big Endian Mode"
+	default n
+	help
+	  Build kernel for Big Endian Mode of ARC CPU
+
 # If a plat can do IPI, same core(s) can do minimal SMP
 config ARC_HAS_IPI
 	bool
