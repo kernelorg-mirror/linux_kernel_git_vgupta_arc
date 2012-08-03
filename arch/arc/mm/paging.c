@@ -8,12 +8,10 @@
 
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <asm/cacheflush.h>	/* for flush_dcache_page_virt */
+#include <asm/cacheflush.h>
 #include <linux/module.h>
 
 #ifndef NONINLINE_MEMSET
-
-/* page functions */
 
 void copy_page(void *to, void *from)
 {
@@ -80,17 +78,10 @@ void pgd_init(unsigned long page)
 void clear_user_page(void *addr, unsigned long vaddr, struct page *page)
 {
 	clear_page(addr);
-
-	if (cpuinfo_arc700[smp_processor_id()].dcache.has_aliasing)
-		flush_dcache_page_virt((unsigned long *)page);
-
 }
 
 void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 		    struct page *to)
 {
 	copy_page(vto, vfrom);
-
-	if (cpuinfo_arc700[smp_processor_id()].dcache.has_aliasing)
-		flush_dcache_page_virt((unsigned long *)vto);
 }

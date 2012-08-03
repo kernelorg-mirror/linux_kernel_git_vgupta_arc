@@ -88,6 +88,17 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *m)
 	: "cc");
 }
 
+/*
+ * Semantically:
+ *    Test the bit
+ *    if clear
+ *        set it and return 0 (old value)
+ *    else
+ *        return 1 (old value).
+ *
+ * Since ARC lacks a equivalent h/w primitive, the bit is set unconditionally
+ * and the old value of bit is returned
+ */
 static inline int test_and_set_bit(unsigned long nr, volatile unsigned long *m)
 {
 	unsigned long old, temp;

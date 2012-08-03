@@ -684,16 +684,13 @@ void print_asid_mismatch(int is_fast_path)
 	__asm__ __volatile__("flag 1");
 }
 
-void tlb_paranoid_check(unsigned int pid_sw, unsigned long address)
+void tlb_paranoid_check(unsigned int pid_sw, unsigned long addr)
 {
-	unsigned int pid_sw, pid_hw;
+	unsigned int pid_hw;
 
 	pid_hw = read_aux_reg(ARC_REG_PID) & 0xff;
 
-	if (address < 0x70000000 &&
-		    ((pid_hw != pid_sw) || (pid_sw == NO_ASID))) {
-			print_asid_mismatch(0);
-		}
-	}
+	if (addr < 0x70000000 && ((pid_hw != pid_sw) || (pid_sw == NO_ASID)))
+		print_asid_mismatch(0);
 }
 #endif

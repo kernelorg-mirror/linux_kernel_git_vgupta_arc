@@ -77,16 +77,18 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 #include <linux/pagemap.h>
 #include <asm-generic/tlb.h>
 
-#else
-#include <asm/tlb-mmu1.h>
-#endif
-
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA
 void tlb_paranoid_check(unsigned int pid_sw, unsigned long address);
 #else
 #define tlb_paranoid_check(a, b)
 #endif
 
-#endif
+#else	/* __ASSEMBLY__ */
+
+#include <asm/tlb-mmu1.h>
+
+#endif	/* __ASSEMBLY__ */
+
+#endif	/* __KERNEL__ */
 
 #endif /* _ASM_ARC_TLB_H */

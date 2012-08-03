@@ -42,6 +42,7 @@
 #include <asm/unwind.h>
 #include <asm/serial.h>
 #include <asm/smp.h>
+#include <plat/memmap.h>
 
 extern void __init arc_verify_sig_sz(void);
 
@@ -82,28 +83,27 @@ struct cpuinfo_data {
 	int up_range;
 };
 
-int __init read_arc_build_cfg_regs(void)
+void __init read_arc_build_cfg_regs(void)
 {
-	int cpu = smp_processor_id();
-	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[cpu];
-	FIX_PTR(p_cpu);
+	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
+	FIX_PTR(cpu);
 
-	READ_BCR(AUX_IDENTITY, p_cpu->core);
+	READ_BCR(AUX_IDENTITY, cpu->core);
 
-	p_cpu->timers = read_aux_reg(ARC_REG_TIMERS_BCR);
-	p_cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
-	p_cpu->perip_base = read_aux_reg(ARC_REG_PERIBASE_BCR);
-	READ_BCR(ARC_REG_D_UNCACH_BCR, p_cpu->uncached_space);
+	cpu->timers = read_aux_reg(ARC_REG_TIMERS_BCR);
+	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
+	cpu->perip_base = read_aux_reg(ARC_REG_PERIBASE_BCR);
+	READ_BCR(ARC_REG_D_UNCACH_BCR, cpu->uncached_space);
 
-	p_cpu->extn.mul = read_aux_reg(ARC_REG_MUL_BCR);
-	p_cpu->extn.swap = read_aux_reg(ARC_REG_SWAP_BCR);
-	p_cpu->extn.norm = read_aux_reg(ARC_REG_NORM_BCR);
-	p_cpu->extn.minmax = read_aux_reg(ARC_REG_MIXMAX_BCR);
-	p_cpu->extn.barrel = read_aux_reg(ARC_REG_BARREL_BCR);
-	READ_BCR(ARC_REG_MAC_BCR, p_cpu->extn_mac_mul);
+	cpu->extn.mul = read_aux_reg(ARC_REG_MUL_BCR);
+	cpu->extn.swap = read_aux_reg(ARC_REG_SWAP_BCR);
+	cpu->extn.norm = read_aux_reg(ARC_REG_NORM_BCR);
+	cpu->extn.minmax = read_aux_reg(ARC_REG_MIXMAX_BCR);
+	cpu->extn.barrel = read_aux_reg(ARC_REG_BARREL_BCR);
+	READ_BCR(ARC_REG_MAC_BCR, cpu->extn_mac_mul);
 
-	p_cpu->extn.ext_arith = read_aux_reg(ARC_REG_EXTARITH_BCR);
-	p_cpu->extn.crc = read_aux_reg(ARC_REG_CRC_BCR);
+	cpu->extn.ext_arith = read_aux_reg(ARC_REG_EXTARITH_BCR);
+	cpu->extn.crc = read_aux_reg(ARC_REG_CRC_BCR);
 
 	/* Note that we read the CCM BCRs independent of kernel config
 	 * This is to catch the cases where user doesn't know that
@@ -118,29 +118,27 @@ int __init read_arc_build_cfg_regs(void)
 		bcr_32bit_val = read_aux_reg(ARC_REG_ICCM_BCR);
 		if (bcr_32bit_val) {
 			iccm = *((struct bcr_iccm *)&bcr_32bit_val);
-			p_cpu->iccm.base_addr = iccm.base << 16;
-			p_cpu->iccm.sz = 0x2000 << (iccm.sz - 1);
+			cpu->iccm.base_addr = iccm.base << 16;
+			cpu->iccm.sz = 0x2000 << (iccm.sz - 1);
 		}
 
 		bcr_32bit_val = read_aux_reg(ARC_REG_DCCM_BCR);
 		if (bcr_32bit_val) {
 			dccm = *((struct bcr_dccm *)&bcr_32bit_val);
-			p_cpu->dccm.sz = 0x800 << (dccm.sz);
+			cpu->dccm.sz = 0x800 << (dccm.sz);
 
 			READ_BCR(ARC_REG_DCCMBASE_BCR, dccm_base);
-			p_cpu->dccm.base_addr = dccm_base.addr << 8;
+			cpu->dccm.base_addr = dccm_base.addr << 8;
 		}
 	}
 
-	READ_BCR(ARC_REG_XY_MEM_BCR, p_cpu->extn_xymem);
+	READ_BCR(ARC_REG_XY_MEM_BCR, cpu->extn_xymem);
 
 	read_decode_mmu_bcr();
 	read_decode_cache_bcr();
 
-	READ_BCR(ARC_REG_FP_BCR, p_cpu->fp);
-	READ_BCR(ARC_REG_DPFP_BCR, p_cpu->dpfp);
-
-	return cpu;
+	READ_BCR(ARC_REG_FP_BCR, cpu->fp);
+	READ_BCR(ARC_REG_DPFP_BCR, cpu->dpfp);
 }
 
 static const struct cpuinfo_data arc_cpu_tbl[] = {
@@ -154,21 +152,21 @@ static const struct cpuinfo_data arc_cpu_tbl[] = {
 char *arc_cpu_mumbojumbo(int cpu_id, char *buf)
 {
 	int i, num = 0;
-	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[cpu_id];
+	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
 	int be = 0;
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	be = 1;
 #endif
-	FIX_PTR(p_cpu);
+	FIX_PTR(cpu);
 
 	num += sprintf(buf + num, "\nARC IDENTITY\t: Family [%#02x]"
 			" Cpu-id [%#02x] Chip-id [%#4x]\n",
-			p_cpu->core.family, p_cpu->core.cpu_id,
-			p_cpu->core.chip_id);
+			cpu->core.family, cpu->core.cpu_id,
+			cpu->core.chip_id);
 
 	for (i = 0; arc_cpu_tbl[i].id != 0; i++) {
-		if ((p_cpu->core.family >= arc_cpu_tbl[i].id) &&
-		    (p_cpu->core.family <= arc_cpu_tbl[i].up_range)) {
+		if ((cpu->core.family >= arc_cpu_tbl[i].id) &&
+		    (cpu->core.family <= arc_cpu_tbl[i].up_range)) {
 			num += sprintf(buf + num, "processor\t: %s %s\n",
 				       arc_cpu_tbl[i].str,
 				       be ? "[Big Endian]" : "");
@@ -184,21 +182,21 @@ char *arc_cpu_mumbojumbo(int cpu_id, char *buf)
 		       (unsigned int)(clk_speed / 10000) % 100);
 
 	num += sprintf(buf + num, "Timers\t\t: %s %s\n",
-		       ((p_cpu->timers & 0x200) ? "TIMER1" : ""),
-		       ((p_cpu->timers & 0x100) ? "TIMER0" : ""));
+		       ((cpu->timers & 0x200) ? "TIMER1" : ""),
+		       ((cpu->timers & 0x100) ? "TIMER0" : ""));
 
-	num += sprintf(buf + num, "Vect Tbl Base\t: %#x\n", p_cpu->vec_base ?
-			p_cpu->vec_base : (unsigned int)_int_vec_base_lds);
+	num += sprintf(buf + num, "Vect Tbl Base\t: %#x\n", cpu->vec_base ?
+			cpu->vec_base : (unsigned int)_int_vec_base_lds);
 
 	num += sprintf(buf + num, "Peripheral Base\t:");
-	if (p_cpu->perip_base == 0)
+	if (cpu->perip_base == 0)
 		num += sprintf(buf + num, " N/A (assuming 0xc0fc0000)\n");
 	else
-		num += sprintf(buf + num, " %#x\n", p_cpu->perip_base);
+		num += sprintf(buf + num, " %#x\n", cpu->perip_base);
 
 	num += sprintf(buf + num, "UNCACHED Base\t: %#x000000, %dMB\n",
-			p_cpu->uncached_space.start,
-			(0x10 << p_cpu->uncached_space.sz));
+			cpu->uncached_space.start,
+			(0x10 << cpu->uncached_space.sz));
 
 	return buf;
 }
@@ -222,28 +220,28 @@ static const struct id_to_str mac_mul_nm[] = {
 char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 {
 	int num = 0;
-	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[cpu_id];
+	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
 
-	FIX_PTR(p_cpu);
+	FIX_PTR(cpu);
 #define IS_AVAIL1(var, str)	((var) ? str : "")
 #define IS_AVAIL2(var, str)	((var == 0x2) ? str : "")
 #define IS_AVAIL3(var)   ((var) ? "" : "N/A")
 
 	num += sprintf(buf + num, "Extn [700-Base]\t: %s %s %s %s %s %s\n",
-			IS_AVAIL2(p_cpu->extn.norm, "norm,"),
-			IS_AVAIL2(p_cpu->extn.barrel, "barrel-shift,"),
-			IS_AVAIL1(p_cpu->extn.swap, "swap,"),
-			IS_AVAIL2(p_cpu->extn.minmax, "minmax,"),
-			IS_AVAIL1(p_cpu->extn.crc, "crc,"),
-			IS_AVAIL2(p_cpu->extn.ext_arith, "ext-arith"));
+			IS_AVAIL2(cpu->extn.norm, "norm,"),
+			IS_AVAIL2(cpu->extn.barrel, "barrel-shift,"),
+			IS_AVAIL1(cpu->extn.swap, "swap,"),
+			IS_AVAIL2(cpu->extn.minmax, "minmax,"),
+			IS_AVAIL1(cpu->extn.crc, "crc,"),
+			IS_AVAIL2(cpu->extn.ext_arith, "ext-arith"));
 
 	num += sprintf(buf + num, "Extn [700-MPY]\t: %s",
-		       mul_type_nm[p_cpu->extn.mul].str);
+		       mul_type_nm[cpu->extn.mul].str);
 
 	num += sprintf(buf + num, "   MAC MPY: %s\n",
-		       mac_mul_nm[p_cpu->extn_mac_mul.type].str);
+		       mac_mul_nm[cpu->extn_mac_mul.type].str);
 
-	if (p_cpu->core.family == 0x34) {
+	if (cpu->core.family == 0x34) {
 		const char *inuse = "(in-use)";
 		const char *notinuse = "(not used)";
 
@@ -254,51 +252,51 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 			__CONFIG_ARC_HAS_RTSC_VAL ? inuse : notinuse);
 	}
 
-	num += sprintf(buf + num, "DCCM: %s", IS_AVAIL3(p_cpu->dccm.sz));
-	if (p_cpu->dccm.sz)
+	num += sprintf(buf + num, "DCCM: %s", IS_AVAIL3(cpu->dccm.sz));
+	if (cpu->dccm.sz)
 		num += sprintf(buf + num, "@ %x, %d KB ",
-			       p_cpu->dccm.base_addr, TO_KB(p_cpu->dccm.sz));
+			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz));
 
-	num += sprintf(buf + num, "  ICCM: %s", IS_AVAIL3(p_cpu->iccm.sz));
-	if (p_cpu->iccm.sz)
+	num += sprintf(buf + num, "  ICCM: %s", IS_AVAIL3(cpu->iccm.sz));
+	if (cpu->iccm.sz)
 		num += sprintf(buf + num, "@ %x, %d KB",
-			       p_cpu->iccm.base_addr, TO_KB(p_cpu->iccm.sz));
+			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
 
 	num += sprintf(buf + num, "\nExtn [Floating Point]: %s",
-			!(p_cpu->fp.ver || p_cpu->dpfp.ver) ? "N/A" : "");
+			!(cpu->fp.ver || cpu->dpfp.ver) ? "N/A" : "");
 
-	if (p_cpu->fp.ver) {
+	if (cpu->fp.ver) {
 		num += sprintf(buf + num, "SP [v%d] %s",
-		       (p_cpu->fp.ver), p_cpu->fp.fast ? "(fast)" : "");
+		       cpu->fp.ver, cpu->fp.fast ? "(fast)" : "");
 	}
-	if (p_cpu->dpfp.ver) {
+	if (cpu->dpfp.ver) {
 		num += sprintf(buf + num, "DP [v%d] %s",
-		       (p_cpu->fp.ver), p_cpu->fp.fast ? "(fast)" : "");
+		       cpu->fp.ver, cpu->fp.fast ? "(fast)" : "");
 	}
 	num += sprintf(buf + num, "\n");
 
 	return buf;
 }
 
-void arc_chk_ccms(void)
+void __init arc_chk_ccms(void)
 {
 #if defined(CONFIG_ARC_HAS_DCCM) || defined(CONFIG_ARC_HAS_ICCM)
-	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[smp_processor_id()];
+	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 
 #ifdef CONFIG_ARC_HAS_DCCM
 	/*
 	 * DCCM can be arbit placed in hardware.
 	 * Make sure it's placement/sz matches what Linux is built with
 	 */
-	if ((unsigned int)__arc_dccm_base != p_cpu->dccm.base_addr)
+	if ((unsigned int)__arc_dccm_base != cpu->dccm.base_addr)
 		panic("Linux built with incorrect DCCM Base address\n");
 
-	if (DCCM_COMPILE_SZ != p_cpu->dccm.sz)
+	if (DCCM_COMPILE_SZ != cpu->dccm.sz)
 		panic("Linux built with incorrect DCCM Size\n");
 #endif
 
 #ifdef CONFIG_ARC_HAS_ICCM
-	if (ICCM_COMPILE_SZ != p_cpu->iccm.sz)
+	if (ICCM_COMPILE_SZ != cpu->iccm.sz)
 		panic("Linux built with incorrect ICCM Size\n");
 #endif
 #endif
@@ -315,11 +313,11 @@ void arc_chk_ccms(void)
  * hardware has dedicated regs which need to be saved/restored on ctx-sw
  * (Single Precision uses core regs), thus kernel is kind of oblivious to it
  */
-void __init probe_fpu(void)
+void __init arc_chk_fpu(void)
 {
-	struct cpuinfo_arc *p_cpu = &cpuinfo_arc700[smp_processor_id()];
+	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 
-	if (p_cpu->dpfp.ver) {
+	if (cpu->dpfp.ver) {
 #ifndef CONFIG_ARC_FPU_SAVE_RESTORE
 		pr_warn("DPFP support broken in this kernel...\n");
 #endif
@@ -339,7 +337,9 @@ void __init probe_fpu(void)
 void __init setup_processor(void)
 {
 	char str[512];
-	int cpu_id = read_arc_build_cfg_regs();
+	int cpu_id = smp_processor_id();
+
+	read_arc_build_cfg_regs();
 
 	arc_init_IRQ();
 
@@ -358,7 +358,7 @@ void __init setup_processor(void)
 	printk(arc_platform_smp_cpuinfo());
 #endif
 
-	probe_fpu();
+	arc_chk_fpu();
 }
 
 static int __init parse_tag_core(struct tag *tag)
@@ -588,14 +588,6 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_arch_memory();
 
-	/* If no initramfs provided to kernel, and no NFS root, we fall back to
-	 * /dev/hda2 as ROOT device, assuming it has busybox and other
-	 * userland stuff
-	 */
-#if !defined(CONFIG_BLK_DEV_INITRD) && !defined(CONFIG_ROOT_NFS)
-	ROOT_DEV = Root_HDA2;
-#endif
-
 	/* Can be issue if someone passes cmd line arg "ro"
 	 * But that is unlikely so keeping it as it is
 	 */
@@ -603,10 +595,8 @@ void __init setup_arch(char **cmdline_p)
 
 	console_verbose();
 
-#ifdef CONFIG_VT
-#if defined(CONFIG_DUMMY_CONSOLE)
+#if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
-#endif
 #endif
 
 	paging_init();

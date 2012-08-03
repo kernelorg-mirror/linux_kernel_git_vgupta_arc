@@ -20,13 +20,13 @@
 static unsigned char __HOSTLINK__[4 * PAGE_SIZE] __aligned(PAGE_SIZE);
 
 static int arc_hl_mmap(struct file *fp, struct vm_area_struct *vma);
-static int arc_hl_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg);
+static long arc_hl_ioctl(struct file *file, unsigned int cmd,
+			unsigned long arg);
 
 static const struct file_operations arc_hl_fops = {
-	.owner = THIS_MODULE,
-	.ioctl = arc_hl_ioctl,
-	.mmap = arc_hl_mmap,
+	.owner		= THIS_MODULE,
+	.unlocked_ioctl	= arc_hl_ioctl,
+	.mmap		= arc_hl_mmap,
 };
 
 static int arc_hl_major;
@@ -103,8 +103,8 @@ static int arc_hl_mmap(struct file *fp, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int arc_hl_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg)
+static long arc_hl_ioctl(struct file *file, unsigned int cmd,
+			unsigned long arg)
 {
 	/* we only support, returning the physical addr to mmap in user space */
 	put_user(__HOSTLINK__, (int __user *)arg);

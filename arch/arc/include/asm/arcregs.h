@@ -244,9 +244,8 @@
 #endif
 
 /*
- ****************************************************************
- * Register Layouts using bitfields so that we don't have to write
- * bit fiddling ourselves; the compiler can do that for us
+ ***************************************************************
+ * Build Configuration Registers, with encoded hardware config
  */
 struct bcr_identity {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -352,6 +351,11 @@ struct bcr_fp {
 	unsigned int ver:8, fast:1;
 };
 
+/*
+ *******************************************************************
+ * Generic structures to hold build configuration used at runtime
+ */
+
 struct cpuinfo_arc_ccm {
 	unsigned int base_addr, sz;
 };
@@ -364,11 +368,6 @@ struct cpuinfo_arc_mmu {
 	unsigned int ver, pg_sz, sets, ways, u_dtlb, u_itlb, num_tlb;
 };
 
-/*
- *************************************************************
- * Top level structure which exports the CPU info such as
- * Cache info, MMU info etc to rest of ARCH specific Code
- */
 struct cpuinfo_arc {
 	struct cpuinfo_arc_cache icache, dcache;
 	struct cpuinfo_arc_mmu mmu;

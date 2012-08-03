@@ -35,19 +35,19 @@ void __init arc_init_IRQ(void)
        /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 #ifdef CONFIG_ARC_IRQ3_LV2
-       level_mask |= (1 << 3);
+	level_mask |= (1 << 3);
 #endif
 #ifdef CONFIG_ARC_IRQ5_LV2
-       level_mask |= (1 << 5);
+	level_mask |= (1 << 5);
 #endif
 #ifdef CONFIG_ARC_IRQ6_LV2
-       level_mask |= (1 << 6);
+	level_mask |= (1 << 6);
 #endif
 
-       if (level_mask) {
-               pr_info("Level-2 interrupts bitset %x\n");
-               write_aux_reg(AUX_IRQ_LEV, level_mask);
-       }
+	if (level_mask) {
+		pr_info("Level-2 interrupts bitset %x\n", level_mask);
+		write_aux_reg(AUX_IRQ_LEV, level_mask);
+	}
 #endif
 }
 
@@ -93,7 +93,7 @@ void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-int get_hw_config_num_irq(void)
+int __init get_hw_config_num_irq(void)
 {
 	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
 

@@ -66,7 +66,6 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr_hint, unsigned long, len,
 
 out:
 	return vaddr;
-#include <linux/uaccess.h>
 }
 
 /* simple helper over mmap called by elf loader

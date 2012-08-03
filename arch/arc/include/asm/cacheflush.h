@@ -88,7 +88,6 @@ extern void flush_icache_page(struct vm_area_struct *vma, struct page *page);
 #ifdef CONFIG_ARC_HAS_DCACHE
 
 extern void flush_dcache_page(struct page *page);
-extern void flush_dcache_page_virt(unsigned long *page);
 extern void flush_dcache_range(unsigned long start, unsigned long end);
 
 extern void flush_dcache_all(void);
@@ -106,7 +105,6 @@ void flush_and_inv_dcache_all(void);
 
 #define flush_dcache_range(start, end)		do { } while (0)
 #define flush_dcache_page(page)			do { } while (0)
-#define flush_dcache_page_virt(page)		do { } while (0)
 #define flush_dcache_all(start, size)		do { } while (0)
 #define inv_dcache_all()			do { } while (0)
 #define inv_dcache_range(start, size)		do { } while (0)

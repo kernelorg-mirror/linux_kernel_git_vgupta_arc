@@ -38,3 +38,5 @@ generic-y += termios.h
 generic-y += topology.h
 generic-y += types.h
 generic-y += ucontext.h
+generic-y += vga.h
+generic-y += xor.h

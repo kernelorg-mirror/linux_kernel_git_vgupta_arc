@@ -24,7 +24,7 @@
 int lat_cycles = CONFIG_BVCI_LAT_CYCLES;
 
 /* BVCI Bus Profiler: Latency Unit */
-static void setup_bvci_lat_unit(void)
+static void __init setup_bvci_lat_unit(void)
 {
 #define MAX_BVCI_UNITS 12
 
@@ -66,7 +66,7 @@ static void setup_bvci_lat_unit(void)
 	}
 }
 #else
-static void setup_bvci_lat_unit(void)
+static void __init setup_bvci_lat_unit(void)
 {
 }
 #endif

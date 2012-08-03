@@ -97,11 +97,9 @@ ip_fast_csum(const void *iph, unsigned int ihl)
 	"	adc.f  %0, %0, %1		\n"
 	"1:	adc.f  %0, %0, %2		\n"
 	"	add.cs %0,%0,1			\n"
-	: "=&r"(sum), "=r"(tmp), "=&r"(tmp2),
-		"+&r"
-		(ptr)
-:		"r"(ihl)
-:		"cc", "lp_count", "memory");
+	: "=&r"(sum), "=r"(tmp), "=&r"(tmp2), "+&r" (ptr)
+	: "r"(ihl)
+	: "cc", "lp_count", "memory");
 
 	return csum_fold(sum);
 }

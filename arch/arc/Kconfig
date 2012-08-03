@@ -22,13 +22,6 @@ config ARC
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PENDING_IRQ if SMP
 
-# vineetg: Mar 31st 2010
-# hack: to enable oprofile w/o TRACE_IRQFLAGS
-# Normally this is selected automatically by kbuild system
-# But is dependent on IRQTRACING when don't have yet.
-# So for now we fake it: When IRQTRACING implemented, take it off
-	select TRACING_SUPPORT
-
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
@@ -105,8 +98,6 @@ source "kernel/Kconfig.freezer"
 
 menu "ARC Architecture Configuration"
 
-menu "ARC CPU Configuration"
-
 choice
 	prompt "ARC Platform"
 	default ARC_PLAT_FPGA_LEGACY
@@ -122,6 +113,8 @@ config ARC_PLAT_FPGA_LEGACY
 
 #New platform adds here
 endchoice
+
+menu "ARC CPU Configuration"
 
 choice
 	prompt "ARC Core"
@@ -485,7 +478,7 @@ config ARC_DBG_TLB_PARANOIA
 
 config ARC_DBG_EVENT_TIMELINE
 	bool "Low level event capture"
-	depends on ARC_DBG
+	depends on ARC_DBG && !SMP
 	default n
 	help
 	  Capture low level events: IRQ/Trap/Exception

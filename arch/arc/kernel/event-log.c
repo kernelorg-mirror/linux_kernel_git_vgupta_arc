@@ -44,18 +44,21 @@
 #include <linux/reboot.h>
 
 #ifdef CONFIG_ARC_CURR_IN_REG
-/* current on ARC is a register variable "r25" setup on entry to kernel and
-   restored back to user value on return.
-   However if the event snap shotting return is called very late from
-   ISR/Exception return code, r25 might already have been restored to user
-   value, hence would no longer point to current task. This can cause weird
-   de-referencing crashes. Safest option is to undef it and instead define
-   it in terms of current_thread_info() which is derived from SP
-*/
+/*
+ * current on ARC is a register variable "r25" setup on entry to kernel and
+ * restored back to user value on return.
+ * However if the event snap shotting return is called very late from
+ * ISR/Exception return code, r25 might already have been restored to user
+ * value, hence would no longer point to current task. This can cause weird
+ * de-referencing crashes. Safest option is to undef it and instead define
+ * it in terms of current_thread_info() which is derived from SP
+ */
 #undef current
 #define current (current_thread_info()->task)
+#endif
 
-/* Log buffer which stores the event info
+/*
+ * Log buffer which stores the event info
  *
  *  There is race condition when the counter goes 1 more than
  *  max-value (if IRQ sneaks in in the logging routine. Since

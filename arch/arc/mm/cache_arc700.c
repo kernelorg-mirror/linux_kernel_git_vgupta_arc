@@ -441,15 +441,6 @@ void flush_dcache_page(struct page *page)
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
-/*
- * page is the kernel virtual addr and ARC_REG_DC_FLDL expects a phy addr
- * TODO: need to remove this
- */
-void flush_dcache_page_virt(unsigned long *page)
-{
-	__arc_dcache_flush_lines((unsigned long)page, PAGE_SIZE);
-}
-
 void flush_and_inv_dcache_range(unsigned long start, unsigned long end)
 {
 	__arc_dcache_inv_lines(start, end - start, 1);
