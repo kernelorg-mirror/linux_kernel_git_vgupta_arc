@@ -512,27 +512,29 @@ void __init read_decode_mmu_bcr(void)
 
 }
 
-char *arc_mmu_mumbojumbo(int cpu_id, char *buf)
+char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 {
-	int num = 0;
+	int n = 0;
 	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
 
-	num += sprintf(buf+num, "ARC700 MMU [v%x]\t: %dk PAGE, ",
-			p_mmu->ver, TO_KB(p_mmu->pg_sz));
+	n += scnprintf(buf + n, len - n, "ARC700 MMU [v%x]\t: %dk PAGE, ",
+		       p_mmu->ver, TO_KB(p_mmu->pg_sz));
 
-	num += sprintf(buf+num, "J-TLB %d (%dx%d), uDTLB %d, uITLB %d, %s\n",
-			p_mmu->num_tlb, p_mmu->sets, p_mmu->ways,
-			p_mmu->u_dtlb, p_mmu->u_itlb,
-			(__CONFIG_ARC_MMU_SASID_VAL ? "SASID" : ""));
+	n += scnprintf(buf + n, len - n,
+		       "J-TLB %d (%dx%d), uDTLB %d, uITLB %d, %s\n",
+		       p_mmu->num_tlb, p_mmu->sets, p_mmu->ways,
+		       p_mmu->u_dtlb, p_mmu->u_itlb,
+		       __CONFIG_ARC_MMU_SASID_VAL ? "SASID" : "");
+
 	return buf;
 }
 
 void __init arc_mmu_init(void)
 {
-	char str[512];
+	char str[256];
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
 
-	printk(arc_mmu_mumbojumbo(0, str));
+	printk(arc_mmu_mumbojumbo(0, str, sizeof(str)));
 
 	/* For efficiency sake, kernel is compile time built for a MMU ver
 	 * This must match the hardware it is running on.

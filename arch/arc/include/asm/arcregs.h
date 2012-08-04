@@ -374,9 +374,8 @@ struct cpuinfo_arc {
 	struct bcr_identity core;
 	unsigned int timers;
 	unsigned int vec_base;
-	unsigned int perip_base;
+	unsigned int uncached_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
-	struct bcr_perip uncached_space; /* For mapping Periph Regs etc */
 	struct bcr_extn extn;
 	struct bcr_extn_xymem extn_xymem;
 	struct bcr_extn_mac_mul extn_mac_mul;

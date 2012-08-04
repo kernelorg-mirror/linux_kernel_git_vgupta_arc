@@ -52,7 +52,7 @@
 #ifndef __ASSEMBLY__
 
 void arc_mmu_init(void);
-extern char *arc_mmu_mumbojumbo(int cpu_id, char *buf);
+extern char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len);
 void __init read_decode_mmu_bcr(void);
 
 #define tlb_flush(tlb) local_flush_tlb_mm((tlb)->mm)

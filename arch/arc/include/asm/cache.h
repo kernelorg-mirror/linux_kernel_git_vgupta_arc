@@ -67,7 +67,7 @@ extern unsigned int ARC_shmlba;
 #define ARC_UNCACHED_ADDR_SPACE	0xc0000000
 
 extern void arc_cache_init(void);
-extern char *arc_cache_mumbojumbo(int cpu_id, char *buf);
+extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
 extern void __init read_decode_cache_bcr(void);
 #endif
 

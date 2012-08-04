@@ -85,15 +85,20 @@ struct cpuinfo_data {
 
 void __init read_arc_build_cfg_regs(void)
 {
+	struct bcr_perip uncached_space;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
 
 	cpu->timers = read_aux_reg(ARC_REG_TIMERS_BCR);
+
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
-	cpu->perip_base = read_aux_reg(ARC_REG_PERIBASE_BCR);
-	READ_BCR(ARC_REG_D_UNCACH_BCR, cpu->uncached_space);
+	if (cpu->vec_base == 0)
+		cpu->vec_base = (unsigned int)_int_vec_base_lds;
+
+	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
+	cpu->uncached_base = uncached_space.start << 24;
 
 	cpu->extn.mul = read_aux_reg(ARC_REG_MUL_BCR);
 	cpu->extn.swap = read_aux_reg(ARC_REG_SWAP_BCR);
@@ -149,9 +154,9 @@ static const struct cpuinfo_data arc_cpu_tbl[] = {
 	{0x0, NULL}
 };
 
-char *arc_cpu_mumbojumbo(int cpu_id, char *buf)
+char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 {
-	int i, num = 0;
+	int i, n = 0;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
 	int be = 0;
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -159,15 +164,17 @@ char *arc_cpu_mumbojumbo(int cpu_id, char *buf)
 #endif
 	FIX_PTR(cpu);
 
-	num += sprintf(buf + num, "\nARC IDENTITY\t: Family [%#02x]"
-			" Cpu-id [%#02x] Chip-id [%#4x]\n",
-			cpu->core.family, cpu->core.cpu_id,
-			cpu->core.chip_id);
+	n += scnprintf(buf + n, len - n,
+		       "\nARC IDENTITY\t: Family [%#02x]"
+		       " Cpu-id [%#02x] Chip-id [%#4x]\n",
+		       cpu->core.family, cpu->core.cpu_id,
+		       cpu->core.chip_id);
 
 	for (i = 0; arc_cpu_tbl[i].id != 0; i++) {
 		if ((cpu->core.family >= arc_cpu_tbl[i].id) &&
 		    (cpu->core.family <= arc_cpu_tbl[i].up_range)) {
-			num += sprintf(buf + num, "processor\t: %s %s\n",
+			n += scnprintf(buf + n, len - n,
+				       "processor\t: %s %s\n",
 				       arc_cpu_tbl[i].str,
 				       be ? "[Big Endian]" : "");
 			break;
@@ -175,28 +182,21 @@ char *arc_cpu_mumbojumbo(int cpu_id, char *buf)
 	}
 
 	if (arc_cpu_tbl[i].id == 0)
-		num += sprintf(buf + num, "UNKNOWN ARC Processor\n");
+		n += scnprintf(buf + n, len - n, "UNKNOWN ARC Processor\n");
 
-	num += sprintf(buf + num, "CPU speed\t: %u.%02u Mhz\n",
-		       (unsigned int)(clk_speed / 1000000),
-		       (unsigned int)(clk_speed / 10000) % 100);
+	n += scnprintf(buf + n, len - n, "CPU speed\t: %u.%02u Mhz\n",
+		       (unsigned int)(CONFIG_ARC_PLAT_CLK / 1000000),
+		       (unsigned int)(CONFIG_ARC_PLAT_CLK / 10000) % 100);
 
-	num += sprintf(buf + num, "Timers\t\t: %s %s\n",
-		       ((cpu->timers & 0x200) ? "TIMER1" : ""),
-		       ((cpu->timers & 0x100) ? "TIMER0" : ""));
+	n += scnprintf(buf + n, len - n, "Timers\t\t: %s %s\n",
+		       (cpu->timers & 0x200) ? "TIMER1" : "",
+		       (cpu->timers & 0x100) ? "TIMER0" : "");
 
-	num += sprintf(buf + num, "Vect Tbl Base\t: %#x\n", cpu->vec_base ?
-			cpu->vec_base : (unsigned int)_int_vec_base_lds);
+	n += scnprintf(buf + n, len - n, "Vect Tbl Base\t: %#x\n",
+		       cpu->vec_base);
 
-	num += sprintf(buf + num, "Peripheral Base\t:");
-	if (cpu->perip_base == 0)
-		num += sprintf(buf + num, " N/A (assuming 0xc0fc0000)\n");
-	else
-		num += sprintf(buf + num, " %#x\n", cpu->perip_base);
-
-	num += sprintf(buf + num, "UNCACHED Base\t: %#x000000, %dMB\n",
-			cpu->uncached_space.start,
-			(0x10 << cpu->uncached_space.sz));
+	n += scnprintf(buf + n, len - n, "UNCACHED Base\t: %#x\n",
+		       cpu->uncached_base);
 
 	return buf;
 }
@@ -217,9 +217,9 @@ static const struct id_to_str mac_mul_nm[] = {
 	{0x6, "Dual 16x16 and 32x16"}
 };
 
-char *arc_extn_mumbojumbo(int cpu_id, char *buf)
+char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 {
-	int num = 0;
+	int n = 0;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
 
 	FIX_PTR(cpu);
@@ -227,53 +227,54 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf)
 #define IS_AVAIL2(var, str)	((var == 0x2) ? str : "")
 #define IS_AVAIL3(var)   ((var) ? "" : "N/A")
 
-	num += sprintf(buf + num, "Extn [700-Base]\t: %s %s %s %s %s %s\n",
-			IS_AVAIL2(cpu->extn.norm, "norm,"),
-			IS_AVAIL2(cpu->extn.barrel, "barrel-shift,"),
-			IS_AVAIL1(cpu->extn.swap, "swap,"),
-			IS_AVAIL2(cpu->extn.minmax, "minmax,"),
-			IS_AVAIL1(cpu->extn.crc, "crc,"),
-			IS_AVAIL2(cpu->extn.ext_arith, "ext-arith"));
+	n += scnprintf(buf + n, len - n,
+		       "Extn [700-Base]\t: %s %s %s %s %s %s\n",
+		       IS_AVAIL2(cpu->extn.norm, "norm,"),
+		       IS_AVAIL2(cpu->extn.barrel, "barrel-shift,"),
+		       IS_AVAIL1(cpu->extn.swap, "swap,"),
+		       IS_AVAIL2(cpu->extn.minmax, "minmax,"),
+		       IS_AVAIL1(cpu->extn.crc, "crc,"),
+		       IS_AVAIL2(cpu->extn.ext_arith, "ext-arith"));
 
-	num += sprintf(buf + num, "Extn [700-MPY]\t: %s",
+	n += scnprintf(buf + n, len - n, "Extn [700-MPY]\t: %s",
 		       mul_type_nm[cpu->extn.mul].str);
 
-	num += sprintf(buf + num, "   MAC MPY: %s\n",
+	n += scnprintf(buf + n, len - n, "   MAC MPY: %s\n",
 		       mac_mul_nm[cpu->extn_mac_mul.type].str);
 
 	if (cpu->core.family == 0x34) {
 		const char *inuse = "(in-use)";
 		const char *notinuse = "(not used)";
 
-		num += sprintf(buf + num,
-			"Extn [700-4.10]\t: LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
-			__CONFIG_ARC_HAS_LLSC_VAL ? inuse : notinuse,
-			__CONFIG_ARC_HAS_SWAPE_VAL ? inuse : notinuse,
-			__CONFIG_ARC_HAS_RTSC_VAL ? inuse : notinuse);
+		n += scnprintf(buf + n, len - n, "Extn [700-4.10]\t: "
+			       "LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
+			       __CONFIG_ARC_HAS_LLSC_VAL ? inuse : notinuse,
+			       __CONFIG_ARC_HAS_SWAPE_VAL ? inuse : notinuse,
+			       __CONFIG_ARC_HAS_RTSC_VAL ? inuse : notinuse);
 	}
 
-	num += sprintf(buf + num, "DCCM: %s", IS_AVAIL3(cpu->dccm.sz));
+	n += scnprintf(buf + n, len - n, "DCCM: %s", IS_AVAIL3(cpu->dccm.sz));
 	if (cpu->dccm.sz)
-		num += sprintf(buf + num, "@ %x, %d KB ",
+		n += scnprintf(buf + n, len - n, "@ %x, %d KB ",
 			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz));
 
-	num += sprintf(buf + num, "  ICCM: %s", IS_AVAIL3(cpu->iccm.sz));
+	n += scnprintf(buf + n, len - n, "  ICCM: %s", IS_AVAIL3(cpu->iccm.sz));
 	if (cpu->iccm.sz)
-		num += sprintf(buf + num, "@ %x, %d KB",
+		n += scnprintf(buf + n, len - n, "@ %x, %d KB",
 			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
 
-	num += sprintf(buf + num, "\nExtn [Floating Point]: %s",
-			!(cpu->fp.ver || cpu->dpfp.ver) ? "N/A" : "");
+	n += scnprintf(buf + n, len - n, "\nExtn [Floating Point]: %s",
+		       !(cpu->fp.ver || cpu->dpfp.ver) ? "N/A" : "");
 
-	if (cpu->fp.ver) {
-		num += sprintf(buf + num, "SP [v%d] %s",
-		       cpu->fp.ver, cpu->fp.fast ? "(fast)" : "");
-	}
-	if (cpu->dpfp.ver) {
-		num += sprintf(buf + num, "DP [v%d] %s",
-		       cpu->fp.ver, cpu->fp.fast ? "(fast)" : "");
-	}
-	num += sprintf(buf + num, "\n");
+	if (cpu->fp.ver)
+		n += scnprintf(buf + n, len - n, "SP [v%d] %s",
+			       cpu->fp.ver, cpu->fp.fast ? "(fast)" : "");
+
+	if (cpu->dpfp.ver)
+		n += scnprintf(buf + n, len - n, "DP [v%d] %s",
+			       cpu->dpfp.ver, cpu->dpfp.fast ? "(fast)" : "");
+
+	n += scnprintf(buf + n, len - n, "\n");
 
 	return buf;
 }
@@ -303,7 +304,8 @@ void __init arc_chk_ccms(void)
 }
 
 
-/* Ensure that FP hardware and kernel config match
+/*
+ * Ensure that FP hardware and kernel config match
  * -If hardware contains DPFP, kernel needs to save/restore FPU state
  *  across context switches
  * -If hardware lacks DPFP, but kernel configured to save FPU state then
@@ -323,7 +325,7 @@ void __init arc_chk_fpu(void)
 #endif
 	} else {
 #ifdef CONFIG_ARC_FPU_SAVE_RESTORE
-		panic("H/w lacks DPFP support, kernel won't work\n");
+		panic("H/w lacks DPFP support, apps won't work\n");
 #endif
 	}
 }
@@ -336,14 +338,14 @@ void __init arc_chk_fpu(void)
 
 void __init setup_processor(void)
 {
-	char str[512];
+	char str[256];
 	int cpu_id = smp_processor_id();
 
 	read_arc_build_cfg_regs();
 
 	arc_init_IRQ();
 
-	printk(arc_cpu_mumbojumbo(cpu_id, str));
+	printk(arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
 
 	/* Enable MMU */
 	arc_mmu_init();
@@ -352,7 +354,7 @@ void __init setup_processor(void)
 
 	arc_chk_ccms();
 
-	printk(arc_extn_mumbojumbo(cpu_id, str));
+	printk(arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
 
 #ifdef CONFIG_SMP
 	printk(arc_platform_smp_cpuinfo());
@@ -613,25 +615,31 @@ void __init setup_arch(char **cmdline_p)
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	char str[1024];
+	char *str;
 	int cpu_id = (0xFFFF & (int)v);
 
-	seq_printf(m, arc_cpu_mumbojumbo(cpu_id, str));
+	str = (char *)__get_free_page(GFP_TEMPORARY);
+	if (!str)
+		goto done;
+
+	seq_printf(m, arc_cpu_mumbojumbo(cpu_id, str, PAGE_SIZE));
 
 	seq_printf(m, "Bogo MIPS : \t%lu.%02lu\n",
 		   loops_per_jiffy / (500000 / HZ),
 		   (loops_per_jiffy / (5000 / HZ)) % 100);
 
-	seq_printf(m, arc_mmu_mumbojumbo(cpu_id, str));
+	seq_printf(m, arc_mmu_mumbojumbo(cpu_id, str, PAGE_SIZE));
 
-	seq_printf(m, arc_cache_mumbojumbo(cpu_id, str));
+	seq_printf(m, arc_cache_mumbojumbo(cpu_id, str, PAGE_SIZE));
 
-	seq_printf(m, arc_extn_mumbojumbo(cpu_id, str));
+	seq_printf(m, arc_extn_mumbojumbo(cpu_id, str, PAGE_SIZE));
 
 #ifdef CONFIG_SMP
 	seq_printf(m, arc_platform_smp_cpuinfo());
 #endif
 
+	free_page((unsigned long)str);
+done:
 	seq_printf(m, "\n\n");
 
 	return 0;
@@ -641,12 +649,12 @@ static void *c_start(struct seq_file *m, loff_t * pos)
 {
 	/*
 	 * This 0xFF xxxx business is a simple hack.
-	   We encode cpu-id as 0x 00FF <cpu-id> and return it as a ptr
-	   We Can't return cpu-id directly because 1st cpu-id is 0, which has
-	   special meaning in seq-file framework (iterator end).
-	   Otherwise we have to kmalloc in c_start() and do a free in c_stop()
-	   which is really not required for a such a simple case
-	   show_cpuinfo() extracts the cpu-id from it.
+	 * We encode cpu-id as 0x 00FF <cpu-id> and return it as a ptr
+	 * We Can't return cpu-id directly because 1st cpu-id is 0, which has
+	 * special meaning in seq-file framework (iterator end).
+	 * Otherwise we have to kmalloc in c_start() and do a free in c_stop()
+	 * which is really not required for a such a simple case
+	 * show_cpuinfo() extracts the cpu-id from it.
 	 */
 	return *pos < num_possible_cpus() ?
 		((void *)(0xFF0000 | (int)(*pos))) : NULL;

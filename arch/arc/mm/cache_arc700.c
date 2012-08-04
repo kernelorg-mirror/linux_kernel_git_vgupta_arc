@@ -79,9 +79,9 @@ static void __arc_icache_inv_lines_4_alias(unsigned long, int);
 static void (*___flush_icache_rtn) (unsigned long, int);
 #endif
 
-char *arc_cache_mumbojumbo(int cpu_id, char *buf)
+char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
 {
-	int num = 0;
+	int n = 0;
 	struct cpuinfo_arc_cache *p_cache;
 	unsigned int cpu = smp_processor_id();
 
@@ -98,16 +98,16 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf)
 #endif
 
 	p_cache = &cpuinfo_arc700[cpu].icache;
-	num += sprintf(buf + num,
-			"I-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
-			TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
-			ic_enb ? "" : " (DISABLED)");
+	n += scnprintf(buf + n, len - n,
+		       "I-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
+		       TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
+		       ic_enb ? "" : " (DISABLED)");
 
 	p_cache = &cpuinfo_arc700[cpu].dcache;
-	num += sprintf(buf + num,
-			"D-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
-			TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
-			dc_enb ? "" : " (DISABLED)");
+	n += scnprintf(buf + n, len - n,
+		       "D-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
+		       TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
+		       dc_enb ? "" : " (DISABLED)");
 
 	return buf;
 }
@@ -162,9 +162,9 @@ void __init arc_cache_init(void)
 	struct cpuinfo_arc_cache *dc;
 #endif
 	int way_pg_ratio = way_pg_ratio;
-	char str[512];
+	char str[256];
 
-	printk(arc_cache_mumbojumbo(0, str));
+	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
 
 	ARC_shmlba = max_t(unsigned int, ARC_shmlba, PAGE_SIZE);
 
