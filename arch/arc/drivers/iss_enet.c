@@ -82,7 +82,7 @@ volatile unsigned int debug = 0;
 void iss_update_stats(struct iss_priv *ap);
 volatile struct emwsim_struct *ewsim = 0xc0fc2000;
 
-extern struct sockaddr mac_addr;
+struct sockaddr mac_addr = { 0, {0x84, 0x66, 0x46, 0x88, 0x63, 0x33} };
 
 /****************************/
 /* ISS interrupt handler */

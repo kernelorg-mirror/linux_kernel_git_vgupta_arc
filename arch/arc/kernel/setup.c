@@ -44,22 +44,14 @@
 #include <asm/smp.h>
 #include <plat/memmap.h>
 
-extern void __init arc_verify_sig_sz(void);
-
-struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
-/* Important System variables
- * We start with compile time DEFAULTS and over-ride ONLY if bootloader
- * passes atag list
- */
-
-unsigned long clk_speed = CONFIG_ARC_PLAT_CLK;
-struct sockaddr mac_addr = { 0, {0x64, 0x66, 0x46, 0x88, 0x63, 0x33} };
+extern void __init arc_verify_sig_sz(void);
 
 int running_on_hw = 1;	/* vs. on ISS */
 char __initdata command_line[COMMAND_LINE_SIZE];
 struct task_struct *_current_task[NR_CPUS];	/* currently active task */
+struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 
 /*
  * CPU info code now more organised. Instead of stupid if else,

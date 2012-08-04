@@ -75,8 +75,10 @@
 #define arc_emac_write(addr, val)   arc_write_uncached_32(addr, val)
 #endif
 
-/* clock speed is set while parsing parameters in setup.c */
-extern unsigned long clk_speed;
+/* XXX: This needs to come from the resource framework */
+unsigned long clk_speed = CONFIG_ARC_PLAT_CLK;
+struct sockaddr mac_addr = { 0, {0x64, 0x66, 0x46, 0x88, 0x63, 0x33} };
+
 
 /* Timeout time for tranmission */
 #define TX_TIMEOUT (400*HZ/1000)
@@ -284,14 +286,6 @@ struct arc_emac_priv {
 	volatile unsigned int mdio_complete;
 	struct napi_struct napi;
 };
-
-/*
- * This MAC addr is given to the first opened EMAC, the last byte will be
- * incremented by 1 each time so succesive emacs will get a different
- * hardware address
- * Intialised while  processing parameters in setup.c
- */
-extern struct sockaddr mac_addr;
 
 static void noinline emac_nonimp_intr(struct arc_emac_priv *ap,
 				      unsigned int status);

@@ -46,13 +46,6 @@ EXPORT_SYMBOL(__divdf3);
 EXPORT_SYMBOL(__floatunsidf);
 EXPORT_SYMBOL(__floatunsisf);
 
-/* XXX: Some symbols needed by drivers built as modules */
-extern unsigned long clk_speed;
-extern struct sock_addr mac_addr;
-
-EXPORT_SYMBOL(clk_speed);
-EXPORT_SYMBOL(mac_addr);
-
 /* ARC optimised assembler routines */
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);

@@ -94,7 +94,7 @@ void xtemac_update_stats(struct xtemac_priv *ap);
 unsigned int XEMAC_mdio_read(volatile struct xtemac_ptr *, unsigned int,
 			     unsigned int, volatile unsigned int *);
 
-extern struct sockaddr mac_addr;
+struct sockaddr mac_addr = { 0, {0x74, 0x66, 0x46, 0x88, 0x63, 0x33} };
 
 /****************************/
 /* XTEMAC interrupt handler */
