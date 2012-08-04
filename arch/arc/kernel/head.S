@@ -18,33 +18,12 @@
 #include <asm/arcregs.h>
 
 	.cpu A7
-	.data
-	.globl atag_head
-	.align 4
-atag_head:
-	.long 0
 
 	.section .init.text, "ax",@progbits
 	.type stext, @function
 	.globl stext
 stext:
-	;adding support for atag parsing
-	;If kernel parameters are passed by u-boot, then
-	; r0 = 0
-	; r1 = magic number (board identity)
-	; r2 = address of ATAG parameter list
-
-	cmp r0, 0x0
-	jne no_params
-	lr  r3, [identity]
-	cmp r1, r3
-	jne no_params
-	st  r2, [atag_head]
-
-
-no_params:
 #ifdef CONFIG_SMP
-
 	; CPU ID [ 3 2 <1> 0 ]
 	; For ARC700 it is 0.
 	; For ARC700-smp-extn: core-ID (0,1,...)  Master ID is always 0

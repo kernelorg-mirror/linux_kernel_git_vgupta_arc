@@ -76,11 +76,6 @@ SECTIONS
         INIT_CALLS
         CON_INITCALL
         SECURITY_INITCALL
-
-        __tagtable_begin = .;
-            *(.taglist.init)
-        __tagtable_end = .;
-
     }
 
 	PERCPU_SECTION(L1_CACHE_BYTES)
