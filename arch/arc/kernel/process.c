@@ -171,7 +171,8 @@ int copy_thread(unsigned long clone_flags,
 	struct callee_regs *child_cregs, *parent_cregs;
 	unsigned long *childksp;
 
-	/* Note that parent's pt_regs are passed to this function.
+	/*
+	 * Note that parent's pt_regs are passed to this function.
 	 * They may not be same as one returned by task_pt_regs(current)
 	 * _IF_ we are starting a kernel thread, because it doesn't have a
 	 * parent in true sense
@@ -179,13 +180,11 @@ int copy_thread(unsigned long clone_flags,
 	if (user_mode(regs))
 		BUG_ON(regs != task_pt_regs(current));
 
-    /****************************************************************
-     * setup Child for its first ever return to user land
-     * by making its pt_regs same as its parent
-     ****************************************************************/
+	/****************************************************************
+	 * setup child for its first ever return to user land
+	 ****************************************************************/
 
-	/* Copy parents pt regs on child's kernel mode stack
-	 */
+	/* Copy parents pt regs on child's kernel mode stack */
 	child_ptregs = task_pt_regs(p);
 	*child_ptregs = *regs;
 
@@ -195,7 +194,7 @@ int copy_thread(unsigned long clone_flags,
 	/* fork return value 0 for the child */
 	child_ptregs->r0 = 0;
 
-	/* IF the parent is a kernel thread then we change the stack pointer
+	/* I the parent is a kernel thread then we change the stack pointer
 	 * of the child its kernel stack
 	 */
 	if (!user_mode(regs)) {
@@ -205,12 +204,14 @@ int copy_thread(unsigned long clone_flags,
 	} else
 		child_ptregs->sp = usp;
 
-    /****************************************************************
-     * setup Child for its first ever execution in kernel mode, when
-     * schedular( ) picks it up for the first time, in switch_to( )
-     ****************************************************************/
+	/****************************************************************
+	 * setup child for its first kernel mode execution,
+	 * to be "switched-in" by schedular and have ability to unwind
+	 * out of schedular
+	 ****************************************************************/
 
-	/* push frame pointer and return address (blink) as expected by
+	/*
+	 * push frame pointer and return address (blink) as expected by
 	 * __switch_to on top of pt_regs
 	 */
 
@@ -220,9 +221,7 @@ int copy_thread(unsigned long clone_flags,
 	/* copy CALLEE regs now, on top of above 2 and pt_regs */
 	child_cregs = ((struct callee_regs *)childksp) - 1;
 
-	/* Don't copy for kernel threads because we didn't even save
-	 *  them in first place
-	 */
+	/* For kernel threads, callee regs were not saved to begin with */
 	if (user_mode(regs)) {
 		parent_cregs = ((struct callee_regs *)regs) - 1;
 		*child_cregs = *parent_cregs;
@@ -306,7 +305,8 @@ unsigned long thread_saved_pc(struct task_struct *t)
 	struct pt_regs *regs = task_pt_regs(t);
 	unsigned long blink = 0;
 
-	/* If the thread being queried for in not itself calling this, then it
+	/*
+	 * If the thread being queried for in not itself calling this, then it
 	 * implies it is not executing, which in turn implies it is sleeping,
 	 * which in turn implies it got switched OUT by the schedular.
 	 * In that case, it's kernel mode blink can reliably retrieved as per
@@ -328,7 +328,8 @@ int sys_arc_settls(void *user_tls_data_ptr)
 #endif
 }
 
-/* We return the user space TLS data ptr as sys-call return code
+/*
+ * We return the user space TLS data ptr as sys-call return code
  * Ideally it should be copy to user.
  * However we can cheat by the fact that some sys-calls do return
  * absurdly high values
@@ -349,7 +350,8 @@ int sys_arc_gettls(void)
 int kernel_execve(const char *filename, const char *const argv[],
 		  const char *const envp[])
 {
-	/* Although the arguments (order, number) to this function are
+	/*
+	 * Although the arguments (order, number) to this function are
 	 * same as sys call, we don't need to setup args in regs again.
 	 * However in case mainline kernel changes the order of args to
 	 * kernel_execve, that assumtion will break.
@@ -375,7 +377,8 @@ EXPORT_SYMBOL(kernel_execve);
 unsigned long arch_align_stack(unsigned long sp)
 {
 #ifdef CONFIG_ARC_ADDR_SPACE_RND
-	/* ELF loader sets this flag way early.
+	/*
+	 * ELF loader sets this flag way early.
 	 * So no need to check for multiple things like
 	 *   !(current->personality & ADDR_NO_RANDOMIZE)
 	 *   randomize_va_space

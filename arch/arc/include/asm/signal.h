@@ -12,6 +12,16 @@
 #define _ASM_ARC_SIGNAL_H
 
 #define SIGRTMAX	(_NSIG-1)
+
+/*
+ * This is much needed for ARC sigreturn optimization.
+ * This allows uClibc to piggback the addr of a sigreturn stub in sigaction,
+ * which allows sigreturn based re-entry into kernel after handling signal.
+ * W/o this kernel needs to "synthesize" the sigreturn trampoline on user
+ * mode stack which in turn forces the following:
+ * -TLB Flush (after making the stack page executable)
+ * -Cache line Flush (to make I/D Cache lines coherent)
+ */
 #define SA_RESTORER	0x04000000
 
 #include <asm-generic/signal.h>

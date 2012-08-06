@@ -82,25 +82,21 @@ ex_saved_reg1:
 
 	; make sure h/w ASID is same as s/w ASID
 
-	GET_CURR_TASK_ON_CPU  r0
-	ld r0, [r0, TASK_ACT_MM]
+	GET_CURR_TASK_ON_CPU  r3
+	ld r0, [r3, TASK_ACT_MM]
 	ld r0, [r0, MM_CTXT+MM_CTXT_ASID]
 
 	lr r1, [ARC_REG_PID]
 	and r1, r1, 0xFF
-	cmp r1, r0
-	beq 5f
+	breq r1, r0, 5f
 
-	; H/w and S/w ASId don't match, but we maybe in kernel
+	; Error if H/w and S/w ASID don't match, but NOT if in kernel mode
 	lr  r0, [erstatus]
-	and.f   0, r0, STATUS_U_MASK
-	bz  5f  ;In kernel so not error
+	bbit0, r0, STATUS_U_BIT, 5f
 
 	; We sure are in troubled waters, Flag the error, but to do so
 	; need to switch to kernel mode stack to call error routine
-	GET_CURR_TASK_ON_CPU  sp
-	ld  sp, [sp, TASK_THREAD_INFO]
-	add sp, sp, ( THREAD_SIZE - 4 )
+	GET_TSK_STACK_BASE   r3, sp
 
 	; Call printk to shoutout aloud
 	mov r0, 1
@@ -210,12 +206,12 @@ ex_saved_reg1:
 ;
 ; For Non-SMP, the scratch AUX reg is repurposed to cache task PGD, so a
 ; "global" is used to free-up FIRST core reg to be able to code the rest of
-; exception prologue (IRQ auto-disabled on Exceptions, so it IRQ-safe).
-; Since, the Fast Path TLB Miss handler is coded with a handful of regs(4),
-; it doesn't need to save the complete reg file. And to avoid having to switch
-; the stack (to save other 3 regs) we extend the above "global" to be 4 words
-; deep. Hence
+; exception prologue (IRQ auto-disabled on Exceptions, so it's IRQ-safe).
+; Since the Fast Path TLB Miss handler is coded with 4 regs, the remaining 3
+; need to be saved as well by extending the "global" to be 4 words. Hence
 ;	".size   ex_saved_reg1, 16"
+; [All of this dance is to avoid stack switching for each TLB Miss, since we
+; only need to save only a handful of regs, as opposed to complete reg file]
 ;
 ; For ARC700 SMP, the "global" obviously can't be used for free up the FIRST
 ; core reg as it will not be SMP safe.

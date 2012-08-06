@@ -18,7 +18,7 @@
  * Vineetg: Feb 2009: Changes to stack Switching Macro
  *  The idea is to not have intermediate values in SP
  *    -Rather than using SP as scratcpad in switching code use R9
- *    -R25 safekeeping done before SP changes to kernel mode
+ *    -r25 safekeeping done before SP changes to kernel mode
  *
  * Vineetg: Aug 28th 2008: Bug #94984
  *  -Zero Overhead Loop Context shd be cleared when entering IRQ/EXcp/Trap
@@ -49,20 +49,15 @@
 #include <asm/pgtable.h>	/* For VMALLOC_START */
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
-/* Context saving macros -
+/* Note on the LD/ST addr modes with addr reg wback
  *
- * Note
+ * LD.a same as LD.aw
  *
- * ld.a    reg1, [reg2, x]  => Pre Increment
- * ld.aw   reg1, [reg2, x]
+ * LD.a    reg1, [reg2, x]  => Pre Incr
+ * 	Eff Addr for load = [reg2 + x]
  *
- *      reg2 = reg2 + x
- *      Addr used to load reg1 = [reg2 + x]
- *
- * ld.ab   reg1, [reg2, x]  => Post Increment
- *      Addr used to load reg1 = [reg2]
- *      reg2 = reg2 + x
- *
+ * LD.ab   reg1, [reg2, x]  => Post Incr
+ *      Eff Addr for load = [reg2]
  */
 
 /*--------------------------------------------------------------
@@ -240,7 +235,7 @@
  * Switch to Kernel Mode stack if SP points to User Mode stack
  *
  * Entry   : r9 contains pre-IRQ/exception/trap status32
- * Exit    : SP is set to kernel mode stack pointer (if not already)
+ * Exit    : SP is set to kernel mode stack pointer
  *           If CURR_IN_REG, r25 set to "current" task pointer
  * Clobbers: r9
  *-------------------------------------------------------------*/
@@ -251,21 +246,21 @@
 	bbit1   r9, STATUS_U_BIT, 88f
 
 	/* OK we were already in kernel mode when this event happened, thus can
-	* assume SP is kernle mode SP. _NO_ need to do any stack switching
-	*/
+	 * assume SP is kernel mode SP. _NO_ need to do any stack switching
+	 */
 
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 	/* However....
-	* If Level 2 Interrupts enabled, we may end up with a corner case:
-	* 1. User Task executing
-	* 2. L1 IRQ taken, ISR starts (CPU auto-switched to KERNEL mode)
-	* 3. But before it could switch SP from USER to KERNEL stack
-	*      a L2 IRQ "Interrupts" L1
-	* Thay way although L2 IRQ happened in Kernel mode, stack is still
-	* not switched.
-	* To handle this case we may need to switch stack even if in kernel mode
-	* provided SP has values in range of USER mode stack ( < 0x7000_0000 )
-	*/
+	 * If Level 2 Interrupts enabled, we may end up with a corner case:
+	 * 1. User Task executing
+	 * 2. L1 IRQ taken, ISR starts (CPU auto-switched to KERNEL mode)
+	 * 3. But before it could switch SP from USER to KERNEL stack
+	 *      a L2 IRQ "Interrupts" L1
+	 * Thay way although L2 IRQ happened in Kernel mode, stack is still
+	 * not switched.
+	 * To handle this case we may need to switch stack even if in kernel mode
+	 * provided SP has values in range of USER mode stack ( < 0x7000_0000 )
+	 */
 	brlo sp, VMALLOC_START, 88f
 
 	/* TODO: vineetg:
@@ -281,15 +276,10 @@
 
 #endif
 
-	/* Save Pre Intr/Exception Kernel SP on kernel stack
-	*  This is not strictly required when in Kernel mode.
-	*  We can skip this part here. However at the end, when restoring
-	*  Regs back, we also need to make a check that for kernel mode
-	*  SP is not restored. This however equires additional code, which
-	*  in turn requires free Reg(s) to write the code itself, which we
-	*  dont have since rest of the reg file has been restored to
-	*  PRE-INTR/EXCP values
-	*/
+	/* Save Pre Intr/Exception KERNEL MODE SP on kernel stack
+	 * safe-keeping not really needed, but it keeps the epilogue code
+	 * (SP restore) simpler/uniform.
+	 */
 	b.d	77f
 
 	st.a	sp, [sp, -4]
@@ -300,10 +290,10 @@
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 
-	/* If current task pointer cached in R25, time to
-	*  -safekeep USER R25 in task->thread_struct->user_r25
-	*  -load R25 with current task ptr
-	*/
+	/* If current task pointer cached in r25, time to
+	 *  -safekeep USER r25 in task->thread_struct->user_r25
+	 *  -load r25 with current task ptr
+	 */
 	st.as	r25, [r9, (TASK_THREAD + THREAD_USER_R25)/4]
 	mov	r25, r9
 #endif
@@ -319,10 +309,10 @@
 	st.a    sp, [r9, -4]
 
 	/* CAUTION:
-	* SP should be set at the very end when we are done with everything
-	* In case of 2 levels of iterrupt we depend on value of SP to assume
-	* that everything else is done (loading R25 etc)
-	*/
+	 * SP should be set at the very end when we are done with everything
+	 * In case of 2 levels of interrupt we depend on value of SP to assume
+	 * that everything else is done (loading r25 etc)
+	 */
 
 	/* set SP to point to kernel mode stack */
 	mov sp, r9
@@ -613,12 +603,6 @@
 .endm
 
 
-/*----------------------------------------------------
-	vineetg, Dec 30th 2008
-	Helper Macros to access the current_task for
-	switching to kernel mode stack
-----------------------------------------------------*/
-
 /* Get CPU-ID of this core */
 .macro  GET_CPU_ID  reg
 	lr  \reg, [identity]
@@ -629,7 +613,7 @@
 #ifdef CONFIG_SMP
 
 /*-------------------------------------------------
- * Get current running task on this CPU
+ * Retrieve the current running task on this CPU
  * 1. Determine curr CPU id.
  * 2. Use it to index into _current_task[ ]
  */
@@ -675,9 +659,8 @@
 #endif /* SMP / UNI */
 
 /* ------------------------------------------------------------------
- *   Get the Ptr to some field of Current Task at @off in task struct
- *       -Out Reg is specified by Caller
- *       -Uses r25 for Current task ptr if that is enabled
+ * Get the ptr to some field of Current Task at @off in task struct
+ *  -Uses r25 for Current task ptr if that is enabled
  */
 
 #ifdef CONFIG_ARC_CURR_IN_REG
@@ -693,7 +676,7 @@
 	add \reg, \reg, \off
 .endm
 
-#endif
+#endif	/* CONFIG_ARC_CURR_IN_REG */
 
 #endif  /* __ASSEMBLY__ */
 
