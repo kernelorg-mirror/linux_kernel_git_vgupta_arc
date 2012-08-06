@@ -76,7 +76,8 @@ static inline __sum16 csum_fold(__wsum s)
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
  */
-static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+static inline __sum16
+ip_fast_csum(const void *iph, unsigned int ihl)
 {
 	const void *ptr = iph;
 	unsigned int tmp, tmp2, sum;
@@ -105,19 +106,28 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	return csum_fold(sum);
 }
 
-static inline __wsum csum_tcpudp_nofold(unsigned long saddr,
-	unsigned long daddr, unsigned short len, unsigned short proto,
-	unsigned int sum)
+/*
+ * TCP pseudo Header is 12 bytes:
+ * SA [4], DA [4], zeroes [1], Proto[1], TCP Seg(hdr+data) Len [2]
+ */
+static inline __wsum
+csum_tcpudp_nofold(__be32 saddr, __be32 daddr, unsigned short len,
+		   unsigned short proto, __wsum sum)
 {
 	__asm__ __volatile__(
 	"	add.f %0, %0, %1	\n"
 	"	adc.f %0, %0, %2	\n"
 	"	adc.f %0, %0, %3	\n"
 	"	adc.f %0, %0, %4	\n"
-	"	adc   %0, %0, 0	\n"
-	: "=r"(sum)
-	: "r"(saddr), "r"(daddr), "r"(ntohs(len) << 16),
-	  "r"(proto << 8), "0"(sum)
+	"	adc   %0, %0, 0		\n"
+	: "+&r"(sum)
+	: "r"(saddr), "r"(daddr),
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	  "r"(len),
+#else
+	  "r"(len << 8),
+#endif
+	  "r"(htons(proto))
 	: "cc");
 
 	return sum;
@@ -127,9 +137,9 @@ static inline __wsum csum_tcpudp_nofold(unsigned long saddr,
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-static inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
-	unsigned long daddr, unsigned short len, unsigned short proto,
-	unsigned int sum)
+static inline __sum16
+csum_tcpudp_magic(__be32 saddr, __be32 daddr, unsigned short len,
+		  unsigned short proto, __wsum sum)
 {
 	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
 }
