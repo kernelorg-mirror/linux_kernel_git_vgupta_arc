@@ -34,7 +34,7 @@
  *   straddling 2 pages
  *
  * vineetg: July 2009
- *  -In setup_sigrame( ) and restore_sigframe( ), save/restore of user regs
+ *  -In stash_usr_regs( ) and restore_usr_regs( ), save/restore of user regs
  *   in done in block copy rather than one word at a time.
  *   This saves around 2K of code and 500 lines of asm in just 2 functions,
  *   and LMB lat_sig "catch" numbers are lot better
@@ -99,7 +99,7 @@ struct rt_sigframe {
 	struct sigframe sig;
 };
 
-static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
+static int restore_usr_regs(struct pt_regs *regs, struct sigframe __user *sf)
 {
 	sigset_t set;
 	int err;
@@ -113,16 +113,7 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 		spin_unlock_irq(&current->sighand->siglock);
 	}
 
-	{
-		void *dst_start = &(regs->bta);
-		const int sz1 = (void *)&(((struct pt_regs *)0)->r0) -
-		    (void *)&(((struct pt_regs *)0)->bta) + 4;
-
-		void *src_start = &(sf->uc.uc_mcontext.bta);
-		err |= __copy_from_user(dst_start, src_start, sz1);
-	}
-
-	err |= __get_user(regs->sp, &sf->uc.uc_mcontext.sp);
+	err |= __copy_from_user(regs, &(sf->uc.uc_mcontext.regs), sizeof(*regs));
 
 	take_snap(SNAP_SIGRETURN, 0, 0);
 
@@ -155,7 +146,7 @@ int sys_sigreturn(void)
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 
-	if (restore_sigframe(regs, frame))
+	if (restore_usr_regs(regs, frame))
 		goto badframe;
 
 	err = __get_user(sigret_magic, &frame->sigret_magic);
@@ -171,7 +162,7 @@ int sys_sigreturn(void)
 		if (MAGIC_KERNEL_SYNTH_STUB == sigret_magic) {
 			set_frame_exec((unsigned long)&frame->retcode, 0);
 		} else {	/* user corrupted the signal stack */
-			pr_notice("sig stack corrupted");
+			pr_notice("sys_sigreturn: sig stack corrupted");
 			goto badframe;
 		}
 	}
@@ -205,7 +196,7 @@ int sys_rt_sigreturn(void)
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 
-	if (restore_sigframe(regs, &frame->sig))
+	if (restore_usr_regs(regs, &frame->sig))
 		goto badframe;
 
 	if (do_sigaltstack(&frame->sig.uc.uc_stack, NULL, regs->sp) == -EFAULT)
@@ -224,7 +215,7 @@ int sys_rt_sigreturn(void)
 		if (MAGIC_KERNEL_SYNTH_STUB == sigret_magic) {
 			set_frame_exec((unsigned long)&frame->sig.retcode, 0);
 		} else {	/* user corrupted the signal stack */
-			pr_notice("sig stack corrupted");
+			pr_notice("sys_rt_sigreturn: sig stack corrupted");
 			goto badframe;
 		}
 	}
@@ -237,25 +228,11 @@ badframe:
 }
 
 static noinline int
-setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs,
+stash_usr_regs(struct sigframe __user *sf, struct pt_regs *regs,
 	       sigset_t *set)
 {
 	int err;
-	void *dst_start = &(sf->uc.uc_mcontext.bta);
-	void *src_start = &(regs->bta);
-
-	/* bta to r0 is laid out same in both pt_regs and sigcontext */
-	const int sz1 = (void *)&(((struct pt_regs *)0)->r0) -
-	    (void *)&(((struct pt_regs *)0)->bta) + 4;
-
-	/* Bulk Copy the part of reg file which is common in layout in
-	 * both the structs
-	 */
-	err = __copy_to_user(dst_start, src_start, sz1);
-
-	/* Hand Copy whatever is left */
-	err |= __put_user(regs->sp, &sf->uc.uc_mcontext.sp);
-
+	err = __copy_to_user(&(sf->uc.uc_mcontext.regs), regs, sizeof(*regs));
 	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(sigset_t));
 
 	return err;
@@ -346,7 +323,7 @@ setup_ret_from_usr_sighdlr(struct k_sigaction *ka, struct pt_regs *regs,
 	/* setup PC for return to user space : the signal handler */
 	regs->ret = (unsigned long)ka->sa.sa_handler;
 
-	/* Upin return of handler, enable sigreturn sys call */
+	/* Upon return of handler, enable sigreturn sys call */
 	regs->blink = (unsigned long)retcode;
 
 	/*
@@ -372,7 +349,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	if (!frame)
 		return 1;
 
-	err = setup_sigframe(frame, regs, set);
+	err = stash_usr_regs(frame, regs, set);
 
 	if (!err)
 		err |= setup_ret_from_usr_sighdlr(ka, regs, frame);
@@ -391,7 +368,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	       sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *rt_frame;
-	stack_t stack;
+	stack_t stk;
 	int err;
 
 	rt_frame = get_sigframe(ka, regs, sizeof(struct rt_sigframe));
@@ -403,14 +380,13 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(0, &rt_frame->sig.uc.uc_flags);
 	err |= __put_user(NULL, &rt_frame->sig.uc.uc_link);
 
-	memset(&stack, 0, sizeof(stack));
-	stack.ss_sp = (void __user *)current->sas_ss_sp;
-	stack.ss_flags = sas_ss_flags(regs->sp);
-	stack.ss_size = current->sas_ss_size;
-	err |=
-	    __copy_to_user(&rt_frame->sig.uc.uc_stack, &stack, sizeof(stack));
+	memset(&stk, 0, sizeof(stk));
+	stk.ss_sp = (void __user *)current->sas_ss_sp;
+	stk.ss_flags = sas_ss_flags(regs->sp);
+	stk.ss_size = current->sas_ss_size;
+	err |= __copy_to_user(&rt_frame->sig.uc.uc_stack, &stk, sizeof(stk));
 
-	err |= setup_sigframe(&rt_frame->sig, regs, set);
+	err |= stash_usr_regs(&rt_frame->sig, regs, set);
 
 	if (!err)
 		err |= setup_ret_from_usr_sighdlr(ka, regs, &(rt_frame->sig));
@@ -657,23 +633,5 @@ do_per_page:
 		size_on_pg = size_on_pg2;
 		size_on_pg2 = 0;
 		goto do_per_page;
-	}
-}
-
-void __init arc_verify_sig_sz(void)
-{
-	struct sigframe __user sf;
-	struct pt_regs regs;
-
-	void *src_end = &(regs.r0);
-	void *src_start = &(regs.bta);
-	void *dst_end = &(sf.uc.uc_mcontext.r0);
-	void *dst_start = &(sf.uc.uc_mcontext.bta);
-
-	unsigned int sz1 = src_end - src_start + 4;
-	unsigned int sz2 = dst_end - dst_start + 4;
-
-	if (sz1 != sz2) {
-		panic("Signals block copy code buggy\n");
 	}
 }

@@ -388,8 +388,6 @@ void __init setup_arch(char **cmdline_p)
 
 	paging_init();
 
-	arc_verify_sig_sz();
-
 	arc_unwind_init();
 	arc_unwind_setup();
 }
