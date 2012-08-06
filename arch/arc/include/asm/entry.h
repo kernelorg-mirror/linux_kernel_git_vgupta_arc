@@ -282,7 +282,7 @@
 	 */
 	b.d	77f
 
-	st.a	sp, [sp, -4]
+	st.a	sp, [sp, -12]	; Make room for orig_r0 and orig_r8
 
 88: /*------Intr/Ecxp happened in user mode, "switch" stack ------ */
 
@@ -306,7 +306,7 @@
 #endif
 
 	/* Save Pre Intr/Exception User SP on kernel stack */
-	st.a    sp, [r9, -4]
+	st.a    sp, [r9, -12]	; Make room for orig_r0 and orig_r8
 
 	/* CAUTION:
 	 * SP should be set at the very end when we are done with everything
@@ -389,8 +389,8 @@
 	 * Exceptions -> NR_SYSCALLS + 1
 	 * Break-point-> NR_SYSCALLS + 2
 	 */
-	st.a    \marker, [sp, -4]
-	st.a    r0, [sp, -4]    /* orig_r0, needed only for sys calls */
+	st      \marker, [sp, 8]
+	st      r0, [sp, 4]    /* orig_r0, needed only for sys calls */
 	SAVE_CALLER_SAVED
 	st.a    r26, [sp, -4]   /* gp */
 	st.a    fp, [sp, -4]
@@ -462,8 +462,8 @@
 	ld.ab   r26, [sp, 4]    /* gp */
 	RESTORE_CALLER_SAVED
 
-	/* ignoring orig_r0 and orig_r8 */
-	ld  sp, [sp, 8] /* restore original sp */
+	ld  sp, [sp] /* restore original sp */
+	/* orig_r0 and orig_r8 skipped automatically */
 .endm
 
 
@@ -482,8 +482,8 @@
 #endif
 
 	/* now we are ready to save the remaining context :) */
-	st.a    -1, [sp, -4]    /* orig_r8, -1 for interuppt level one */
-	st.a    0, [sp, -4]    /* orig_r0 , N/A for IRQ */
+	st     -1, [sp, 8]    /* orig_r8, -1 for interuppt level one */
+	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
 	SAVE_CALLER_SAVED
 	st.a    r26, [sp, -4]   /* gp */
 	st.a    fp, [sp, -4]
@@ -517,8 +517,8 @@
 	ld  r9, [@int2_saved_reg]
 
 	/* now we are ready to save the remaining context :) */
-	st.a    -2, [sp, -4]    /* orig_r8, -2 for interrupt level 2 */
-	st.a    0, [sp, -4]    /* orig_r0 , N/A for IRQ */
+	st     -2, [sp, 8]    /* orig_r8, -2 for interrupt level 2 */
+	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
 	SAVE_CALLER_SAVED
 	st.a    r26, [sp, -4]   /* gp */
 	st.a    fp, [sp, -4]
@@ -573,8 +573,8 @@
 	ld.ab   r26, [sp, 4]    /* gp */
 	RESTORE_CALLER_SAVED
 
-	/* ignoring orig_r0 and orig_r8 */
-	ld  sp, [sp, 8] /* restore original sp */
+	ld  sp, [sp] /* restore original sp */
+	/* orig_r0 and orig_r8 skipped automatically */
 .endm
 
 .macro RESTORE_ALL_INT2
@@ -597,8 +597,8 @@
 	ld.ab   r26, [sp, 4]    /* gp */
 	RESTORE_CALLER_SAVED
 
-	/* ignoring orig_r0 and orig_r8 */
-	ld  sp, [sp, 8] /* restore original sp */
+	ld  sp, [sp] /* restore original sp */
+	/* orig_r0 and orig_r8 skipped automatically */
 
 .endm
 

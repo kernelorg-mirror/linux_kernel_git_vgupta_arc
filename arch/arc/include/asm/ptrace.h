@@ -38,9 +38,9 @@
 #define PT_r2		80
 #define PT_r1		84
 #define PT_r0		88
-#define PT_orig_r0	92
-#define PT_orig_r8	96
-#define PT_sp		100
+#define PT_sp		92
+#define PT_orig_r0	96
+#define PT_orig_r8	100
 
 #ifndef __ASSEMBLY__
 
@@ -77,9 +77,9 @@ struct pt_regs {
 	long r2;
 	long r1;
 	long r0;
+	long sp;	/* user/kernel sp depending on where we came from  */
 	long orig_r0;
 	long orig_r8;	/*to distinguish bet excp, sys call, int1 or int2 */
-	long sp;	/* user/kernel sp depending on where we came from  */
 };
 
 /* Callee saved registers - need to be saved only when you are scheduled out */

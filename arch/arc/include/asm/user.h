@@ -68,9 +68,9 @@ struct user_regs_struct {
 	long r2;
 	long r1;
 	long r0;
+	long sp;	/* user/ kernel sp, depending on where we came from  */
 	long orig_r0;
 	long orig_r8;	/*to distinguish bet excp, sys call, int1 or int2 */
-	long sp;	/* user/ kernel sp, depending on where we came from  */
 
 	/* -------- from struct callee_regs --------- */
 	long reserved2;
