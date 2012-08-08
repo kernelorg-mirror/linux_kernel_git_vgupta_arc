@@ -68,19 +68,48 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
  ******************************************************************/
 extern unsigned long __xchg_bad_pointer(void);
 
-/* On ARC700, "ex" is inherently atomic so don't need IRQ disabling */
-
+/*
+ * On ARC700, EX insn is inherently atomic, so by default "vanilla" xchg() need
+ * not require any locking as opposed to atomic_xchg() which MUST "behave"
+ * like other atomic ops, which for ARC implies using atomic_ops_lock
+ *
+ * However there's a quirk.
+ *
+ * ARC lacks native CMPXCHG, thus we emulate it, reusing the same
+ * atomic_ops_lock used by atomic APIs.
+ * In linux llist code, cmpxchg() and xchg() are used on same data, so
+ * xchg needs to abide by same serializing rules, thus ends up using
+ * atomic_ops_lock as well. End result xchg == atomic_cmpxchg
+ *
+ * As a small optimization, xchg() doesn't need this additional serialization
+ * for UP or LLSC.
+ *
+ * 	if (UP or LLSC)
+ * 		xchg doesn't need serialization
+ * 	else <==> !(UP or LLSC) <==> (!UP and !LLSC) <==> (SMP and !LLSC)
+ * 		xchg needs serialization
+ */
 static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 				   int size)
 {
+	unsigned long flags = flags;
+
 	switch (size) {
 	case 4:
+
+#if !defined(CONFIG_ARC_HAS_LLSC) && defined(CONFIG_SMP)
+		atomic_ops_lock(flags);
+#endif
 		__asm__ __volatile__(
 
 		"	ex  %0, [%1]	\n"
 		: "+r"(val)
 		: "r"(ptr)
 		: "memory");
+
+#if !defined(CONFIG_ARC_HAS_LLSC) && defined(CONFIG_SMP)
+		atomic_ops_unlock(flags);
+#endif
 
 		return val;
 	}
