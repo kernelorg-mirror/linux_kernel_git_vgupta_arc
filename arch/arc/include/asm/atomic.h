@@ -17,25 +17,11 @@
 #include <asm/barrier.h>
 #include <asm/smp.h>
 
-#ifdef CONFIG_SMP
-
-static inline void atomic_set(atomic_t *v, int i)
-{
-	unsigned long flags;
-
-	atomic_ops_lock(flags);
-	v->counter = i;
-	atomic_ops_unlock(flags);
-}
-#else	/* !CONFIG_SMP */
-
-#define atomic_set(v, i) (((v)->counter) = (i))
-
-#endif	/* !CONFIG_SMP */
-
 #define atomic_read(v)  ((v)->counter)
 
 #ifdef CONFIG_ARC_HAS_LLSC
+
+#define atomic_set(v, i) (((v)->counter) = (i))
 
 static inline void atomic_add(int i, atomic_t *v)
 {
@@ -112,8 +98,32 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 	: "cc");
 }
 
+#else	/* !CONFIG_ARC_HAS_LLSC */
 
+#ifdef CONFIG_SMP
+
+static inline void atomic_set(atomic_t *v, int i)
+{
+	/*
+	 * Independent of hardware support, all of the atomic_xxx() APIs need
+	 * to follow the same locking rules to make sure 1 "hardware" atomic
+	 * insn doesn't clobber an "emulated" atomic insn sequence
+	 *
+	 * Thus atomic_set() despite being 1 insn (and seemingly atomic)
+	 * requires the locking.
+	 */
+	unsigned long flags;
+
+	atomic_ops_lock(flags);
+	v->counter = i;
+	atomic_ops_unlock(flags);
+}
 #else
+
+ /* violating atomic_xxx API locking protocol in UP for optimization sake */
+#define atomic_set(v, i) (((v)->counter) = (i))
+
+#endif
 
 static inline void atomic_add(int i, atomic_t *v)
 {
@@ -170,7 +180,7 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 	atomic_ops_unlock(flags);
 }
 
-#endif /* CONFIG_ARC_HAS_LLSC */
+#endif /* !CONFIG_ARC_HAS_LLSC */
 
 /**
  * __atomic_add_unless - add unless the number is a given value

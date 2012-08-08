@@ -52,8 +52,11 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 
 #endif /* CONFIG_ARC_HAS_LLSC */
 
-/* unlike other APIS, cmpxchg is same as atomix_cmpxchg because
- * because the sematics of cmpxchg itself is to be atomic
+/*
+ * Since not supported natively, ARC cmpxchg() uses atomic ops lock (UP/SMP)
+ * just to gaurantee semantics.
+ * atomic_cmpxchg() needs to use the same locks as it's other atomic siblings
+ * Thus implementation of atomic_cmpxchg() is same as cmpxchg().
  */
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
 
