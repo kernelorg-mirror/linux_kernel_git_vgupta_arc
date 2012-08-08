@@ -57,20 +57,8 @@ struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 unsigned long clk_speed = CONFIG_ARC_PLAT_CLK;
 struct sockaddr mac_addr = { 0, {0x64, 0x66, 0x46, 0x88, 0x63, 0x33} };
 
-/* Allows up to identify at runtime if running on ISS or h/w */
-int running_on_hw = 1;
-
-#ifdef CONFIG_ROOT_NFS
-
-char __initdata command_line[COMMAND_LINE_SIZE] = {
-"root=/dev/nfs nfsroot=10.0.0.2:/home/vineetg/ARC/arc_initramfs_nfs,nolock ip=dhcp console=ttyS0" };
-
-#else
-
+int running_on_hw = 1;	/* vs. on ISS */
 char __initdata command_line[COMMAND_LINE_SIZE];
-
-#endif
-
 struct task_struct *_current_task[NR_CPUS];	/* currently active task */
 
 /*
@@ -574,6 +562,12 @@ void __init setup_arch(char **cmdline_p)
 	} else {
 		printk_init("SKIPPING ATAG parsing...\n");
 	}
+
+	/*
+	 * Append .config cmdline to base command line, which might already
+	 * contain u-boot "bootargs" (handled by head.S, if so configured)
+	 */
+	strlcat(command_line, CONFIG_CMDLINE, sizeof(command_line));
 
 	/* Save unparsed command line copy for /proc/cmdline */
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);

@@ -492,6 +492,13 @@ config ARC_DBG_TLB_MISS_COUNT
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
 
+config CMDLINE
+	string "Kernel command line to built-in"
+	default "print-fatal-signals=1"
+	help
+	  The default command line which will be appended to the optional
+	  u-boot provided command line (see below)
+
 config ARC_UBOOT_CMDLINE
 	bool "Support U-boot kernel command line passing"
 	default n
