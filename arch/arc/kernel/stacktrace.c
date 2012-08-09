@@ -38,6 +38,8 @@
  *-------------------------------------------------------------------------
  */
 
+#ifdef CONFIG_ARC_DW2_UNWIND
+
 static void seed_unwind_frame_info(struct task_struct *tsk,
 				   struct pt_regs *regs,
 				   struct unwind_frame_info *frame_info)
@@ -91,6 +93,8 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 		frame_info->call_frame = 0;
 	}
 }
+
+#endif
 
 static noinline unsigned int
 arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,

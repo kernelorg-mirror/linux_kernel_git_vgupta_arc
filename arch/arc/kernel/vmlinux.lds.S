@@ -83,7 +83,7 @@ SECTIONS
 
     }
 
-	PERCPU_SECTION(64)
+	PERCPU_SECTION(L1_CACHE_BYTES)
 
 	/*
 	 * .exit.text is discard at runtime, not link time, to deal with

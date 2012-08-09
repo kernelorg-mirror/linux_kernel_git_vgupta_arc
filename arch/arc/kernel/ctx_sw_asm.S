@@ -12,6 +12,7 @@
 
 #include <asm/entry.h>       /* For the SAVE_* macros */
 #include <asm/asm-offsets.h>
+#include <asm/linkage.h>
 
 ;################### Low Level Context Switch ##########################
 
