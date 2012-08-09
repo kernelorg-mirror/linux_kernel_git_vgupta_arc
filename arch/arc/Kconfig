@@ -499,16 +499,16 @@ config CMDLINE
 	  The default command line which will be appended to the optional
 	  u-boot provided command line (see below)
 
-config ARC_UBOOT_CMDLINE
+config CMDLINE_UBOOT
 	bool "Support U-boot kernel command line passing"
 	default n
 	help
 	  If you are using U-boot (www.denx.de) and wish to pass the kernel
 	  command line from the U-boot environment to the Linux kernel then
 	  switch this option on.
-	  U-boot will pass the command_line variable at the beginning of the
-	  .bss section.  The kernel copies this variable into the correct place
-	  during it's boot.
+	  ARC U-boot will setup the cmdline in RAM/flash and set r2 to point
+	  to it. kernel startup code will copy the string into cmdline buffer
+	  and also append CONFIG_CMDLINE.
 
 source "kernel/Kconfig.preempt"
 

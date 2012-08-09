@@ -349,6 +349,10 @@ void __init __attribute__((weak)) arc_platform_early_init(void)
 
 void __init setup_arch(char **cmdline_p)
 {
+#ifdef CONFIG_CMDLINE_UBOOT
+	/* Make sure that a whitespace is inserted before */
+	strlcat(command_line, ' ', sizeof(command_line));
+#endif
 	/*
 	 * Append .config cmdline to base command line, which might already
 	 * contain u-boot "bootargs" (handled by head.S, if so configured)
