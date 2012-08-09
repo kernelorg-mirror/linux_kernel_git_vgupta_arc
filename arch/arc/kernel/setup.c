@@ -363,6 +363,9 @@ void __init setup_arch(char **cmdline_p)
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
+	/* To force early parsing of things like mem=xxx */
+	parse_early_param();
+
 	/* Platform/board specific: e.g. early console registration */
 	arc_platform_early_init();
 

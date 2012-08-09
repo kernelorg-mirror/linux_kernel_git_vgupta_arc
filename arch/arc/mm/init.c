@@ -24,7 +24,23 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD] __aligned(PAGE_SIZE);
 char empty_zero_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(empty_zero_page);
 
+/* Default tot mem from .config */
 unsigned long end_mem = CONFIG_ARC_PLAT_SDRAM_SIZE + CONFIG_LINUX_LINK_BASE;
+
+/* User can over-ride above with "mem=nnn[KkMm]" in cmdline */
+static int __init setup_mem_sz(char *str)
+{
+	unsigned long sz_bytes;
+
+	sz_bytes = memparse(str, NULL);
+	end_mem = CONFIG_LINUX_LINK_BASE + (sz_bytes & PAGE_MASK);
+
+	/* early console might not be setup yet - it will show up later */
+	pr_info("\"mem=%s\": End mem set to 0x%lx\n", str, end_mem);
+
+	return 0;
+}
+early_param("mem", setup_mem_sz);
 
 void __init pagetable_init(void)
 {
