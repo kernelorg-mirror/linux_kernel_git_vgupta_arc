@@ -7,14 +7,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * vineetg: June 2010:
- *  =Reducing gen code footprint of do_signal which is getting bloated up
- *   due to gcc doing inlining of static fns in this file.
- *      -Synth sigret stub gen function now a seperate fn (never called)
- *       Will get rid of it altogether at some point
- *      -setup_rt_frame, create_sigret_stub, set_frame_exec forced noinline
- *       as they are never called in practise
- *
  * vineetg: Jan 2010 (Restarting of timer related syscalls)
  *
  * vineetg: Nov 2009 (Everything needed for TIF_RESTORE_SIGMASK)
@@ -69,6 +61,7 @@
 #include <linux/personality.h>
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
+#include <linux/syscalls.h>
 #include <asm/ucontext.h>
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
@@ -88,16 +81,28 @@ asmlinkage int sys_sigaltstack(const stack_t *uss, stack_t *uoss)
  */
 struct sigframe {
 	struct ucontext uc;
-#define MAGIC_USERLAND_STUB     0x11091976
-#define MAGIC_KERNEL_SYNTH_STUB 0x07302004
+#define MAGIC_USERLAND_STUB     0x11097600
+#define MAGIC_KERNEL_SYNTH_STUB 0x07300400
+#define MAGIC_SIGALTSTK		0x00000001
 	unsigned int sigret_magic;
 	unsigned long retcode[5];
 };
 
 struct rt_sigframe {
 	struct siginfo info;
-	struct sigframe sig;
+	struct sigframe frame;
 };
+
+static int
+stash_usr_regs(struct sigframe __user *sf, struct pt_regs *regs,
+	       sigset_t *set)
+{
+	int err;
+	err = __copy_to_user(&(sf->uc.uc_mcontext.regs), regs, sizeof(*regs));
+	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(sigset_t));
+
+	return err;
+}
 
 static int restore_usr_regs(struct pt_regs *regs, struct sigframe __user *sf)
 {
@@ -113,131 +118,107 @@ static int restore_usr_regs(struct pt_regs *regs, struct sigframe __user *sf)
 		spin_unlock_irq(&current->sighand->siglock);
 	}
 
-	err |= __copy_from_user(regs, &(sf->uc.uc_mcontext.regs), sizeof(*regs));
+	err |= __copy_from_user(regs, &(sf->uc.uc_mcontext.regs),
+				sizeof(*regs));
+
+	return err;
+}
+
+static inline int is_sigret_synth(unsigned int magic)
+{
+	if ((MAGIC_KERNEL_SYNTH_STUB & magic) == MAGIC_KERNEL_SYNTH_STUB)
+		return 1;
+	else
+		return 0;
+}
+
+static inline int is_sigret_userspace(unsigned int magic)
+{
+	if ((MAGIC_USERLAND_STUB & magic) == MAGIC_USERLAND_STUB)
+		return 1;
+	else
+		return 0;
+}
+
+static inline int is_do_ss_needed(unsigned int magic)
+{
+	if ((MAGIC_SIGALTSTK & magic) == MAGIC_SIGALTSTK)
+		return 1;
+	else
+		return 0;
+}
+
+SYSCALL_DEFINE0(rt_sigreturn)
+{
+	struct rt_sigframe __user *rtf;
+	struct sigframe __user *sf;
+	unsigned int magic;
+	int err;
+	struct pt_regs *regs = task_pt_regs(current);
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
+	/* Since we stacked the signal on a word boundary,
+	 * then 'sp' should be word aligned here.  If it's
+	 * not, then the user is trying to mess with us.
+	 */
+	if (regs->sp & 3)
+		goto badframe;
+
+	rtf = ((struct rt_sigframe __user *)regs->sp);
+
+	if (!access_ok(VERIFY_READ, rtf, sizeof(*rtf)))
+		goto badframe;
+
+	sf = &rtf->frame;
+	err = restore_usr_regs(regs, sf);
+	err |= __get_user(magic, &sf->sigret_magic);
+	if (err)
+		goto badframe;
+
+	/*
+	 * If C-lib provided userland sigret stub, no need to do anything.
+	 * If kernel sythesized sigret stub, need to undo PTE/TLB changes
+	 * for making stack executable.
+	 */
+	if (unlikely(is_sigret_synth(magic))) {
+		set_frame_exec((unsigned long)&sf->retcode, 0);
+	} else if (unlikely(!is_sigret_userspace(magic))) {
+		/* user corrupted the signal stack */
+		pr_notice("sys_rt_sigreturn: sig stack corrupted");
+		goto badframe;
+	}
+
+	if (unlikely(is_do_ss_needed(magic)))
+		if (do_sigaltstack(&sf->uc.uc_stack, NULL, regs->sp) == -EFAULT)
+			goto badframe;
 
 	take_snap(SNAP_SIGRETURN, 0, 0);
 
-	return err;
+	return regs->r0;
+
+badframe:
+	force_sig(SIGSEGV, current);
+	return 0;
 }
 
 /*
- * Unlike sigaction/sigsuspend where rt_xxx variants are same as not rt ones,
- * sigreturn is not equiv to rt_sigreturn because of SA_SIGINFO semantics.
+ * At the time of handle_signal(), the user frame is unconditionally laid out
+ * as "struct rt_sigframe" (as opposed to prev implementation which would do
+ * struct rt_sigframe vs. struct sigframe, based on SA_SIGINFO).
+ * That way at the time of sigreturn, the reg-file restore is exactly same
+ * irrespective of SA_SIGINFO.
+ * This allows us to painlessly retire "vanill" sigreturn in future.
  */
-int sys_sigreturn(void)
+SYSCALL_DEFINE0(sigreturn)
 {
-	struct sigframe __user *frame;
-	unsigned int sigret_magic;
-	int err;
-	struct pt_regs *regs = task_pt_regs(current);
-
-	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
-	/* Since we stacked the signal on a word boundary,
-	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
-	 */
-	if (regs->sp & 3)
-		goto badframe;
-
-	frame = (struct sigframe __user *)regs->sp;
-
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
-		goto badframe;
-
-	if (restore_usr_regs(regs, frame))
-		goto badframe;
-
-	err = __get_user(sigret_magic, &frame->sigret_magic);
-	if (err)
-		goto badframe;
-
-	/* If C-lib provided userland sigret stub, no need to do anything */
-	if (MAGIC_USERLAND_STUB != sigret_magic) {
-
-		/* If it's kernel sythesized sigret stub, need to undo
-		 *  the PTE/TLB changes for making stack executable
-		 */
-		if (MAGIC_KERNEL_SYNTH_STUB == sigret_magic) {
-			set_frame_exec((unsigned long)&frame->retcode, 0);
-		} else {	/* user corrupted the signal stack */
-			pr_notice("sys_sigreturn: sig stack corrupted");
-			goto badframe;
-		}
-	}
-
-	return regs->r0;
-
-badframe:
-	force_sig(SIGSEGV, current);
-	return 0;
+	return sys_rt_sigreturn();
 }
 
-int sys_rt_sigreturn(void)
-{
-	struct rt_sigframe __user *frame;
-	unsigned int sigret_magic;
-	int err;
-	struct pt_regs *regs = task_pt_regs(current);
-
-	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
-	/* Since we stacked the signal on a word boundary,
-	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
-	 */
-	if (regs->sp & 3)
-		goto badframe;
-
-	frame = ((struct rt_sigframe __user *)regs->sp);
-
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
-		goto badframe;
-
-	if (restore_usr_regs(regs, &frame->sig))
-		goto badframe;
-
-	if (do_sigaltstack(&frame->sig.uc.uc_stack, NULL, regs->sp) == -EFAULT)
-		goto badframe;
-
-	err = __get_user(sigret_magic, &frame->sig.sigret_magic);
-	if (err)
-		goto badframe;
-
-	/* If C-lib provided userland sigret stub, no need to do anything */
-	if (unlikely(MAGIC_USERLAND_STUB != sigret_magic)) {
-
-		/* If it's kernel sythesized sigret stub, need to undo
-		 *  the PTE/TLB changes for making stack executable
-		 */
-		if (MAGIC_KERNEL_SYNTH_STUB == sigret_magic) {
-			set_frame_exec((unsigned long)&frame->sig.retcode, 0);
-		} else {	/* user corrupted the signal stack */
-			pr_notice("sys_rt_sigreturn: sig stack corrupted");
-			goto badframe;
-		}
-	}
-
-	return regs->r0;
-
-badframe:
-	force_sig(SIGSEGV, current);
-	return 0;
-}
-
-static noinline int
-stash_usr_regs(struct sigframe __user *sf, struct pt_regs *regs,
-	       sigset_t *set)
-{
-	int err;
-	err = __copy_to_user(&(sf->uc.uc_mcontext.regs), regs, sizeof(*regs));
-	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(sigset_t));
-
-	return err;
-}
-
+/*
+ * Determine which stack to use..
+ */
 static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 				 unsigned long framesize)
 {
@@ -263,8 +244,7 @@ static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 }
 
 static noinline int
-create_sigret_stub(struct k_sigaction *ka, struct pt_regs *regs,
-		   struct sigframe __user *frame, unsigned long *retcode)
+create_sigret_stub(struct k_sigaction *ka, unsigned long *retcode)
 {
 	unsigned int code;
 	int err;
@@ -274,6 +254,7 @@ create_sigret_stub(struct k_sigaction *ka, struct pt_regs *regs,
 		code = 0x1b42208a;	/* code for mov r8, __NR_RT_SIGRETURN */
 	else
 		code = 0x1dc1208a;	/* code for mov r8, __NR_SIGRETURN */
+
 	err = __put_user(code, retcode);
 
 	code = 0x003f226f;	/* code for trap0 */
@@ -283,11 +264,10 @@ create_sigret_stub(struct k_sigaction *ka, struct pt_regs *regs,
 	code = 0x7000264a;	/* code for nop */
 	err |= __put_user(code, retcode + 3);
 
-	err |= __put_user(MAGIC_KERNEL_SYNTH_STUB, &frame->sigret_magic);
 	if (err)
 		return err;
 
-	/* Temp wiggle stack page's to be exec, o allow sigreturn to run */
+	/* Temp wiggle stack page to be exec, to allow synth sigreturn to run */
 	set_frame_exec((unsigned long)retcode, 1);
 	return 0;
 }
@@ -295,18 +275,17 @@ create_sigret_stub(struct k_sigaction *ka, struct pt_regs *regs,
 /* Set up to return from userspace signal handler back into kernel */
 static int
 setup_ret_from_usr_sighdlr(struct k_sigaction *ka, struct pt_regs *regs,
-			   struct sigframe __user *frame)
+			   struct sigframe __user *frame, unsigned int magic)
 {
 	unsigned long *retcode;
 	int err = 0;
 
-	/* Setup for returning from signal handler(USER Mode => KERNEL Mode) */
-
 	/* If provided, use a stub already in userspace */
 	if (likely(ka->sa.sa_flags & SA_RESTORER)) {
+		magic |= MAGIC_USERLAND_STUB;
 		retcode = (unsigned long *)ka->sa.sa_restorer;
-		err = __put_user(MAGIC_USERLAND_STUB, &frame->sigret_magic);
 	} else {
+		magic |= MAGIC_KERNEL_SYNTH_STUB;
 		/*
 		 * Note that with uClibc providing userland sigreturn stub,
 		 * this code is more of a legacy and will not be executed
@@ -314,17 +293,83 @@ setup_ret_from_usr_sighdlr(struct k_sigaction *ka, struct pt_regs *regs,
 		 * we no longer have to do
 		 */
 		retcode = frame->retcode;
-		err = create_sigret_stub(ka, regs, frame, retcode);
+		err = create_sigret_stub(ka, retcode);
 	}
 
+	err |= __put_user(magic, &frame->sigret_magic);
 	if (err)
 		return err;
 
-	/* setup PC for return to user space : the signal handler */
+	/* Upon return of handler, enable sigreturn sys call (synth or real) */
+	regs->blink = (unsigned long)retcode;
+
+	take_snap(SNAP_BEFORE_SIG, 0, 0);
+
+	return 0;
+}
+
+static int
+setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+	       sigset_t *set, struct pt_regs *regs)
+{
+	struct rt_sigframe __user *rtf;
+	struct sigframe __user *sf;
+	unsigned int magic = 0;
+	stack_t stk;
+	int err = 0;
+
+	rtf = get_sigframe(ka, regs, sizeof(struct rt_sigframe));
+	if (!rtf)
+		return 1;
+
+	sf = &rtf->frame;
+
+	/*
+	 * SA_SIGINFO requires 3 args to signal handler:
+	 *  #1: sig-no (common to any handler)
+	 *  #2: struct siginfo
+	 *  #3: struct ucontext (completely populated)
+	 */
+	if (unlikely(ka->sa.sa_flags & SA_SIGINFO)) {
+		err |= copy_siginfo_to_user(&rtf->info, info);
+		err |= __put_user(0, &sf->uc.uc_flags);
+		err |= __put_user(NULL, &sf->uc.uc_link);
+		stk.ss_sp = (void __user *)current->sas_ss_sp;
+		stk.ss_flags = sas_ss_flags(regs->sp);
+		stk.ss_size = current->sas_ss_size;
+		err |= __copy_to_user(&sf->uc.uc_stack, &stk, sizeof(stk));
+
+		/* setup args 2 and 3 fo ruse rmode handler */
+		regs->r1 = (unsigned long)&rtf->info;
+		regs->r2 = (unsigned long)&sf->uc;
+
+		/*
+		 * small optim to avoid unconditonally calling do_sigaltstack
+		 * in sigreturn path, now that we only have rt_sigreturn
+		 */
+		magic = MAGIC_SIGALTSTK;
+	}
+
+	/*
+	 * w/o SA_SIGINFO, struct ucontext is partially populated (only
+	 * uc_mcontext/uc_sigmask) for kernel's normal user state preservation
+	 * during signal handler execution. This works for SA_SIGINFO as well
+	 * although the semantics are now overloaded (the same reg state can be
+	 * inspected by userland: but are they allowed to fiddle with it ?
+	 */
+	err |= stash_usr_regs(sf, regs, set);
+	err |= setup_ret_from_usr_sighdlr(ka, regs, sf, magic);
+	if (err)
+		return err;
+
+	/* #1 arg to the user Signal handler */
+	regs->r0 = sig;
+
+	/* setup PC of user space signal handler */
 	regs->ret = (unsigned long)ka->sa.sa_handler;
 
-	/* Upon return of handler, enable sigreturn sys call */
-	regs->blink = (unsigned long)retcode;
+	/* User Stack for signal handler will be above the frame just carved */
+	regs->sp = (unsigned long)rtf;
 
 	/*
 	 * Bug 94183, Clear the DE bit, so that when signal handler
@@ -332,72 +377,6 @@ setup_ret_from_usr_sighdlr(struct k_sigaction *ka, struct pt_regs *regs,
 	 */
 	regs->status32 &= ~STATUS_DE_MASK;
 	regs->status32 |= STATUS_L_MASK;
-
-	take_snap(SNAP_BEFORE_SIG, 0, 0);
-
-	return 0;
-}
-
-static int setup_frame(int sig, struct k_sigaction *ka,
-		       sigset_t *set, struct pt_regs *regs)
-{
-	struct sigframe __user *frame;
-	int err;
-
-	frame = get_sigframe(ka, regs, sizeof(struct sigframe));
-
-	if (!frame)
-		return 1;
-
-	err = stash_usr_regs(frame, regs, set);
-
-	if (!err)
-		err |= setup_ret_from_usr_sighdlr(ka, regs, frame);
-
-	/* Arguements to the user Signal handler */
-	regs->r0 = sig;
-
-	/* User Stack for signal handler will be above the frame just carved */
-	regs->sp = (unsigned long)frame;
-
-	return err;
-}
-
-static noinline int
-setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-	       sigset_t *set, struct pt_regs *regs)
-{
-	struct rt_sigframe __user *rt_frame;
-	stack_t stk;
-	int err;
-
-	rt_frame = get_sigframe(ka, regs, sizeof(struct rt_sigframe));
-
-	if (!rt_frame)
-		return 1;
-
-	err = copy_siginfo_to_user(&rt_frame->info, info);
-	err |= __put_user(0, &rt_frame->sig.uc.uc_flags);
-	err |= __put_user(NULL, &rt_frame->sig.uc.uc_link);
-
-	memset(&stk, 0, sizeof(stk));
-	stk.ss_sp = (void __user *)current->sas_ss_sp;
-	stk.ss_flags = sas_ss_flags(regs->sp);
-	stk.ss_size = current->sas_ss_size;
-	err |= __copy_to_user(&rt_frame->sig.uc.uc_stack, &stk, sizeof(stk));
-
-	err |= stash_usr_regs(&rt_frame->sig, regs, set);
-
-	if (!err)
-		err |= setup_ret_from_usr_sighdlr(ka, regs, &(rt_frame->sig));
-
-	/* Arguements to the user Signal handler */
-	regs->r0 = sig;
-	regs->r1 = (unsigned long)&rt_frame->info;
-	regs->r2 = (unsigned long)&rt_frame->sig.uc;
-
-	/* User Stack for signal handler will be above the frame just carved */
-	regs->sp = (unsigned long)rt_frame;
 
 	return err;
 }
@@ -461,10 +440,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 		usig = thread->exec_domain->signal_invmap[usig];
 
 	/* Set up the stack frame */
-	if (unlikely(ka->sa.sa_flags & SA_SIGINFO))
-		ret = setup_rt_frame(usig, ka, info, oldset, regs);
-	else
-		ret = setup_frame(usig, ka, oldset, regs);
+	ret = setup_rt_frame(usig, ka, info, oldset, regs);
 
 	if (ret) {
 		force_sigsegv(sig, current);
