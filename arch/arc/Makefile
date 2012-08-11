@@ -101,8 +101,10 @@ libs-y				+= arch/arc/lib/ $(LIBGCC)
 KBUILD_IMAGE := bootpImage
 
 all:	$(KBUILD_IMAGE)
+boot	:= arch/arc/boot
 
 bootpImage uImage: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
