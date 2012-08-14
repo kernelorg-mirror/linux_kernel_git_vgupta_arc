@@ -120,25 +120,24 @@ void ptrace_disable(struct task_struct *child)
 	/* DUMMY: dummy function to resolve undefined references */
 }
 
-unsigned long getreg(const unsigned int offset, struct task_struct *child)
+unsigned long getreg(const unsigned int off, struct task_struct *child)
 {
 	unsigned int *reg_file;
 	struct pt_regs *ptregs = task_pt_regs(child);
 	unsigned int data = 0;
 
-	if (offset < offsetof(struct user_regs_struct, reserved2)) {
+	if (off < offsetof(struct user_regs_struct, callee)) {
 		reg_file = (unsigned int *)ptregs;
-		data = reg_file[offset / 4];
-	} else if (offset < offsetof(struct user_regs_struct, efa)) {
+		data = reg_file[off / 4];
+	} else if (off < offsetof(struct user_regs_struct, efa)) {
 		struct callee_regs calleeregs;
 		reg_file = (unsigned int *)task_callee_regs(child, &calleeregs);
 		data =
-		    reg_file[(offset -
-			      offsetof(struct user_regs_struct,
-				       reserved2)) / 4];
-	} else if (offset == offsetof(struct user_regs_struct, efa)) {
+		    reg_file[(off -
+			      offsetof(struct user_regs_struct, callee)) / 4];
+	} else if (off == offsetof(struct user_regs_struct, efa)) {
 		data = child->thread.fault_address;
-	} else if (offset == offsetof(struct user_regs_struct, stop_pc)) {
+	} else if (off == offsetof(struct user_regs_struct, stop_pc)) {
 		if (in_brkpt_trap(ptregs)) {
 			data = child->thread.fault_address;
 			pr_debug("\t\tstop_pc (brk-pt)\n");
@@ -148,38 +147,38 @@ unsigned long getreg(const unsigned int offset, struct task_struct *child)
 		}
 	}
 
-	pr_debug("\t\t%s:0x%2x (%s) = %x\n", __func__, offset, reg_nm(offset),
+	pr_debug("\t\t%s:0x%2x (%s) = %x\n", __func__, off, reg_nm(off),
 		data);
 
 	return data;
 }
 
-void setreg(unsigned int offset, unsigned int data, struct task_struct *child)
+void setreg(unsigned int off, unsigned int data, struct task_struct *child)
 {
 	unsigned int *reg_file;
 	struct pt_regs *ptregs = task_pt_regs(child);
 
-	pr_debug("\t\t%s:0x%2x (%s) = 0x%x\n", __func__, offset, reg_nm(offset),
+	pr_debug("\t\t%s:0x%2x (%s) = 0x%x\n", __func__, off, reg_nm(off),
 		data);
 
-	if (offset == offsetof(struct user_regs_struct, reserved1) ||
-	    offset == offsetof(struct user_regs_struct, reserved2) ||
-	    offset == offsetof(struct user_regs_struct, efa)) {
+	if (off == offsetof(struct user_regs_struct, scratch.res) ||
+	    off == offsetof(struct user_regs_struct, callee.res) ||
+	    off == offsetof(struct user_regs_struct, efa)) {
 		pr_warn("Bogus ptrace setreg request\n");
 		return;
 	}
 
-	if (offset == offsetof(struct user_regs_struct, stop_pc)) {
+	if (off == offsetof(struct user_regs_struct, stop_pc)) {
 		pr_debug("\t\tstop_pc (others)\n");
 		ptregs->ret = data;
-	} else if (offset < offsetof(struct user_regs_struct, reserved2)) {
+	} else if (off < offsetof(struct user_regs_struct, callee)) {
 		reg_file = (unsigned int *)ptregs;
-		reg_file[offset / 4] = data;
-	} else if (offset < offsetof(struct user_regs_struct, efa)) {
+		reg_file[off / 4] = data;
+	} else if (off < offsetof(struct user_regs_struct, efa)) {
 		struct callee_regs calleeregs;
 		reg_file = (unsigned int *)task_callee_regs(child, &calleeregs);
-		offset -= offsetof(struct user_regs_struct, reserved2);
-		reg_file[offset / 4] = data;
+		off -= offsetof(struct user_regs_struct, callee);
+		reg_file[off / 4] = data;
 	} else {
 		pr_warn("Bogus ptrace setreg request\n");
 	}

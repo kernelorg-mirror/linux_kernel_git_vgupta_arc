@@ -52,7 +52,7 @@ struct pt_regs {
 	 * Technically not needed, Since SP always points to a "full" location
 	 * (vs. "empty"). But pt_regs is shared with tools....
 	 */
-	long stack_place_holder;
+	long res;
 
 	/* Real registers */
 	long bta;	/* bta_l1, bta_l2, erbta */
@@ -85,7 +85,7 @@ struct pt_regs {
 /* Callee saved registers - need to be saved only when you are scheduled out */
 
 struct callee_regs {
-	long stack_place_holder;	/* Again this is not needed */
+	long res;	/* Again this is not needed */
 	long r25;
 	long r24;
 	long r23;
