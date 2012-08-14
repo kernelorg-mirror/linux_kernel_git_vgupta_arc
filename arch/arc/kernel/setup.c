@@ -205,7 +205,7 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	FIX_PTR(cpu);
 #define IS_AVAIL1(var, str)	((var) ? str : "")
 #define IS_AVAIL2(var, str)	((var == 0x2) ? str : "")
-#define IS_AVAIL3(var)   ((var) ? "" : "N/A")
+#define IS_USED(var)		((var) ? "(in-use)" : "(not used)")
 
 	n += scnprintf(buf + n, len - n,
 		       "Extn [700-Base]\t: %s %s %s %s %s %s\n",
@@ -223,27 +223,25 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 		       mac_mul_nm[cpu->extn_mac_mul.type].str);
 
 	if (cpu->core.family == 0x34) {
-		const char *inuse = "(in-use)";
-		const char *notinuse = "(not used)";
-
 		n += scnprintf(buf + n, len - n, "Extn [700-4.10]\t: "
 			       "LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
-			       __CONFIG_ARC_HAS_LLSC_VAL ? inuse : notinuse,
-			       __CONFIG_ARC_HAS_SWAPE_VAL ? inuse : notinuse,
-			       __CONFIG_ARC_HAS_RTSC_VAL ? inuse : notinuse);
+			       IS_USED(__CONFIG_ARC_HAS_LLSC_VAL),
+			       IS_USED(__CONFIG_ARC_HAS_SWAPE_VAL),
+			       IS_USED(__CONFIG_ARC_HAS_RTSC_VAL));
 	}
 
-	n += scnprintf(buf + n, len - n, "DCCM: %s", IS_AVAIL3(cpu->dccm.sz));
+	n += scnprintf(buf + n, len - n, "Extn [CCM]\t: %s",
+		       !(cpu->dccm.sz || cpu->iccm.sz) ? "N/A" : "");
+
 	if (cpu->dccm.sz)
-		n += scnprintf(buf + n, len - n, "@ %x, %d KB ",
+		n += scnprintf(buf + n, len - n, "DCCM: @ %x, %d KB ",
 			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz));
 
-	n += scnprintf(buf + n, len - n, "  ICCM: %s", IS_AVAIL3(cpu->iccm.sz));
 	if (cpu->iccm.sz)
-		n += scnprintf(buf + n, len - n, "@ %x, %d KB",
+		n += scnprintf(buf + n, len - n, "ICCM: @ %x, %d KB",
 			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
 
-	n += scnprintf(buf + n, len - n, "\nExtn [Floating Point]: %s",
+	n += scnprintf(buf + n, len - n, "\nExtn [FPU]\t: %s",
 		       !(cpu->fp.ver || cpu->dpfp.ver) ? "N/A" : "");
 
 	if (cpu->fp.ver)
