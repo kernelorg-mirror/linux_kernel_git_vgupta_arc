@@ -34,4 +34,8 @@
 #define __NR_cacheflush        (__NR_arch_specific_syscall + 0)
 __SYSCALL(__NR_cacheflush, sys_cacheflush)
 
+/* Generic syscall (fs/filesystems.c - lost in asm-generic/unistd.h */
+#define __NR_sysfs		(__NR_arch_specific_syscall + 1)
+__SYSCALL(__NR_sysfs, sys_sysfs)
+
 #endif /* _ASM_ARC_UNISTD_H */
