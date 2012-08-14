@@ -101,6 +101,8 @@ struct callee_regs {
 	long r13;
 };
 
+#ifdef __KERNEL__
+
 #define PTRACE_GETREGS		12
 #define PTRACE_SETREGS		13
 #define PTRACE_GETFPREGS	14
@@ -133,6 +135,8 @@ struct callee_regs {
 		sp = -1;	\
 	sp;			\
 })
+
+#endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
 
