@@ -66,6 +66,7 @@
 #include <linux/sched.h>
 #include <linux/cache.h>
 #include <linux/mmu_context.h>
+#include <linux/syscalls.h>
 #include <asm/cacheflush.h>
 #include <asm/setup.h>
 
@@ -806,7 +807,7 @@ noinline void flush_cache_all()
  * XXX: this code is a bit of overkill for the purpose it serves,
  * lean it down
  */
-int sys_cacheflush(uint32_t start, uint32_t end, uint32_t flags)
+SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, end, uint32_t, flags)
 {
 #ifdef CONFIG_ARC_CACHE
 	struct vm_area_struct *vma;

@@ -11,8 +11,6 @@
 #ifndef _ASM_ARC_SIGNAL_H
 #define _ASM_ARC_SIGNAL_H
 
-#define SIGRTMAX	(_NSIG-1)
-
 /*
  * This is much needed for ARC sigreturn optimization.
  * This allows uClibc to piggback the addr of a sigreturn stub in sigaction,
