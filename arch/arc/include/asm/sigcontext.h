@@ -17,7 +17,6 @@
  * to the end of the structure.
  */
 struct sigcontext {
-	unsigned long oldmask;
 	struct pt_regs regs;
 };
 
