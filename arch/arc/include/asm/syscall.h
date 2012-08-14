@@ -6,10 +6,9 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _ASM_SYSCALL_H
-#define _ASM_SYSCALL_H  1
+#ifndef _ASM_ARC_SYSCALL_H
+#define _ASM_ARC_SYSCALL_H  1
 
-#include <asm/unistd.h>		/* NR_syscalls */
 #include <asm/ptrace.h>		/* in_syscall() */
 
 static inline long syscall_get_nr(struct task_struct *task,

@@ -170,6 +170,14 @@ static unsigned long __do_mmap2(struct file *file, unsigned long addr_hint,
 	return vaddr;
 }
 
+SYSCALL_DEFINE6(mmap, unsigned long, addr_hint, unsigned long, len,
+		unsigned long, prot, unsigned long, flags, unsigned long, fd,
+		unsigned long, off)
+{
+	pr_err("old mmap not supported\n");
+	return -EINVAL;
+}
+
 /* cloned from stock munmap to have arch specific processing
  * This can go away once mm->unmap_area starts taking more args
  */

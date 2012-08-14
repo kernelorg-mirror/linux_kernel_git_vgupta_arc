@@ -10,7 +10,7 @@ CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
 obj-y	:= arcksyms.o ptrace.o setup.o irq.o time.o reset.o	\
 	   troubleshoot.o stacktrace.o disasm.o \
-	   entry.o process.o signal.o traps.o
+	   entry.o process.o signal.o traps.o sys.o
 
 obj-$(CONFIG_ARC_DBG_EVENT_TIMELINE)	+= event-log.o
 obj-$(CONFIG_MODULES)			+= arcksyms.o module.o

@@ -42,6 +42,7 @@
 #include <asm/unwind.h>
 #include <asm/serial.h>
 #include <asm/smp.h>
+#include <asm/unistd.h>
 #include <plat/memmap.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
@@ -254,6 +255,11 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 
 	n += scnprintf(buf + n, len - n, "\n");
 
+#ifdef _ASM_GENERIC_UNISTD_H
+	n += scnprintf(buf + n, len - n,
+		       "OS ABI [v2]\t: asm-generic/unistd\n");
+#endif
+
 	return buf;
 }
 
@@ -316,7 +322,7 @@ void __init arc_chk_fpu(void)
 
 void __init setup_processor(void)
 {
-	char str[256];
+	char str[512];
 	int cpu_id = smp_processor_id();
 
 	read_arc_build_cfg_regs();

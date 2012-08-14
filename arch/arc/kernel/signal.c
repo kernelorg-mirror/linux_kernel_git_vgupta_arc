@@ -204,19 +204,6 @@ badframe:
 }
 
 /*
- * At the time of handle_signal(), the user frame is unconditionally laid out
- * as "struct rt_sigframe" (as opposed to prev implementation which would do
- * struct rt_sigframe vs. struct sigframe, based on SA_SIGINFO).
- * That way at the time of sigreturn, the reg-file restore is exactly same
- * irrespective of SA_SIGINFO.
- * This allows us to painlessly retire "vanill" sigreturn in future.
- */
-SYSCALL_DEFINE0(sigreturn)
-{
-	return sys_rt_sigreturn();
-}
-
-/*
  * Determine which stack to use..
  */
 static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
@@ -249,14 +236,8 @@ create_sigret_stub(struct k_sigaction *ka, unsigned long *retcode)
 	unsigned int code;
 	int err;
 
-	/* A7 is middle endian ! */
-	if (ka->sa.sa_flags & SA_SIGINFO)
-		code = 0x1b42208a;	/* code for mov r8, __NR_RT_SIGRETURN */
-	else
-		code = 0x1dc1208a;	/* code for mov r8, __NR_SIGRETURN */
-
+	code = 0x12c2208a;	/* code for mov r8, __NR_rt_sigreturn */
 	err = __put_user(code, retcode);
-
 	code = 0x003f226f;	/* code for trap0 */
 	err |= __put_user(code, retcode + 1);
 	code = 0x7000264a;	/* code for nop */
