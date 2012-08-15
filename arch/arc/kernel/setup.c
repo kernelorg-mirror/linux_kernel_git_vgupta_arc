@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
+#include <linux/cpu.h>
 #include <asm/sections.h>
 #include <asm/arcregs.h>
 #include <asm/tlb.h>
@@ -465,3 +466,17 @@ const struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo
 };
+
+static DEFINE_PER_CPU(struct cpu, cpu_topology);
+
+static int __init topology_init(void)
+{
+	int cpu;
+
+	for_each_present_cpu(cpu)
+	    register_cpu(&per_cpu(cpu_topology, cpu), cpu);
+
+	return 0;
+}
+
+subsys_initcall(topology_init);

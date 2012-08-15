@@ -83,7 +83,7 @@ LDFLAGS		+= $(ldflags-y)
 # Needed for Linker script preprocessing
 KBUILD_CPPFLAGS	+= -Iarch/arc/plat-$(PLATFORM)/include
 
-head-y		:= arch/arc/kernel/head.o arch/arc/kernel/init_task.o
+head-y		:= arch/arc/kernel/head.o
 
 # See arch/arc/Kbuild for content of core part of the kernel
 core-y				+= arch/arc/

@@ -100,7 +100,6 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
 /* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_POLLING_NRFLAG	17
 #define TIF_MEMDIE		18
-#define TIF_FREEZE		19
 #define TIF_SYSCALL_TRACE	31	/* syscall trace active */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
@@ -112,7 +111,6 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
 #define _TIF_RESTORE_SIGMASK    (1<<TIF_RESTORE_SIGMASK)
 #define _TIF_USEDFPU		(1<<TIF_USEDFPU)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
-#define _TIF_FREEZE		(1<<TIF_FREEZE)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK      (0x0000ffef & ~_TIF_SECCOMP)

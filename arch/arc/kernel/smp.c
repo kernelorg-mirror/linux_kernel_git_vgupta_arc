@@ -300,17 +300,3 @@ int smp_ipi_irq_setup(int cpu, int irq)
 	int *dev_id = &per_cpu(ipi_dev, smp_processor_id());
 	return request_percpu_irq(irq, do_IPI, "IPI Interrupt", dev_id);
 }
-
-struct cpu cpu_topology[NR_CPUS];
-
-static int __init topology_init(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-	    register_cpu(&cpu_topology[cpu], cpu);
-
-	return 0;
-}
-
-subsys_initcall(topology_init);

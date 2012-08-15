@@ -112,10 +112,7 @@ static int restore_usr_regs(struct pt_regs *regs, struct sigframe __user *sf)
 	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
 	if (err == 0) {
 		sigdelsetmask(&set, ~_BLOCKABLE);
-		spin_lock_irq(&current->sighand->siglock);
-		current->blocked = set;
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
+		set_current_blocked(&set);
 	}
 
 	err |= __copy_from_user(regs, &(sf->uc.uc_mcontext.regs),
@@ -428,13 +425,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 		return ret;
 	}
 
-	/* Block the signal if we are successful */
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked, sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	signal_delivered(sig, info, ka, regs, 0);
 
 	return ret;
 }

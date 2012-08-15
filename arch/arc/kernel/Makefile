@@ -32,4 +32,4 @@ else
 obj-y += ctx_sw_asm.o
 endif
 
-extra-y := init_task.o vmlinux.lds head.o
+extra-y := vmlinux.lds head.o

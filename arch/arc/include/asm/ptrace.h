@@ -108,8 +108,6 @@ struct callee_regs {
 #define PTRACE_GETFPREGS	14
 #define PTRACE_SETFPREGS	15
 
-#define PTRACE_O_TRACESYSGOOD     0x00000001
-
 #define instruction_pointer(regs)	((regs)->ret)
 #define profile_pc(regs)		instruction_pointer(regs)
 
