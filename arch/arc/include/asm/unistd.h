@@ -26,6 +26,9 @@
 #define __ARCH_WANT_SYSCALL_OFF_T
 #define __ARCH_WANT_SYSCALL_DEPRECATED
 
+/* To handle @cmd|0x100 passed by uClibc for semctl(), shmctl() and msgctl() */
+#define __ARCH_WANT_IPC_PARSE_VERSION
+
 #include <asm-generic/unistd.h>
 
 #define NR_syscalls	__NR_syscalls
