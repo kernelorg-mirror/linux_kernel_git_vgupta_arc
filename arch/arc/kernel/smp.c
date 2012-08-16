@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/profile.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
@@ -316,9 +317,11 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 /*
  * API called by platform code to hookup arch-common ISR to their IPI IRQ
  */
+static DEFINE_PER_CPU(int, ipi_dev);
 int smp_ipi_irq_setup(int cpu, int irq)
 {
-	return request_irq(irq, do_IPI, IRQF_PERCPU, "IPI Interrupt", NULL);
+	int *dev_id = &per_cpu(ipi_dev, smp_processor_id());
+	return request_percpu_irq(irq, do_IPI, "IPI Interrupt", dev_id);
 }
 
 struct cpu cpu_topology[NR_CPUS];
