@@ -92,6 +92,7 @@
 
 #define AUX_IENABLE		0x40c	/* gas knows as auxienable */
 #define AUX_ITRIGGER		0x40d
+#define AUX_IPULSE        	0x415
 
 /* Privileged MMU auxiliary register definitions */
 #define ARC_REG_TLBPD0		0x405
@@ -348,7 +349,11 @@ struct bcr_dccm {
 
 /* Both SP and DP FPU BCRs have same format */
 struct bcr_fp {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int fast:1, ver:8;
+#else
 	unsigned int ver:8, fast:1;
+#endif
 };
 
 /*
