@@ -99,9 +99,9 @@ extern void arc_platform_ipi_clear(int cpu, int irq);
  */
 #ifndef CONFIG_ARC_HAS_LLSC
 
+#include <linux/irqflags.h>
 #ifdef CONFIG_SMP
 
-#include <linux/irqflags.h>
 #include <asm/spinlock.h>
 
 extern arch_spinlock_t smp_atomic_ops_lock;
