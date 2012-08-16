@@ -51,13 +51,15 @@ stext:
 	;    r1 = magic number (board identity)
 	;    r2 = addr of cmdline string (somewhere in memory/flash)
 
-	brne	r1, 1, .Lother_bootup_chores
+	brne	r0, 1, .Lother_bootup_chores	; u-boot didn't pass cmdline
+	breq	r2, 0, .Lother_bootup_chores	; or cmdline is NULL
+
 	mov	r5, @command_line
 1:
-	ld.ab   r6, [r2, 4]
+	ldb.ab  r6, [r2, 1]
 	breq    r6, 0, .Lother_bootup_chores
 	b.d     1b
-	st.ab   r6, [r5, 4]
+	stb.ab  r6, [r5, 1]
 #endif
 
 .Lother_bootup_chores:
