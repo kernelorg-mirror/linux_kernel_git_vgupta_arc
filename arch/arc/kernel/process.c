@@ -395,3 +395,27 @@ unsigned long arch_align_stack(unsigned long sp)
 
 	return sp;
 }
+
+int elf_check_arch(const struct elf32_hdr *x)
+{
+	unsigned int eflags;
+
+	if (x->e_machine != EM_ARCOMPACT)
+		return 0;
+
+	/*
+	 * Although asm-generic-unistd is etched in stone for us now (will
+	 * _always_ be defined), #ifdef makes intentions clearer
+	 */
+#ifdef _ASM_GENERIC_UNISTD_H
+	eflags = x->e_flags;
+	if ((eflags & EF_ARC_OSABI_MSK) < EF_ARC_OSABI_V2) {
+		pr_err("ABI mismatch - you need newer toolchain\n");
+		force_sigsegv(SIGSEGV, current);
+		return 0;
+	}
+#endif
+
+	return 1;
+}
+EXPORT_SYMBOL(elf_check_arch);

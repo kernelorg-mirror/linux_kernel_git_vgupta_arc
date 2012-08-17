@@ -18,7 +18,12 @@
 
 #define EM_ARCOMPACT		93
 
-/* ARC Relocations relevant to kernel */
+/* Machine specific ELF Hdr flags */
+#define EF_ARC_OSABI_MSK	0x000000f0
+#define EF_ARC_OSABI_ORIG	0x00000000   /* MUST be zero for back-compat */
+#define EF_ARC_OSABI_V2		0x00000020
+
+/* ARC Relocations (kernel Modules only) */
 #define  R_ARC_32		0x4
 #define  R_ARC_32_ME		0x1B
 #define  R_ARC_S25H_PCREL	0x10
@@ -37,9 +42,13 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef unsigned long elf_fpregset_t;
 
 /*
- * This is used to ensure we don't load something for the wrong architecture.
+ * To ensure that
+ *  -we don't load something for the wrong architecture.
+ *  -The userspace is using the correct syscall ABI
  */
-#define elf_check_arch(x) ((x)->e_machine == EM_ARCOMPACT)
+struct elf32_hdr;
+extern int elf_check_arch(const struct elf32_hdr *);
+#define elf_check_arch	elf_check_arch
 
 /*
  * These are used to set parameters in the core dumps.
