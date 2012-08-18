@@ -52,7 +52,7 @@ void __init smp_init_cpus(void)
 	unsigned int i;
 
 	for (i = 0; i < NR_CPUS; i++)
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 }
 
 /* called from init ( ) =>  process 1 */
@@ -65,7 +65,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * actually populated at the present time.
 	 */
 	for (i = 0; i < max_cpus; i++)
-		cpu_set(i, cpu_present_map);
+		set_cpu_present(i, true);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -122,16 +122,9 @@ void __cpuinit start_kernel_secondary(void)
  *
  * Essential requirements being where to run from (PC) and stack (SP)
 */
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
-	struct task_struct *idle;
 	unsigned long wait_till;
-
-	idle = fork_idle(cpu);
-	if (IS_ERR(idle)) {
-		pr_err("CPU%u: fork() failed\n", cpu);
-		return PTR_ERR(idle);
-	}
 
 	secondary_idle_tsk = idle;
 

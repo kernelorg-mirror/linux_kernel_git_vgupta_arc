@@ -144,6 +144,31 @@ typedef unsigned long pgtable_t;
 #define VMALLOC_END	(PAGE_OFFSET)
 #define VMALLOC_VMADDR(x) ((unsigned long)(x))
 
+/* Most of the architectures seem to be keeping some kind of padding between
+ * userspace TASK_SIZE and PAGE_OFFSET. i.e TASK_SIZE != PAGE_OFFSET.
+ */
+#define USER_KERNEL_GUTTER    0x10000000
+
+/* User address space:
+ * On ARC700, CPU allows the entire lower half of 32 bit address space to be
+ * translated. Thus potentially 2G (0:0x7FFF_FFFF) could be User vaddr space.
+ * However we steal 256M for kernel addr (0x7000_0000:0x7FFF_FFFF) and another
+ * 256M (0x6000_0000:0x6FFF_FFFF) is gutter between user/kernel spaces
+ * Thus total User vaddr space is (0:0x5FFF_FFFF)
+ */
+#define TASK_SIZE   (PAGE_OFFSET - VMALLOC_SIZE - USER_KERNEL_GUTTER)
+
+#define STACK_TOP_MAX   TASK_SIZE
+#define STACK_TOP       TASK_SIZE
+
+/* This decides where the kernel will search for a free chunk of vm
+ * space during mmap's.
+ */
+#define TASK_UNMAPPED_BASE      (TASK_SIZE / 3)
+
+/* For mmap randomisation and Page coloring for share code pages */
+#define HAVE_ARCH_PICK_MMAP_LAYOUT
+
 #endif /* __KERNEL__ */
 
 #endif /* __ASM_ARC_PAGE_H */

@@ -14,37 +14,9 @@
 #ifndef __ASM_ARC_PROCESSOR_H
 #define __ASM_ARC_PROCESSOR_H
 
-#ifdef __KERNEL__
+#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 
-#include <asm/page.h>		/* for PAGE_OFFSET  */
 #include <asm/arcregs.h>	/* for STATUS_E1_MASK et all */
-
-/* Most of the architectures seem to be keeping some kind of padding between
- * userspace TASK_SIZE and PAGE_OFFSET. i.e TASK_SIZE != PAGE_OFFSET.
- */
-#define USER_KERNEL_GUTTER    0x10000000
-
-/* User address space:
- * On ARC700, CPU allows the entire lower half of 32 bit address space to be
- * translated. Thus potentially 2G (0:0x7FFF_FFFF) could be User vaddr space.
- * However we steal 256M for kernel addr (0x7000_0000:0x7FFF_FFFF) and another
- * 256M (0x6000_0000:0x6FFF_FFFF) is gutter between user/kernel spaces
- * Thus total User vaddr space is (0:0x5FFF_FFFF)
- */
-#define TASK_SIZE   (PAGE_OFFSET - VMALLOC_SIZE - USER_KERNEL_GUTTER)
-
-#define STACK_TOP_MAX   TASK_SIZE
-#define STACK_TOP       TASK_SIZE
-
-/* This decides where the kernel will search for a free chunk of vm
- * space during mmap's.
- */
-#define TASK_UNMAPPED_BASE      (TASK_SIZE / 3)
-
-#ifndef __ASSEMBLY__
-
-/* For mmap randomisation and Page coloring for share code pages */
-#define HAVE_ARCH_PICK_MMAP_LAYOUT
 
 /* Arch specific stuff which needs to be saved per task.
  * However these items are not so important so as to earn a place in
@@ -144,6 +116,6 @@ extern unsigned int get_wchan(struct task_struct *p);
  */
 #define current_text_addr() ({ __label__ _l; _l: &&_l; })
 
-#endif /* !__ASSEMBLY__ */
-#endif /* __KERNEL__ */
+#endif /* __KERNEL__ && !__ASSEMBLY__ */
+
 #endif /* __ASM_ARC_PROCESSOR_H */
