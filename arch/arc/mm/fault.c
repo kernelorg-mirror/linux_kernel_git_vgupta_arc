@@ -43,6 +43,39 @@ static inline int notify_page_fault(struct pt_regs *regs, unsigned long cause)
 	return ret;
 }
 
+static int handle_vmalloc_fault(struct mm_struct *mm, unsigned long address)
+{
+	/*
+	 * Synchronize this task's top level page-table
+	 * with the 'reference' page table.
+	 */
+	pgd_t *pgd, *pgd_k;
+	pud_t *pud, *pud_k;
+	pmd_t *pmd, *pmd_k;
+
+	pgd = pgd_offset_fast(mm, address);
+	pgd_k = pgd_offset_k(address);
+
+	if (!pgd_present(*pgd_k))
+		goto bad_area;
+
+	pud = pud_offset(pgd, address);
+	pud_k = pud_offset(pgd_k, address);
+	if (!pud_present(*pud_k))
+		goto bad_area;
+
+	pmd = pmd_offset(pud, address);
+	pmd_k = pmd_offset(pud_k, address);
+	if (!pmd_present(*pmd_k))
+		goto bad_area;
+
+	set_pmd(pmd, *pmd_k);
+	return 0;
+
+bad_area:
+	return 1;
+
+}
 asmlinkage int do_page_fault(struct pt_regs *regs, int write,
 			     unsigned long address, unsigned long cause)
 {
@@ -50,7 +83,7 @@ asmlinkage int do_page_fault(struct pt_regs *regs, int write,
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
 	siginfo_t info;
-	int fault;
+	int fault, ret;
 
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
@@ -61,8 +94,11 @@ asmlinkage int do_page_fault(struct pt_regs *regs, int write,
 	 * only copy the information from the master page table,
 	 * nothing more.
 	 */
-	if (address >= VMALLOC_START && address <= VMALLOC_END)
-		goto vmalloc_fault;
+	if (address >= VMALLOC_START && address <= VMALLOC_END) {
+		ret = handle_vmalloc_fault(mm, address);
+		if (ret)
+			goto bad_area_nosemaphore;
+	}
 
 	info.si_code = SEGV_MAPERR;
 
@@ -125,16 +161,6 @@ survive:
 	else
 		tsk->min_flt++;
 
-	/* Diagnostic Code to force a signal such as Ctrl C to task */
-#if 0
-	if (induce_problem && write && address == 0x14a00c) {
-		info.si_signo = SIGINT;
-		info.si_errno = 0;
-		info.si_addr = (void *)address;
-		force_sig_info(SIGINT, &info, tsk);
-	}
-#endif
-
 	/* Fault Handled Gracefully, back to what user was trying to do */
 	up_read(&mm->mmap_sem);
 	return 0;
@@ -171,37 +197,26 @@ no_context:
 	if (fixup_exception(regs))
 		return 0;
 
-	/*
-	 * Oops. The kernel tried to access some bad page. We'll have to
-	 * terminate things with extreme prejudice.
-	 */
+	die("Oops", regs, address, cause);
 
-	die("Unable to handle kernel paging request", regs, address, cause);
-	/* Game over.  */
-
-	/*
-	 * We ran out of memory, or some other thing happened to us that made
-	 * us unable to handle the page fault gracefully.
-	 */
 out_of_memory:
-	if (tsk->pid == 1) {
+	if (is_global_init(tsk)) {
 		yield();
 		goto survive;
 	}
 	up_read(&mm->mmap_sem);
 
 	if (user_mode(regs))
-		do_exit(SIGKILL);	/* This will never return */
+		do_group_exit(SIGKILL);	/* This will never return */
 
 	goto no_context;
 
 do_sigbus:
 	up_read(&mm->mmap_sem);
 
-	/*
-	 * Send a sigbus, regardless of whether we were in kernel
-	 * or user mode.
-	 */
+	if (!user_mode(regs))
+		goto no_context;
+
 	tsk->thread.fault_address = address;
 	tsk->thread.cause_code = cause;
 	info.si_signo = SIGBUS;
@@ -210,40 +225,5 @@ do_sigbus:
 	info.si_addr = (void *)address;
 	force_sig_info(SIGBUS, &info, tsk);
 
-	/* Kernel mode? Handle exceptions or die */
-	if (!user_mode(regs))
-		goto no_context;
-
 	return 1;
-
-vmalloc_fault:
-	{
-		/*
-		 * Synchronize this task's top level page-table
-		 * with the 'reference' page table.
-		 */
-		pgd_t *pgd, *pgd_k;
-		pud_t *pud, *pud_k;
-		pmd_t *pmd, *pmd_k;
-
-		pgd = pgd_offset_fast(mm, address);
-		pgd_k = pgd_offset_k(address);
-
-		if (!pgd_present(*pgd_k))
-			goto bad_area_nosemaphore;
-
-		pud = pud_offset(pgd, address);
-		pud_k = pud_offset(pgd_k, address);
-		if (!pud_present(*pud_k))
-			goto bad_area_nosemaphore;
-
-		pmd = pmd_offset(pud, address);
-		pmd_k = pmd_offset(pud_k, address);
-		if (!pmd_present(*pmd_k))
-			goto bad_area_nosemaphore;
-
-		set_pmd(pmd, *pmd_k);
-	}
-
-	return 0;
 }
