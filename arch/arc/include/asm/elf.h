@@ -19,9 +19,9 @@
 #define EM_ARCOMPACT		93
 
 /* Machine specific ELF Hdr flags */
-#define EF_ARC_OSABI_MSK	0x000000f0
+#define EF_ARC_OSABI_MSK	0x00000f00
 #define EF_ARC_OSABI_ORIG	0x00000000   /* MUST be zero for back-compat */
-#define EF_ARC_OSABI_V2		0x00000020
+#define EF_ARC_OSABI_V2		0x00000200
 
 /* ARC Relocations (kernel Modules only) */
 #define  R_ARC_32		0x4
