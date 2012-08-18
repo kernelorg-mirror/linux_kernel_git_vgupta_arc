@@ -7,8 +7,6 @@
 #
 
 obj-y := platform.o irq.o
-
 obj-$(CONFIG_ISS_SMP_EXTN)		+= smp.o
-
-obj-$(CONFIG_ARC_AHB_PCI_BRIDGE) 	+= aa4_pci.o
-export CFLAGS_aa4_pci.o = -mlong-calls
+obj-$(CONFIG_ARCTANGENT_EMAC) += arctangent_emac.o
+obj-$(CONFIG_ARC_IDE) += arc_ide.o

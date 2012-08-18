@@ -51,11 +51,7 @@ config ARC_SERIAL_BAUD
 	help
 	  Baud rate for the ARC UART
 
-# TBD: The drivers would eventually move into drivers/xxx folders
-# Right now, this will make the "ARC Platform Menu cobbled up"
-source "arch/arc/drivers/Kconfig"
-
-# Platform specific IRQ wiring - tied to devices - feeds into non-plat-arc code
+# Platform specific IRQ wiring - tied to devices - feeds into ARC arch code
 config ARC_TIMER_LV2
 	bool "High Priority Timer0 IRQ"
 	select ARC_IRQ3_LV2
@@ -64,11 +60,6 @@ config ARC_TIMER_LV2
 config ARC_SERIAL_LV2
 	bool "High Priority Serial IRQ"
 	depends on ARC_SERIAL && ARC_TIMER_LV2
-	select ARC_IRQ5_LV2
-
-config ARC_EMAC_LV2
-	bool "High Priority EMAC IRQ"
-	depends on ARCTANGENT_EMAC && ARC_TIMER_LV2
 	select ARC_IRQ5_LV2
 
 menuconfig ARC_HAS_BVCI_LAT_UNIT
@@ -103,26 +94,33 @@ config BVCI_LAT_CYCLES
 	default "30"
 	depends on ARC_HAS_BVCI_LAT_UNIT
 
-config ARC_AHB_PCI_BRIDGE
-    bool "AHB to PCI Bridge"
-    default n
-    select PCI
-    depends on ARC_BOARD_ANGEL4
-    help
-    To Enable a PCI device to work on AA4 Ref Board
+config ARC_IDE
+	tristate "Enable ARC IDE"
+	select HAVE_IDE
+	select IDE
+	select BLK_DEV_IDE
+	select BLK_DEV_IDEDISK
+	depends on ARC_BOARD_ANGEL4
+	default y
 
-menu "Bus options (PCI etc.)"
+config ARC_BLK_DEV_IDEDMA
+	bool "ARC IDE DMA support"
+	default y
+	select BLK_DEV_IDEDMA
+	depends on ARC_IDE
 
-config PCI
-       bool "PCI support"
-       default n
-       help
-         If you have PCI, say Y, otherwise N.
+config ARCTANGENT_EMAC
+	tristate "ARCTangent EMAC support"
+	select NET
+	select INET
+	select NETDEVICES
+	select NET_ETHERNET
+	default n
+	depends on ARC_BOARD_ANGEL4
 
-source "drivers/pci/Kconfig"
-source "drivers/pci/hotplug/Kconfig"
-source "drivers/pcmcia/Kconfig"
-
-endmenu     # Bus options
+config EMAC_NAPI
+	bool "Use NAPI ?"
+	default n
+	depends on ARCTANGENT_EMAC
 
 endif
