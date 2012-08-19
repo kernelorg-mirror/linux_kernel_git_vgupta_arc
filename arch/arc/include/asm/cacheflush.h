@@ -54,11 +54,6 @@
 
 #ifdef CONFIG_ARC_CACHE
 
-#ifdef CONFIG_SMP
-#error "Caching not yet supported in SMP"
-#error "remove CONFIG_ARC_HAS_ICACHE and CONFIG_ARC_HAS_DCACHE"
-#endif
-
 extern void flush_cache_all(void);
 
 #else
