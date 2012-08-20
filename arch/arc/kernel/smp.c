@@ -83,32 +83,14 @@ void __cpuinit start_kernel_secondary(void)
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
 
-	/* Do CPU init
-	   1. Detect CPU Type and its config
-	   2. TLB Init
-	   3. Setup Vector Tbl Base Address
-	   4. Maskoff all IRQs
-	   IMP!!! Dont do any fancy stuff inside this call as we have
-	   not yet setup mm contexts etc yet
-	 */
+	/* MMU, Caches, Vector Table, Interrupts etc */
 	setup_processor();
 
 	atomic_inc(&mm->mm_users);
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
 
-	/* TODO-vineetg: need to implement this */
-#if 0
-	enter_lazy_tlb(mm, current);
-#endif
-
 	set_cpu_online(cpu, true);
-
-	/* vineetg Nov 19th 2007:
-	   For this printk to work in ISS, a bridge.dll instance in the
-	   uart address space is needed so that uart access by non-owner
-	   CPU are shunted to the other CPU which owns the UART.
-	 */
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
@@ -153,18 +135,13 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	secondary_idle_tsk = idle;
 
-	pr_info("Trying to bring up CPU%u ...\n", cpu);
 	pr_info("Idle Task [%d] %p", cpu, idle);
+	pr_info("Trying to bring up CPU%u ...\n", cpu);
 
 	arc_platform_smp_wakeup_cpu(cpu,
 				(unsigned long)first_lines_of_secondary);
 
-	/* vineetg, Dec 11th 2007, Boot waits for 2nd to come-up
-	   Wait for 1 sec for 2nd CPU to comeup and then chk it's online bit
-	   jiffies is incremented every tick and 1 sec has "HZ" num of ticks
-	   jiffies + HZ => wait for 1 sec
-	 */
-
+	/* wait for 1 sec after kicking the secondary */
 	wait_till = jiffies + HZ;
 	while (time_before(jiffies, wait_till)) {
 		if (cpu_online(cpu))

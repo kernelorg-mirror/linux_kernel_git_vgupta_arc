@@ -435,10 +435,9 @@ void unwind_remove_table(void *handle, int init_only)
 
 	info.table = table;
 	info.init_only = init_only;
-	/* stop_machine_run(unlink_table, &info, NR_CPUS); */
 
-	if (info.table)
-		kfree(table);
+	unlink_table(&info); /* XXX: SMP */
+	kfree(table);
 }
 
 #endif /* CONFIG_MODULES */

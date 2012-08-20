@@ -24,9 +24,9 @@
 #ifdef CONFIG_HAS_DMA
 
 #include <linux/dma-mapping.h>
-#include <asm/cacheflush.h>
 #include <linux/kallsyms.h>
 #include <linux/module.h>
+#include <asm/cacheflush.h>
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			 dma_addr_t *dma_handle, gfp_t flag)
@@ -96,7 +96,7 @@ void __dma_cache_maint(void *start, size_t sz, int dir, unsigned long caller)
 		dma_cache_wback_inv(addr, sz);
 		break;
 	default:
-		BUG();
+		pr_err("Invalid DMA dir [%d] for OP @ %lx\n", dir, addr);
 	}
 }
 
