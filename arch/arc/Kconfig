@@ -17,82 +17,55 @@ config ARC
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
 	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_SMP_IDLE_THREAD
 
+config SCHED_OMIT_FRAME_POINTER
+	def_bool y
+
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
 config UID16
-	bool
-	default y
+	def_bool y
 
-config SPLIT_PTLOCK_CPUS
-	int
-	default 4096
-
-config FLATMEM
-	bool
-	default y
-
-config LOG_BUF_SHIFT
-	int
-	default 14
+config ARCH_FLATMEM_ENABLE
+	def_bool y
 
 config MMU
-	bool
-	default y
+	def_bool y
 
 config NO_IOPORT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
-config GENERIC_TIME
-	bool
-	default y
+	def_bool y
 
 config GENERIC_FIND_FIRST_BIT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HWEIGHT
-	bool
-	default y
+	def_bool y
 
 config BINFMT_ELF
-	bool
-	default y
+	def_bool y
 
 config STACKTRACE_SUPPORT
 	def_bool y
 	select STACKTRACE
 
-config SCHED_OMIT_FRAME_POINTER
-	bool
-	default y
-
 config HAVE_LATENCYTOP_SUPPORT
-	bool
-	default y
+	def_bool y
 
 config NO_DMA
-	bool
-	default n
-
-config GENERIC_CLOCKEVENTS
-	bool
-	default y
+	def_bool n
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"

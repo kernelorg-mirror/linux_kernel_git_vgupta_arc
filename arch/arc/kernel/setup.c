@@ -48,8 +48,6 @@
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
-extern void __init arc_verify_sig_sz(void);
-
 int running_on_hw = 1;	/* vs. on ISS */
 char __initdata command_line[COMMAND_LINE_SIZE];
 struct task_struct *_current_task[NR_CPUS];	/* currently active task */

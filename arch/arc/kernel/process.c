@@ -36,6 +36,81 @@
 #include <asm/pgalloc.h>
 #include <asm/arcregs.h>
 
+asmlinkage int sys_fork(struct pt_regs *regs)
+{
+	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
+}
+
+asmlinkage int sys_vfork(struct pt_regs *regs)
+{
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs, 0,
+		       NULL, NULL);
+}
+
+/* Per man, C-lib clone( ) is as follows
+ *
+ * int clone(int (*fn)(void *), void *child_stack,
+ *           int flags, void *arg, ...
+ *           pid_t *ptid, struct user_desc *tls, pid_t *ctid);
+ *
+ * @fn and @arg are of userland thread-hnalder and thus of no use
+ * in sys-call, hence excluded in sys_clone arg list.
+ * The only addition is ptregs, needed by fork core, although now-a-days
+ * task_pt_regs() can be called anywhere to get that.
+ */
+asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
+			 int __user *parent_tidptr, void *tls,
+			 int __user *child_tidptr, struct pt_regs *regs)
+{
+	if (!newsp)
+		newsp = regs->sp;
+	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr,
+		       child_tidptr);
+}
+
+int sys_execve(const char __user *filenamei, const char __user *__user *argv,
+	       const char __user *__user *envp, struct pt_regs *regs)
+{
+	int error;
+	char __user *filename;
+
+	filename = getname(filenamei);
+	error = PTR_ERR(filename);
+	if (IS_ERR(filename))
+		goto out;
+	error = do_execve(filename, argv, envp, regs);
+	putname(filename);
+out:
+	return error;
+}
+
+int kernel_execve(const char *filename, const char *const argv[],
+		  const char *const envp[])
+{
+	/*
+	 * Although the arguments (order, number) to this function are
+	 * same as sys call, we don't need to setup args in regs again.
+	 * However in case mainline kernel changes the order of args to
+	 * kernel_execve, that assumtion will break.
+	 * So to be safe, let gcc know the args for sys call.
+	 * If they match no extra code will be generated
+	 */
+	register int arg2 asm("r1") = (int)argv;
+	register int arg3 asm("r2") = (int)envp;
+
+	register int filenm_n_ret asm("r0") = (int)filename;
+
+	__asm__ __volatile__(
+		"mov   r8, %1	\n\t"
+		"trap0		\n\t"
+		: "+r"(filenm_n_ret)
+		: "i"(__NR_execve), "r"(arg2), "r"(arg3)
+		: "r8", "memory");
+
+	return filenm_n_ret;
+}
+EXPORT_SYMBOL(kernel_execve);
+
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a
@@ -92,38 +167,6 @@ int kernel_thread(int (*fn) (void *), void *arg, unsigned long flags)
 
 }
 EXPORT_SYMBOL(kernel_thread);
-
-asmlinkage int sys_fork(struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
-}
-
-asmlinkage int sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs, 0,
-		       NULL, NULL);
-}
-
-/* Per man, C-lib clone( ) is as follows
- *
- * int clone(int (*fn)(void *), void *child_stack,
- *           int flags, void *arg, ...
- *           pid_t *ptid, struct user_desc *tls, pid_t *ctid);
- *
- * @fn and @arg are of userland thread-hnalder and thus of no use
- * in sys-call, hence excluded in sys_clone arg list.
- * The only addition is ptregs, needed by fork core, although now-a-days
- * task_pt_regs() can be called anywhere to get that.
- */
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 int __user *parent_tidptr, void *tls,
-			 int __user *child_tidptr, struct pt_regs *regs)
-{
-	if (!newsp)
-		newsp = regs->sp;
-	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr,
-		       child_tidptr);
-}
 
 asmlinkage void ret_from_fork(void);
 
@@ -254,22 +297,6 @@ int copy_thread(unsigned long clone_flags,
 	return 0;
 }
 
-int sys_execve(const char __user *filenamei, const char __user *__user *argv,
-	       const char __user *__user *envp, struct pt_regs *regs)
-{
-	int error;
-	char __user *filename;
-
-	filename = getname(filenamei);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
-}
-
 /*
  * Some archs flush debug and FPU info here
  */
@@ -340,33 +367,6 @@ int sys_arc_gettls(void)
 	return -EFAULT;
 #endif
 }
-
-int kernel_execve(const char *filename, const char *const argv[],
-		  const char *const envp[])
-{
-	/*
-	 * Although the arguments (order, number) to this function are
-	 * same as sys call, we don't need to setup args in regs again.
-	 * However in case mainline kernel changes the order of args to
-	 * kernel_execve, that assumtion will break.
-	 * So to be safe, let gcc know the args for sys call.
-	 * If they match no extra code will be generated
-	 */
-	register int arg2 asm("r1") = (int)argv;
-	register int arg3 asm("r2") = (int)envp;
-
-	register int filenm_n_ret asm("r0") = (int)filename;
-
-	__asm__ __volatile__(
-		"mov   r8, %1	\n\t"
-		"trap0		\n\t"
-		: "+r"(filenm_n_ret)
-		: "i"(__NR_execve), "r"(arg2), "r"(arg3)
-		: "r8", "memory");
-
-	return filenm_n_ret;
-}
-EXPORT_SYMBOL(kernel_execve);
 
 unsigned long arch_align_stack(unsigned long sp)
 {
