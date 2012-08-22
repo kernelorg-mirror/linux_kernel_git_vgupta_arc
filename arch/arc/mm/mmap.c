@@ -68,26 +68,6 @@ out:
 	return vaddr;
 }
 
-/* simple helper over mmap called by elf loader
- */
-unsigned long do_mmap(struct file *file, unsigned long addr,
-		      unsigned long len, unsigned long prot,
-		      unsigned long flag, unsigned long offset)
-{
-	unsigned long ret = -EINVAL;
-
-	if ((offset + PAGE_ALIGN(len)) < offset)
-		goto out;
-
-	if ((offset & ~PAGE_MASK))
-		goto out;
-
-	ret = __do_mmap2(file, addr, len, prot, flag, offset >> PAGE_SHIFT);
-
-out:
-	return ret;
-}
-
 /* ARC mmap core:
  * -does special case handling for code mmaps (CONFIG_ARC_CMN_MMAP)
  * -calls generic vm entry-pt do_mmap_pgoff(()

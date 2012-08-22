@@ -19,11 +19,4 @@
  */
 #define MAP_SHARED_CODE 0x20000
 
-#ifdef __KERNEL__
-#define ARCH_ELF_DO_MMAP
-extern unsigned long do_mmap(struct file *file, unsigned long addr,
-			     unsigned long len, unsigned long prot,
-			     unsigned long flag, unsigned long offset);
-#endif
-
 #endif /* __ARC_MMAN_H__ */
