@@ -167,8 +167,6 @@ void __init arc_cache_init(void)
 
 	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
 
-	ARC_shmlba = max_t(unsigned int, ARC_shmlba, PAGE_SIZE);
-
 #ifdef CONFIG_ARC_HAS_ICACHE
 	ic = &cpuinfo_arc700[cpu].icache;
 
@@ -211,10 +209,8 @@ void __init arc_cache_init(void)
 		panic("Unsupported I-Cache Sz\n");
 	}
 
-	if (way_pg_ratio > 1) {
+	if (way_pg_ratio > 1)
 		ic->has_aliasing = 1;
-		ARC_shmlba = max(ARC_shmlba, ic->sz / ARC_ICACHE_WAYS);
-	}
 #endif
 
 	/* Enable/disable I-Cache */
@@ -240,7 +236,6 @@ void __init arc_cache_init(void)
 	if ((dc->sz / ARC_DCACHE_WAYS) > PAGE_SIZE) {
 		panic("D$ aliasing not handled right now\n");
 		dc->has_aliasing = 1;
-		ARC_shmlba = max(ARC_shmlba, dc->sz / ARC_DCACHE_WAYS);
 	}
 #endif
 

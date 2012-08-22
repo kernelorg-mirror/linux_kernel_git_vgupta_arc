@@ -22,7 +22,6 @@
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
-#include <linux/a.out.h>
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/elf.h>
