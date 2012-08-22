@@ -8,9 +8,10 @@
  * published by the Free Software Foundation.
  *
  * TBD:
- *  -remove the low level wrappers for execve/rt_sigreturn/sigaltstack
+ *  -remove the low level wrappers for execve/fork/vfork
  *   needed before task_pt_regs was invented. This saves a branch per call
  *   and more importantly allows clean invocation of post-syscall ptrace hook
+ *
  * vineetg: May 2011
  *  -Userspace unaligned access emulation
  *
@@ -38,39 +39,7 @@
  *   exception. Thus FAKE RTIE needed in low level Priv-Violation handler.
  *   Instr Error could also cause similar scenario, so same there as well.
  *
- * Vineetg: July 2009
- *  -Removed CONFIG_ARC_USER_FAULTS_DEBUG (dumping regs in case of fatal
- *    signal in user faults return path) as it is already provided by
- *    /proc/sys/kernel/print-fatal-signals
- *
- * Vineetg: April 2009:
- *  -Check for Valid sys call number in EV_Trap was bogus
- *   sys calls > NR_syscalls was _NOT_ declared bad
- *   sys call  = NR_syscalls was _WRONGLY_ declared bad
- *
- * Vineetg: March 2009 : (Critical look at this file one more time)
- *  -Replaced and.f, nop, bz sequences with bbit0 type instruction
- *  -After returning from preempt_schedule_irq( ) we used to check for
- *   rescheuling again. That is already been done in the generic code
- *  -No need to maintain cpu_stat[].local_irq_count in ISR entry/exit
- *  -Removed the extra hops return_from_interrupt_level[1|2]
- *     while returning from Interrupts
- *  -waitpid no longer needed in syscall Table as uClibc implements it
- *   using wait4 syscall.
- *  -no need to save CALLEE Regs before execve
- *
  * Vineetg: March 2009 (Supporting 2 levels of Interrupts)
- *
- * Vineetg: Feb 2009
- *  -do_softirq( ) was being called twice on ISR return path
- *     First from irq_exit( ) in generic code
- *     Second in ret_from_interrupt_level[1 | 2]  => REMOVED THIS
- *
- * Vineetg: Sept 3rd 2008:
- *  -Added a INSPECT_ON_IRQ macro to be called from Low Level ISR to inspect
- *   a variable getting clobbered (during ISR or between 2 ISRs)
- *  -Don't need FAKE RTIE (re-enabling exceptions before entering Excpn hdlr)
- *   for Instruction Error and Priviledge Violation Exceptions
  *
  * Vineetg: Aug 28th 2008: Bug #94984
  *  -Zero Overhead Loop Context shd be cleared when entering IRQ/EXcp/Trap
@@ -80,17 +49,8 @@
  *   was being "CLEARED" rather then "SET". Since it is Loop INHIBIT Bit,
  *   setting it and not clearing it clears ZOL context
  *
- * Vineetg: June 10th 2008
- *   -We can now display all 26 Regs on SegV
- *    For that return from a critical User fault is handled differently from
- *    general return from exceptions (ret_from_user_faults)
- *   -Machine Check doesnt run recursively
- *
  * Vineetg: May 16th, 2008
  *  - r25 now contains the Current Task when in kernel
- *  - SysCall wrappers for exec/signal* needn't push/pop Callee saved Regs
- *  - SysCall wrappers for fork siblings neednot POP callee Regs
- *  - Kernel Stack Switching Code now reused as a macro
  *
  * Vineetg: Dec 22, 2007
  *    Minor Surgery of Low Level ISR to make it SMP safe

@@ -13,7 +13,7 @@
  *   Pg-Tbl ptr. Thus pmd_present(), pmd_valid(), pmd_set( ) become simpler
  *
  * vineetg: April 2010
- *  -Switched form 8:11:13 split for page tabel lookup to 11:8:13
+ *  -Switched form 8:11:13 split for page table lookup to 11:8:13
  *  -this speeds up page table allocation itself as we now have to memset 1K
  *    instead of 8k per page table.
  * -TODO: Right now page table alloc is 8K and rest 7K is unused

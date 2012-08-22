@@ -28,6 +28,7 @@
 #include <asm/pgalloc.h>
 #include <asm/event-log.h>
 
+/* XXX: This is not plugged even in the orig kprobes port in 2.6.30 */
 static inline int notify_page_fault(struct pt_regs *regs, unsigned long cause)
 {
 	int ret = 0;

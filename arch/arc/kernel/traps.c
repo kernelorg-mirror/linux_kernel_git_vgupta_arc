@@ -10,11 +10,6 @@
  * vineetg: May 2011
  *  -user-space unaligned access emulation
  *
- * Vineetg: June 10th 2008
- *  -Added show_callee_regs to display CALLEE REGS
- *  -Added show_fault_diagnostics as a common function to display all
- *     the REGS, trigger event logging etc
- *
  * Rahul Trivedi: Codito Technologies 2004
  */
 

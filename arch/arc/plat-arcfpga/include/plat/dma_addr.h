@@ -35,8 +35,8 @@ static inline dma_addr_t plat_kernel_addr_to_dma(struct device *dev, void *ptr)
 	unsigned long addr = (unsigned long)ptr;
 	/*
 	 * To Catch buggy drivers which can call DMA map API with kernel vaddr
-	 * i.e. for buffers alloc via vmalloc or ioremap which are not gaurnateed
-	 * to be PHY contiguous and hence unfit for DMA anyways.
+	 * i.e. for buffers alloc via vmalloc or ioremap which are not
+	 * gaurnateed to be PHY contiguous and hence unfit for DMA anyways.
 	 * On ARC kernel virtual address is 0x7000_0000 to 0x7FFF_FFFF, so
 	 * ideally we want to check this range here, but our implementation is
 	 * better as it checks for even worse user virtual address as well.

@@ -22,6 +22,7 @@ static inline unsigned short from32to16(unsigned long x)
 	return x;
 }
 
+/* XXX: For now non optimal */
 static unsigned long do_csum(const unsigned char *buff, int len)
 {
 	int odd, count;

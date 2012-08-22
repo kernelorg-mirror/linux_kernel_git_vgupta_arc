@@ -5,20 +5,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * vineetg: Feb/Mar 2011 (minor tweaks to reduce code in ISR/excpn hdlrs)
- *  -for ISR orig_r0 not used to keep it 0 instead of -1 (saves 4 bytes)
- *  -added pt_regs canary to verify they are not clobbered
- *
  * Vineetg: March 2009 (Supporting 2 levels of Interrupts)
  *  Stack switching code can no longer reliably rely on the fact that
  *  if we are NOT in user mode, stack is switched to kernel mode.
  *  e.g. L2 IRQ interrupted a L1 ISR which had not yet completed
  *  it's prologue including stack switching from user mode
- *
- * Vineetg: Feb 2009: Changes to stack Switching Macro
- *  The idea is to not have intermediate values in SP
- *    -Rather than using SP as scratcpad in switching code use R9
- *    -r25 safekeeping done before SP changes to kernel mode
  *
  * Vineetg: Aug 28th 2008: Bug #94984
  *  -Zero Overhead Loop Context shd be cleared when entering IRQ/EXcp/Trap

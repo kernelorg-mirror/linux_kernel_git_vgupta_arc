@@ -323,8 +323,8 @@ static inline void __arc_dcache_per_line_op(unsigned long start,
 	int num_lines, slack;
 
 	/* Ensure we properly floor/ceil the non-line aligned/sized requests
-	 * and have @start - aligned to cache line and integral @num_lines
-	 * However page sized flushes can be compile time optimised.
+	 * and have @start - aligned to cache line and integral @num_lines.
+	 * This however can be avoided for page sized since:
 	 *  -@start will be cache-line aligned already (being page aligned)
 	 *  -@sz will be integral multiple of line size (being page sized).
 	 */
@@ -456,30 +456,27 @@ EXPORT_SYMBOL(inv_dcache_range);
 #ifdef CONFIG_ARC_HAS_ICACHE
 
 /*
- **************************************************************************
- * Machine specific helpers for per line I-Cache invalidate
- * We have 3 different routines to take care of I-cache aliasing
- * in specific configurations of ARC700
+ *		I-Cache Aliasing in ARC700 VIPT caches
  *
- * For VIPT caches on ARC700, the internal logic of CPU, when fetching code,
- * needs to lookup I$. It uses vaddr (embedded in program code) to calc
- * the set-idx of cache-line and the corresponding paddr from MMU to match
- * the cache-line-tag. However the CDU iterface (to flush/inv) lines from
- * software, only takes paddr (partially to have simpler interface and moreso
- * because lot of times page is not yet mapped, so vaddr is not avail).
- * For simpler cases, using paddr alone suffices.
+ * For fetching code from I$, ARC700 uses vaddr (embedded in program code)
+ * to "index" into SET of cache-line and paddr from MMU to match the TAG
+ * in the WAYS of SET.
+ *
+ * However the CDU iterface (to flush/inv) lines from software, only takes
+ * paddr (to have simpler hardware interface). For simpler cases, using paddr
+ * alone suffices.
  * e.g. 2-way-set-assoc, 16K I$ (8k MMU pg sz, 32b cache line size):
  *      way_sz = cache_sz / num_ways = 16k/2 = 8k
  *      num_sets = way_sz / line_sz = 8k/32 = 256 => 8 bits
- *   Ignoring the bottom 5 bits corresp to the pffset within a 32b cacheline,
+ *   Ignoring the bottom 5 bits corresp to the off within a 32b cacheline,
  *   bits req for calc set-index = bits 12:5 (0 based). Since this range fits
  *   inside the bottom 13 bits of paddr, which are same for vaddr and paddr
- *   (with 8k pg sz), paddr alone can be safely used by CDU to calc line's
- *   set-index
+ *   (with 8k pg sz), paddr alone can be safely used by CDU to unambigously
+ *   locate a cache-line.
  *
  * However for a difft sized cache, say 32k I$, above math yields need
  * for 14 bits of vaddr to locate a cache line, which can't be provided by
- * paddr, since the bit 13 may differ between the two.
+ * paddr, since the bit 13 (0 based) might differ between the two.
  *
  * This lack of extra bits needed for correct line addressing, defines the
  * classical problem of Cache aliasing with VIPT architectures
@@ -489,15 +486,15 @@ EXPORT_SYMBOL(inv_dcache_range);
  *      2-way-set-assoc, 16K I$ with 8k MMU pg sz => NO aliases
  *
  * ------------------
- * MMU v2
+ * MMU v1/v2 (Fixed Page Size 8k)
  * ------------------
  * The solution was to provide CDU with these additonal vaddr bits. These
  * would be bits [x:13], x would depend on cache-geom.
  * H/w folks chose [17:13] to be a future safe range, and moreso these 5 bits
  * of vaddr could easily be "stuffed" in the paddr as bits [4:0] since the
- * orig 5 bits of paddr were anyways ignored by CDU line ops, since they
+ * orig 5 bits of paddr were anyways ignored by CDU line ops, as they
  * represent the offset within cache-line. The adv of using this "clumsy"
- * interace for additional info was no new reg was needed in CDU.
+ * interface for additional info was no new reg was needed in CDU.
  *
  * 17:13 represented the max num of bits passable, actual bits needed were
  * fewer, based on the num-of-aliases possible.
@@ -521,7 +518,7 @@ EXPORT_SYMBOL(inv_dcache_range);
  * Note that aliasing concerns are independent of line-sz for a given cache
  * geometry (size + set_assoc) because the extra bits required by line-sz are
  * reduced from the set calc.
- * e.g. 2-way-set-assoc, 32K I$ with 8k MMU pg sz and using match above
+ * e.g. 2-way-set-assoc, 32K I$ with 8k MMU pg sz and using math above
  *  32b line-sz: 9 bits set-index-calc, 5 bits offset-in-line => 1 extra bit
  *  64b line-sz: 8 bits set-index-calc, 6 bits offset-in-line => 1 extra bit
  *
@@ -535,12 +532,14 @@ EXPORT_SYMBOL(inv_dcache_range);
  * the existing scheme of piggybacking won't work for certain configurations.
  * Two new registers IC_PTAG and DC_PTAG inttoduced.
  * "tag" bits are provided in PTAG, index bits in existing IVIL/IVDL/FLDL regs
- *
- **********************************************************/
+ */
 
 /*
- * start, end - PHY Address
- */
+ ***********************************************************
+ * Machine specific helpers for per line I-Cache invalidate.
+ * 3 routines to accpunt for 1, 2, 4 aliases possible
+ **********************************************************/
+
 static void __arc_icache_inv_lines_no_alias(unsigned long start, int num_lines)
 {
 	while (num_lines-- > 0) {

@@ -18,6 +18,7 @@ extern void local_flush_tlb_kernel_range(unsigned long start,
 extern void local_flush_tlb_all(void);
 extern void local_flush_tlb_mm(struct mm_struct *);
 
+/* XXX: Revisit for SMP */
 #define flush_tlb_range(vma, s, e)	local_flush_tlb_range(vma, s, e)
 #define flush_tlb_page(vma, page)	local_flush_tlb_page(vma, page)
 #define flush_tlb_kernel_range(s, e)	local_flush_tlb_kernel_range(s, e)

@@ -150,6 +150,7 @@ static unsigned long __do_mmap2(struct file *file, unsigned long addr_hint,
 	return vaddr;
 }
 
+/* Gets dragged in due to __ARCH_WANT_SYSCALL_OFF_T */
 SYSCALL_DEFINE6(mmap, unsigned long, addr_hint, unsigned long, len,
 		unsigned long, prot, unsigned long, flags, unsigned long, fd,
 		unsigned long, off)

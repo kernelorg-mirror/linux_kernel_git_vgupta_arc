@@ -115,7 +115,7 @@ static inline void free_pgd_slow(pgd_t *pgd)
  * We want to cap Page Table Size to 1 pg (although multiple tables can fit in
  * one page). This is obviously done to conserve resident-lockedup-memory and
  * also be able to use quicklists in future.
- * With software-only page-tables, aadr-split for traversal is tweakable and
+ * With software-only page-tables, addr-split for traversal is tweakable and
  * that directly governs how big tables would be at each level. A wrong split
  * can overflow table size (complicated further by variable page size).
  * thus we need to programatically assert the size constraint

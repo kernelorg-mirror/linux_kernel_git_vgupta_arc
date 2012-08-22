@@ -1,4 +1,6 @@
 /*
+ * TLB Management (flush/create/diagnostics) for ARC700
+ *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
@@ -57,15 +59,15 @@
 #include <asm/tlb.h>
 #include <asm/event-log.h>
 
-/* Need for MMU v2
+/*			Need for ARC MMU v2
  *
- * ARC700 MMU-v1 has a Joint-TLB for Code and Data and is 2 way set-assoc.
+ * ARC700 MMU-v1 had a Joint-TLB for Code and Data and is 2 way set-assoc.
  * For a memcpy operation with 3 players (src/dst/code) such that all 3 pages
  * map into same set, there would be contention for the 2 ways causing severe
  * Thrashing.
  *
- * Although J-TLB is 2 way set assoc, ARC700 caches J-TLB into uTLBS
- * The assoc of uTLB is much higer. u-D-TLB is 8 ways, u-I-TLB is 4 ways.
+ * Although J-TLB is 2 way set assoc, ARC700 caches J-TLB into uTLBS which has
+ * much higher associativity. u-D-TLB is 8 ways, u-I-TLB is 4 ways.
  * Given this, the thrasing problem should never happen because once the 3
  * J-TLB entries are created (even though 3rd will knock out one of the prev
  * two), the u-D-TLB and u-I-TLB will have what is required to accomplish memcpy
@@ -75,8 +77,7 @@
  * The solution which James came up was pretty neat. It utilised the assoc
  * of uTLBs by not invalidating always but only when absolutely necessary.
  *
- *===========================================================================
- *
+ * ----------------------------------------------------------------
  * General fix: option 1 : New command for uTLB write without clearing uTLBs
  *
  * - Existing TLB commands work as before
@@ -100,9 +101,7 @@
  * corner cases when TLBWrite was not executed at all because the corresp
  * J-TLB entry got evicted/replaced.
  *
- *
- *===========================================================================
- *
+ * ----------------------------------------------------------------
  * For some customer this hardware change was not acceptable so a smaller
  * hardware change (dubbed Metal Fix) was done.
  *
@@ -138,19 +137,6 @@ int asid_cache = FIRST_ASID;
  * see get_new_mmu_context (asm-arc/mmu_context.h)
  */
 struct mm_struct *asid_mm_map[NUM_ASID + 1];
-
-/* Needed to avoid Cache aliasing */
-unsigned int ARC_shmlba;
-
-/*=========================================================================
- * ARC700 MMU has 256 J-TLB  entries organised as 128 SETs with 2 WAYs each.
- * For TLB Operations, Linux uses "HW" Index to write entry into a particular
- * location, which is a linear value from 0 to 255.
- *
- * MMU converts it into Proper SET+WAY
- * e.g. Index 5 is SET: 5/2 = 2 and WAY: 5%2 = 1.
- *
- *=========================================================================*/
 
 /****************************************************************************
  * Utility Routine to erase a J-TLB entry
@@ -261,7 +247,8 @@ noinline void local_flush_tlb_all(void)
  */
 noinline void local_flush_tlb_mm(struct mm_struct *mm)
 {
-	/* Small optimisation courtesy IA64
+	/*
+	 * Small optimisation courtesy IA64
 	 * flush_mm called during fork,exit,munmap etc, multiple times as well.
 	 * Only for fork( ) do we need to move parent to a new MMU ctxt,
 	 * all other cases are NOPs, hence this check.
@@ -269,7 +256,8 @@ noinline void local_flush_tlb_mm(struct mm_struct *mm)
 	if (atomic_read(&mm->mm_users) == 0)
 		return;
 
-	/* Workaround for Android weirdism:
+	/*
+	 * Workaround for Android weirdism:
 	 * A binder VMA could end up in a task such that vma->mm != tsk->mm
 	 * old code would cause h/w - s/w ASID to get out of sync
 	 */

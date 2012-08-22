@@ -288,7 +288,6 @@ void __init arc_chk_ccms(void)
 #endif
 }
 
-
 /*
  * Ensure that FP hardware and kernel config match
  * -If hardware contains DPFP, kernel needs to save/restore FPU state

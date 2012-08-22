@@ -33,7 +33,9 @@ extern void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
 extern void arch_exit_mmap(struct mm_struct *mm);
 #endif
 
-/* ARC MMU provides 8-bit ASID (0..255) to TAG TLB entries, allowing entries
+/*		ARC700 ASID Management
+ *
+ * ARC MMU provides 8-bit ASID (0..255) to TAG TLB entries, allowing entries
  * with same vaddr (different tasks) to co-exit. This provides for
  * "Fast Context Switch" i.e. no TLB flush on ctxt-switch
  *
@@ -67,17 +69,17 @@ extern void arch_exit_mmap(struct mm_struct *mm);
  */
 
 #define FIRST_ASID  0
-#define MAX_ASID    255		/* ARC 700 8 bit PID field in PID Aux reg */
+#define MAX_ASID    255			/* 8 bit PID field in PID Aux reg */
+#define NO_ASID     (MAX_ASID + 1)	/* ASID Not alloc to mmu ctxt */
 #define NUM_ASID    ((MAX_ASID - FIRST_ASID) + 1)
-/* We use this to indicate that no ASID has been allocated to a mmu context */
-#define NO_ASID     (MAX_ASID + 1)
 
 /* ASID to mm struct mapping */
 extern struct mm_struct *asid_mm_map[NUM_ASID + 1];
 
 extern int asid_cache;
 
-/* Assign a new ASID to task. If the task already has an ASID, it is
+/*
+ * Assign a new ASID to task. If the task already has an ASID, it is
  * relinquished.
  */
 static inline void get_new_mmu_context(struct mm_struct *mm)
@@ -87,7 +89,8 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 
 	local_irq_save(flags);
 
-	/* Relinquish the currently owned ASID (if any).
+	/*
+	 * Relinquish the currently owned ASID (if any).
 	 * Doing unconditionally saves a cmp-n-branch; for already unused
 	 * ASID slot, the value was/remains NULL
 	 */
