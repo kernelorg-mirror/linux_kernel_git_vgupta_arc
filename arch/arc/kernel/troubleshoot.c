@@ -15,26 +15,37 @@
 #include <linux/file.h>
 #include <asm/arcregs.h>
 
-/* For dumping register file (r0-r12) or (r13-r25), instead of 13 printks,
- * we simply loop otherwise gcc generates 13 calls to printk each with it's
- * own arg setup
+/*
+ * Common routine to print scratch regs (r0-r12) or callee regs (r13-r25)
+ *   -Prints 3 regs per line and a CR.
+ *   -To continue, callee regs right after scratch, special handling of CR
  */
-noinline void print_reg_file(unsigned long *last_reg, int num)
+static noinline void print_reg_file(unsigned long *reg_rev, int start_num)
 {
 	unsigned int i;
+	char buf[512];
+	int n = 0, len = sizeof(buf);
 
-	for (i = num; i < num + 13; i++) {
-		printk("r%02u: 0x%08lx\t", i, *last_reg);
+	/* weird loop because pt_regs regs rev r12..r0, r25..r13 */
+	for (i = start_num; i < start_num + 13; i++) {
+		n += scnprintf(buf + n, len - n, "r%02u: 0x%08lx\t",
+			       i, *reg_rev);
+
 		if (((i + 1) % 3) == 0)
-			printk("\n");
-		last_reg--;
+			n += scnprintf(buf + n, len - n, "\n");
+
+		reg_rev--;
 	}
+
+	if (start_num != 0)
+		n += scnprintf(buf + n, len - n, "\n\n");
+
+	pr_info("%s", buf);
 }
 
-void show_callee_regs(struct callee_regs *cregs)
+static void show_callee_regs(struct callee_regs *cregs)
 {
 	print_reg_file(&(cregs->r13), 13);
-	printk("\n\n");
 }
 
 void print_task_path_n_nm(struct task_struct *task, char *buf)
