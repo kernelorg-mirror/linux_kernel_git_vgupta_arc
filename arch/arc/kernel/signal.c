@@ -70,7 +70,7 @@
 
 static noinline void set_frame_exec(unsigned long vaddr, unsigned int exec_on);
 
-asmlinkage int sys_sigaltstack(const stack_t *uss, stack_t *uoss)
+asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	return do_sigaltstack(uss, uoss, regs->sp);
@@ -163,7 +163,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	if (regs->sp & 3)
 		goto badframe;
 
-	rtf = ((struct rt_sigframe __user *)regs->sp);
+	rtf = (struct rt_sigframe __user *)(regs->sp);
 
 	if (!access_ok(VERIFY_READ, rtf, sizeof(*rtf)))
 		goto badframe;
@@ -203,8 +203,9 @@ badframe:
 /*
  * Determine which stack to use..
  */
-static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
-				 unsigned long framesize)
+static inline void __user *get_sigframe(struct k_sigaction *ka,
+					struct pt_regs *regs,
+					unsigned long framesize)
 {
 	unsigned long sp = regs->sp;
 	void __user *frame;
@@ -228,7 +229,7 @@ static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 }
 
 static noinline int
-create_sigret_stub(struct k_sigaction *ka, unsigned long *retcode)
+create_sigret_stub(struct k_sigaction *ka, unsigned long __user *retcode)
 {
 	unsigned int code;
 	int err;
@@ -255,13 +256,13 @@ static int
 setup_ret_from_usr_sighdlr(struct k_sigaction *ka, struct pt_regs *regs,
 			   struct sigframe __user *frame, unsigned int magic)
 {
-	unsigned long *retcode;
+	unsigned long __user *retcode;
 	int err = 0;
 
 	/* If provided, use a stub already in userspace */
 	if (likely(ka->sa.sa_flags & SA_RESTORER)) {
 		magic |= MAGIC_USERLAND_STUB;
-		retcode = (unsigned long *)ka->sa.sa_restorer;
+		retcode = (unsigned long __user *)ka->sa.sa_restorer;
 	} else {
 		magic |= MAGIC_KERNEL_SYNTH_STUB;
 		/*

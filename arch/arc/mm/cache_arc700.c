@@ -409,7 +409,7 @@ static inline void __arc_dcache_inv_lines(unsigned long start, unsigned long sz,
  * Exported APIs
  **********************************************************/
 
-void inv_dcache_all()
+void inv_dcache_all(void)
 {
 	/* Throw away the contents of entrie Dcache */
 	__arc_dcache_entire_op(ARC_REG_DC_IVDC, OP_INV);
@@ -420,7 +420,7 @@ void flush_and_inv_dcache_all(void)
 	__arc_dcache_entire_op(ARC_REG_DC_IVDC, OP_FLUSH_N_INV);
 }
 
-void flush_dcache_all()
+void flush_dcache_all(void)
 {
 	__arc_dcache_entire_op(ARC_REG_DC_FLSH, OP_FLUSH);
 }
@@ -765,7 +765,7 @@ void flush_icache_page(struct vm_area_struct *vma, struct page *page)
 	__arc_icache_inv_lines((unsigned long)page_address(page), PAGE_SIZE);
 }
 
-void flush_icache_all()
+void flush_icache_all(void)
 {
 	unsigned long flags;
 
@@ -778,7 +778,7 @@ void flush_icache_all()
 	local_irq_restore(flags);
 }
 
-noinline void flush_cache_all()
+noinline void flush_cache_all(void)
 {
 	unsigned long flags;
 
@@ -816,7 +816,7 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, end, uint32_t, flags)
 
 		for (laddr = lstart; laddr <= lend; laddr += PAGE_SIZE) {
 			uint32_t pfn, sz, phy;
-			unsigned long flags;
+			unsigned long __flags;
 
 			pgd_t *pgd = pgd_offset(current->mm, laddr);
 			pud_t *pud = pud_offset(pgd, laddr);
@@ -832,10 +832,10 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, end, uint32_t, flags)
 				sz -= start - laddr;
 			}
 
-			local_irq_save(flags);
+			local_irq_save(__flags);
 			__arc_dcache_flush_lines(phy, sz);
 			__arc_icache_inv_lines(phy, sz);
-			local_irq_restore(flags);
+			local_irq_restore(__flags);
 		}
 		start = vma->vm_end;
 		vma = find_vma(current->mm, start);

@@ -52,9 +52,9 @@ struct bcr_mp {
  */
 #define IDU_SET_COMMAND(irq, cmd)			\
 do {							\
-	uint32_t val;					\
-	val = (((irq & 0xFF) << 8) | (cmd & 0xFF));	\
-	write_aux_reg(ARC_AUX_IDU_REG_CMD, val);	\
+	uint32_t __val;					\
+	__val = (((irq & 0xFF) << 8) | (cmd & 0xFF));	\
+	write_aux_reg(ARC_AUX_IDU_REG_CMD, __val);	\
 } while (0)
 
 #define IDU_SET_PARAM(par)  write_aux_reg(ARC_AUX_IDU_REG_PARAM, par)

@@ -216,7 +216,7 @@ static struct dentry *test_dentry;
 static struct dentry *test_dir;
 static struct dentry *test_u32_dentry;
 
-u32 clr_on_read = 1;
+static u32 clr_on_read = 1;
 
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 u32 numitlb, numdtlb, num_pte_not_present;

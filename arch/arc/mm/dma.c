@@ -61,7 +61,7 @@ EXPORT_SYMBOL(dma_alloc_coherent);
 void dma_free_coherent(struct device *dev, size_t size, void *kvaddr,
 		  dma_addr_t dma_handle)
 {
-	iounmap(kvaddr);
+	iounmap((void __force __iomem *)kvaddr);
 	free_pages(plat_dma_addr_to_kernel(dev, dma_handle), get_order(size));
 }
 EXPORT_SYMBOL(dma_free_coherent);

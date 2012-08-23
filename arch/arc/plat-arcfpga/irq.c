@@ -32,7 +32,7 @@ static struct irq_chip fpga_chip = {
 	.irq_unmask	= arc_unmask_irq,
 };
 
-void __init plat_init_IRQ()
+void __init plat_init_IRQ(void)
 {
 	int i;
 

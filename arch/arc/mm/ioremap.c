@@ -20,7 +20,7 @@
 void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 			unsigned long uncached)
 {
-	void __iomem *addr;
+	unsigned long addr;
 	struct vm_struct *area;
 	unsigned long offset, last_addr;
 	pgprot_t prot;
@@ -80,10 +80,10 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	area = get_vm_area(size, VM_IOREMAP);
 	if (!area)
 		return NULL;
+
 	area->phys_addr = phys_addr;
-	addr = (void __iomem *)area->addr;
-	if (ioremap_page_range((unsigned long)addr,
-			       (unsigned long)addr + size, phys_addr, prot)) {
+	addr = (unsigned long)area->addr;
+	if (ioremap_page_range(addr, addr + size, phys_addr, prot)) {
 		vunmap((void __force *)addr);
 		return NULL;
 	}

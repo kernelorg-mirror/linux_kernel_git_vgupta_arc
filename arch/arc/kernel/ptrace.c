@@ -195,7 +195,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	int ret;
 	int i;
 	unsigned long tmp;
-	unsigned int *u_addr = (unsigned int *)data;
+	unsigned int __user *u_addr = (unsigned int __user *)data;
 
 	if (!(request == PTRACE_PEEKTEXT || request == PTRACE_PEEKDATA ||
 	      request == PTRACE_PEEKUSR)) {

@@ -71,8 +71,8 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 int sys_execve(const char __user *filenamei, const char __user *__user *argv,
 	       const char __user *__user *envp, struct pt_regs *regs)
 {
-	int error;
-	char __user *filename;
+	long error;
+	char *filename;
 
 	filename = getname(filenamei);
 	error = PTR_ERR(filename);

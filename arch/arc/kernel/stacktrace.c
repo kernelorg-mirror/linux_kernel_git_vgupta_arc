@@ -224,7 +224,7 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 /* Expected by Rest of kernel code */
 void dump_stack(void)
 {
-	show_stacktrace(0, NULL);
+	show_stacktrace(NULL, NULL);
 }
 EXPORT_SYMBOL(dump_stack);
 

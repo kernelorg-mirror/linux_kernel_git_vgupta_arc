@@ -574,7 +574,7 @@ static unsigned long read_pointer(const u8 **pLoc, const void *end,
 		return 0;
 	}
 	if ((ptrType & DW_EH_PE_indirect)
-	    && __get_user(value, (unsigned long *)value))
+	    && __get_user(value, (unsigned long __user *)value))
 		return 0;
 	*pLoc = ptr.p8;
 
@@ -1297,17 +1297,21 @@ int arc_unwind(struct unwind_frame_info *frame)
 
 			switch (reg_info[i].width) {
 			case sizeof(u8):
-				__get_user(FRAME_REG(i, u8), (u8 *)addr);
+				__get_user(FRAME_REG(i, u8),
+					   (u8 __user *)addr);
 				break;
 			case sizeof(u16):
-				__get_user(FRAME_REG(i, u16), (u16 *)addr);
+				__get_user(FRAME_REG(i, u16),
+					   (u16 __user *)addr);
 				break;
 			case sizeof(u32):
-				__get_user(FRAME_REG(i, u32), (u32 *)addr);
+				__get_user(FRAME_REG(i, u32),
+					   (u32 __user *)addr);
 				break;
 #ifdef CONFIG_64BIT
 			case sizeof(u64):
-				__get_user(FRAME_REG(i, u64), (u64 *)addr);
+				__get_user(FRAME_REG(i, u64),
+					   (u64 __user *)addr);
 				break;
 #endif
 			default:

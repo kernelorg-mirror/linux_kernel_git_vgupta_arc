@@ -66,7 +66,7 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 				   (unsigned long)p->ainsn.t1_addr +
 				   sizeof(kprobe_opcode_t));
 
-		p->ainsn.t1_addr = 0;
+		p->ainsn.t1_addr = NULL;
 	}
 
 	if (p->ainsn.t2_addr) {
@@ -76,7 +76,7 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 				   (unsigned long)p->ainsn.t2_addr +
 				   sizeof(kprobe_opcode_t));
 
-		p->ainsn.t2_addr = 0;
+		p->ainsn.t2_addr = NULL;
 	}
 }
 
@@ -110,7 +110,7 @@ static void __kprobes resume_execution(struct kprobe *p, unsigned long addr,
 				   (unsigned long)p->ainsn.t1_addr +
 				   sizeof(kprobe_opcode_t));
 
-		p->ainsn.t1_addr = 0;
+		p->ainsn.t1_addr = NULL;
 	}
 
 	if (p->ainsn.t2_addr) {
@@ -120,7 +120,7 @@ static void __kprobes resume_execution(struct kprobe *p, unsigned long addr,
 				   (unsigned long)p->ainsn.t2_addr +
 				   sizeof(kprobe_opcode_t));
 
-		p->ainsn.t2_addr = 0;
+		p->ainsn.t2_addr = NULL;
 	}
 
 	return;
@@ -504,7 +504,7 @@ static struct kprobe trampoline_p = {
 	.pre_handler = trampoline_probe_handler
 };
 
-int __init arch_init_kprobes()
+int __init arch_init_kprobes(void)
 {
 	/* Registering the trampoline code for the kret probe */
 	return register_kprobe(&trampoline_p);

@@ -69,7 +69,7 @@ int name(unsigned long cause, unsigned long address, struct pt_regs *regs) \
 		.si_signo = signr,		\
 		.si_errno = 0,			\
 		.si_code  = sicode,		\
-		.si_addr = (void *)address,	\
+		.si_addr = (void __user *)address,	\
 	};					\
 	return handle_exception(cause, str, regs, &info);\
 }
@@ -96,7 +96,7 @@ int do_misaligned_access(unsigned long cause, unsigned long address,
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;
 		info.si_code = SEGV_ACCERR;
-		info.si_addr = (void *)address;
+		info.si_addr = (void __user *)address;
 		return handle_exception(cause, "Misaligned Access", regs,
 					  &info);
 	}

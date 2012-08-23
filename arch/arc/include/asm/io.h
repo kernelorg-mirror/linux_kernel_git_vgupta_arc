@@ -12,8 +12,8 @@
 #include <asm/byteorder.h>
 #include <asm/page.h>
 
-extern void *__ioremap(unsigned long physaddr, unsigned long size,
-		       unsigned long flags);
+extern void __iomem *__ioremap(unsigned long physaddr, unsigned long size,
+			       unsigned long flags);
 
 #define ioremap_nocache(phy, sz)	__ioremap(phy, sz, 1)
 
