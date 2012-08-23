@@ -85,6 +85,8 @@ void do_page_fault(struct pt_regs *regs, int write, unsigned long address,
 	struct mm_struct *mm = tsk->mm;
 	siginfo_t info;
 	int fault, ret;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY |
+				(write ? FAULT_FLAG_WRITE : 0);
 
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
@@ -110,6 +112,7 @@ void do_page_fault(struct pt_regs *regs, int write, unsigned long address,
 	if (in_atomic() || !mm)
 		goto no_context;
 
+retry:
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
 	if (!vma)
@@ -147,13 +150,21 @@ survive:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, write);
+	fault = handle_mm_fault(mm, vma, address, flags);
 
 	if (likely(!(fault & VM_FAULT_ERROR))) {
-		if (fault & VM_FAULT_MAJOR)
-			tsk->maj_flt++;
-		else
-			tsk->min_flt++;
+		if (flags & FAULT_FLAG_ALLOW_RETRY) {
+			/* To avoid updating stats twice for retry case */
+			if (fault & VM_FAULT_MAJOR)
+				tsk->maj_flt++;
+			else
+				tsk->min_flt++;
+
+			if (fault & VM_FAULT_RETRY) {
+				flags &= ~FAULT_FLAG_ALLOW_RETRY;
+				goto retry;
+			}
+		}
 
 		/* Fault Handled Gracefully */
 		up_read(&mm->mmap_sem);
