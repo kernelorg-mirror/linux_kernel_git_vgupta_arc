@@ -1,4 +1,5 @@
-/*
+/* Page Fault Handling for ARC (TLB Miss / ProtV)
+ *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
@@ -74,10 +75,10 @@ static int handle_vmalloc_fault(struct mm_struct *mm, unsigned long address)
 
 bad_area:
 	return 1;
-
 }
-asmlinkage int do_page_fault(struct pt_regs *regs, int write,
-			     unsigned long address, unsigned long cause)
+
+void do_page_fault(struct pt_regs *regs, int write, unsigned long address,
+		   unsigned long cause_code)
 {
 	struct vm_area_struct *vma = NULL;
 	struct task_struct *tsk = current;
@@ -129,7 +130,7 @@ good_area:
 
 	/* Handle protection violation, execute on heap or stack */
 
-	if (cause == ((ECR_V_PROTV << 16) | ECR_C_PROTV_INST_FETCH))
+	if (cause_code == ((ECR_V_PROTV << 16) | ECR_C_PROTV_INST_FETCH))
 		goto bad_area;
 
 	if (write) {
@@ -148,22 +149,25 @@ survive:
 	 */
 	fault = handle_mm_fault(mm, vma, address, write);
 
-	if (unlikely(fault & VM_FAULT_ERROR)) {
-		if (fault & VM_FAULT_OOM)
-			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGBUS)
-			goto do_sigbus;
-		BUG();
+	if (likely(!(fault & VM_FAULT_ERROR))) {
+		if (fault & VM_FAULT_MAJOR)
+			tsk->maj_flt++;
+		else
+			tsk->min_flt++;
+
+		/* Fault Handled Gracefully */
+		up_read(&mm->mmap_sem);
+		return;
 	}
 
-	if (fault & VM_FAULT_MAJOR)
-		tsk->maj_flt++;
-	else
-		tsk->min_flt++;
+	/* TBD: switch to pagefault_out_of_memory() */
+	if (fault & VM_FAULT_OOM)
+		goto out_of_memory;
+	else if (fault & VM_FAULT_SIGBUS)
+		goto do_sigbus;
 
-	/* Fault Handled Gracefully, back to what user was trying to do */
-	up_read(&mm->mmap_sem);
-	return 0;
+	/* no man's land */
+	BUG();
 
 	/*
 	 * Something tried to access memory that isn't in our memory map..
@@ -176,13 +180,13 @@ bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs)) {
 		tsk->thread.fault_address = address;
-		tsk->thread.cause_code = cause;
+		tsk->thread.cause_code = cause_code;
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;
 		/* info.si_code has been set above */
 		info.si_addr = (void *)address;
 		force_sig_info(SIGSEGV, &info, tsk);
-		return 1;
+		return;
 	}
 
 no_context:
@@ -195,9 +199,9 @@ no_context:
 	 *  code)
 	 */
 	if (fixup_exception(regs))
-		return 0;
+		return;
 
-	die("Oops", regs, address, cause);
+	die("Oops", regs, address, cause_code);
 
 out_of_memory:
 	if (is_global_init(tsk)) {
@@ -218,12 +222,10 @@ do_sigbus:
 		goto no_context;
 
 	tsk->thread.fault_address = address;
-	tsk->thread.cause_code = cause;
+	tsk->thread.cause_code = cause_code;
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;
 	info.si_addr = (void *)address;
 	force_sig_info(SIGBUS, &info, tsk);
-
-	return 1;
 }
