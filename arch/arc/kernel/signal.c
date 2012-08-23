@@ -362,11 +362,12 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 /*
  * OK, we're invoking a handler
  */
-static int
+static void
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
-	      sigset_t *oldset, struct pt_regs *regs, int in_syscall)
+	      struct pt_regs *regs, int in_syscall)
 {
 	struct thread_info *thread = current_thread_info();
+	sigset_t *oldset = sigmask_to_save();
 	unsigned long usig = sig;
 	int ret;
 
@@ -420,14 +421,10 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up the stack frame */
 	ret = setup_rt_frame(usig, ka, info, oldset, regs);
 
-	if (ret) {
+	if (ret)
 		force_sigsegv(sig, current);
-		return ret;
-	}
-
-	signal_delivered(sig, info, ka, regs, 0);
-
-	return ret;
+	else
+		signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*
@@ -444,16 +441,7 @@ void do_signal(struct pt_regs *regs)
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
-	sigset_t *oldset;
 	int insyscall;
-
-	if (try_to_freeze())
-		goto no_signal;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
@@ -461,21 +449,10 @@ void do_signal(struct pt_regs *regs)
 	insyscall = in_syscall(regs);
 
 	if (signr > 0) {
-		if (handle_signal(signr, &ka, &info, oldset, regs, insyscall) ==
-		    0) {
-			/*
-			 * A signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag.
-			 */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
+		handle_signal(signr, &ka, &info, regs, insyscall);
 		return;
 	}
 
-no_signal:
 	if (insyscall) {
 		/* No handler for syscall: restart it */
 		if (regs->r0 == -ERESTARTNOHAND ||
@@ -488,13 +465,8 @@ no_signal:
 		}
 	}
 
-	/*
-	 * If there's no signal to deliver, restore the saved sigmask back
-	 */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	/* If there's no signal to deliver, restore the saved sigmask back */
+	restore_saved_sigmask();
 }
 
 static noinline void
