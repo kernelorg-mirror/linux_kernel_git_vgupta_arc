@@ -223,8 +223,8 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 		       mac_mul_nm[cpu->extn_mac_mul.type].str);
 
 	if (cpu->core.family == 0x34) {
-		n += scnprintf(buf + n, len - n, "Extn [700-4.10]\t: "
-			       "LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
+		n += scnprintf(buf + n, len - n,
+		"Extn [700-4.10]\t: LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
 			       IS_USED(__CONFIG_ARC_HAS_LLSC_VAL),
 			       IS_USED(__CONFIG_ARC_HAS_SWAPE_VAL),
 			       IS_USED(__CONFIG_ARC_HAS_RTSC_VAL));
@@ -432,7 +432,7 @@ done:
 	return 0;
 }
 
-static void *c_start(struct seq_file *m, loff_t * pos)
+static void *c_start(struct seq_file *m, loff_t *pos)
 {
 	/*
 	 * This 0xFF xxxx business is a simple hack.
@@ -447,7 +447,7 @@ static void *c_start(struct seq_file *m, loff_t * pos)
 		((void *)(0xFF0000 | (int)(*pos))) : NULL;
 }
 
-static void *c_next(struct seq_file *m, void *v, loff_t * pos)
+static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	++*pos;
 	return c_start(m, pos);

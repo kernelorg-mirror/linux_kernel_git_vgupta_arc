@@ -37,8 +37,8 @@ extern void dma_free_coherent(struct device *dev, size_t size, void *kvaddr,
  *
  * generic_irq_handler()
  * ->  xyz_driver_routine()
- * -->   dma_map_single() 	[is "C" inline]
- * --->     _dma_cache_maint() 	["C" macro, becomes __dma_cache_maint]
+ * -->   dma_map_single()	[is "C" inline]
+ * --->     _dma_cache_maint()	["C" macro, becomes __dma_cache_maint]
  * --->     __dma_cache_maint()
  *
  * __builtin_return_address(0) will yield "generic_irq_hander" while

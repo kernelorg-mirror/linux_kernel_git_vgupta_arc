@@ -218,8 +218,8 @@ int misaligned_fixup(unsigned long address, struct pt_regs *regs,
 	return 0;
 
 fault:
-	printk(KERN_ERR "Alignment trap: fault in fix-up "
-		"%08lx at [<%08lx>]\n", state.words[0], address);
+	pr_err("Alignment trap: fault in fix-up %08lx at [<%08lx>]\n",
+		state.words[0], address);
 
 	return 1;
 }

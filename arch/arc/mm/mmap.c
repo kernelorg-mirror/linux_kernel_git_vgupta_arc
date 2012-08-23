@@ -1,11 +1,10 @@
-/*
+/* mmap for ARC
+ *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- *  Custom mmap layout for ARC700
  *
  * Vineet Gupta <vineet.gupta@arc.com>
  *  -mmap randomisation (borrowed from x86/ARM/s390 implementations)
@@ -159,7 +158,8 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr_hint, unsigned long, len,
 	return -EINVAL;
 }
 
-/* cloned from stock munmap to have arch specific processing
+/*
+ * cloned from stock munmap to have arch specific processing
  * This can go away once mm->unmap_area starts taking more args
  */
 SYSCALL_DEFINE2(arc_munmap, unsigned long, addr, size_t, len)

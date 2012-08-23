@@ -92,7 +92,7 @@
 
 #define AUX_IENABLE		0x40c	/* gas knows as auxienable */
 #define AUX_ITRIGGER		0x40d
-#define AUX_IPULSE        	0x415
+#define AUX_IPULSE		0x415
 
 /* Privileged MMU auxiliary register definitions */
 #define ARC_REG_TLBPD0		0x405
@@ -190,8 +190,7 @@
 
 #if 1
 
-#define read_aux_reg(reg)			\
-		__builtin_arc_lr(reg)
+#define read_aux_reg(reg)	__builtin_arc_lr(reg)
 
 /* gcc builtin sr needs reg param to be long immediate */
 #define write_aux_reg(reg_immed, val)		\
@@ -399,8 +398,8 @@ struct arc_fpu {
 /* Helpers */
 #define TO_KB(bytes)		((bytes) >> 10)
 #define TO_MB(bytes)		(TO_KB(bytes) >> 10)
-#define PAGES_TO_KB(n_pages) 	((n_pages) << (PAGE_SHIFT - 10))
-#define PAGES_TO_MB(n_pages) 	(PAGES_TO_KB(n_pages) >> 10)
+#define PAGES_TO_KB(n_pages)	((n_pages) << (PAGE_SHIFT - 10))
+#define PAGES_TO_MB(n_pages)	(PAGES_TO_KB(n_pages) >> 10)
 
 #define READ_BCR(reg, into)				\
 {							\

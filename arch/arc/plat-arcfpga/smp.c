@@ -98,30 +98,30 @@ void arc_platform_smp_init_cpu(void)
 
 	idu_disable();
 
-        /****************************************************************
-         * IDU provides a set of Common IRQs, each of which can be dynamically
-         * attached to (1|many|all) CPUs.
-         * The Common IRQs [0-15] are mapped as CPU pvt [16-31]
-         *
-         * Here we use a simple 1:1 mapping:
-         * A CPU 'x' is wired to Common IRQ 'x'.
-         * So an IDU ASSERT on IRQ 'x' will trigger Interupt on CPU 'x', which
-         * makes up for our simple IPI plumbing.
-         *
-         * TBD: Have a dedicated multicast IRQ for sending IPIs to all CPUs
-         *      w/o having to do one-at-a-time
-         ******************************************************************/
+	/****************************************************************
+	 * IDU provides a set of Common IRQs, each of which can be dynamically
+	 * attached to (1|many|all) CPUs.
+	 * The Common IRQs [0-15] are mapped as CPU pvt [16-31]
+	 *
+	 * Here we use a simple 1:1 mapping:
+	 * A CPU 'x' is wired to Common IRQ 'x'.
+	 * So an IDU ASSERT on IRQ 'x' will trigger Interupt on CPU 'x', which
+	 * makes up for our simple IPI plumbing.
+	 *
+	 * TBD: Have a dedicated multicast IRQ for sending IPIs to all CPUs
+	 *      w/o having to do one-at-a-time
+	 ******************************************************************/
 
-        /*
-         * Claim an IRQ which would trigger IPI on this CPU.
-         * In IDU parlance it involves setting up a cpu bitmask for the IRQ
-         * The bitmap here contains only 1 CPU (self).
-         */
+	/*
+	 * Claim an IRQ which would trigger IPI on this CPU.
+	 * In IDU parlance it involves setting up a cpu bitmask for the IRQ
+	 * The bitmap here contains only 1 CPU (self).
+	 */
 	idu_irq_set_tgtcpu(cpu, 0x1 << cpu);
 
-        /* Set the IRQ destination to use the bitmask above */
+	/* Set the IRQ destination to use the bitmask above */
 	idu_irq_set_mode(cpu, 7, /* XXX: IDU_IRQ_MOD_TCPU_ALLRECP: ISS bug */
-                         IDU_IRQ_MODE_PULSE_TRIG);
+			 IDU_IRQ_MODE_PULSE_TRIG);
 
 	idu_enable();
 

@@ -65,7 +65,7 @@
  * (2) At the same time it takes advantage of ARC ISA (rotate intrns)
  */
 
-#define __arch_swab32(x) __extension__				\
+#define __arch_swab32(x)					\
 ({	unsigned long __in = (x), __tmp;			\
 	__tmp = __in << 8 | __in >> 24; /* ror tmp,in,24 */	\
 	__in = __in << 24 | __in >> 8; /* ror in,in,8 */	\

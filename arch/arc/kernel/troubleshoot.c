@@ -169,7 +169,7 @@ void show_regs(struct pt_regs *regs)
 	pr_info("status32: 0x%08lx\n", regs->status32);
 	pr_info(" SP: 0x%08lx\tFP: 0x%08lx\n", regs->sp, regs->fp);
 	pr_info("BTA: 0x%08lx\tBLINK: 0x%08lx\n",
-		regs->bta,regs->blink);
+		regs->bta, regs->blink);
 	pr_info("LPS: 0x%08lx\tLPE: 0x%08lx\tLPC: 0x%08lx\n",
 	       regs->lp_start, regs->lp_end, regs->lp_count);
 
@@ -260,7 +260,7 @@ static ssize_t tlb_stats_output(struct file *file,	/* file descriptor */
 }
 
 /* called on user write : clears the counters */
-static ssize_t tlb_stats_clear(struct file *file, const char __user * user_buf,
+static ssize_t tlb_stats_clear(struct file *file, const char __user *user_buf,
 			       size_t length, loff_t *offset)
 {
 	numitlb = numdtlb = num_pte_not_present = 0;

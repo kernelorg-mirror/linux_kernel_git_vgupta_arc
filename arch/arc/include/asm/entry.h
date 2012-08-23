@@ -45,7 +45,7 @@
  * LD.a same as LD.aw
  *
  * LD.a    reg1, [reg2, x]  => Pre Incr
- * 	Eff Addr for load = [reg2 + x]
+ *      Eff Addr for load = [reg2 + x]
  *
  * LD.ab   reg1, [reg2, x]  => Post Incr
  *      Eff Addr for load = [reg2]
@@ -249,7 +249,7 @@
 	 *      a L2 IRQ "Interrupts" L1
 	 * Thay way although L2 IRQ happened in Kernel mode, stack is still
 	 * not switched.
-	 * To handle this case we may need to switch stack even if in kernel mode
+	 * To handle this, we may need to switch stack even if in kernel mode
 	 * provided SP has values in range of USER mode stack ( < 0x7000_0000 )
 	 */
 	brlo sp, VMALLOC_START, 88f

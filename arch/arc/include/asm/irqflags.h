@@ -105,7 +105,7 @@ static inline int arch_irqs_disabled(void)
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
-static void inline arch_mask_irq(unsigned int irq)
+static inline void arch_mask_irq(unsigned int irq)
 {
 	unsigned int ienb;
 
@@ -114,7 +114,7 @@ static void inline arch_mask_irq(unsigned int irq)
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 
-static void inline arch_unmask_irq(unsigned int irq)
+static inline void arch_unmask_irq(unsigned int irq)
 {
 	unsigned int ienb;
 

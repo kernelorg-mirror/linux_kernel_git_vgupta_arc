@@ -41,7 +41,7 @@ void die(const char *str, struct pt_regs *regs, unsigned long address,
  *  -for kernel, chk if due to copy_(to|from)_user, otherwise die()
  */
 static noinline int handle_exception(unsigned long cause, char *str,
-				     struct pt_regs *regs, siginfo_t * info)
+				     struct pt_regs *regs, siginfo_t *info)
 {
 	if (user_mode(regs)) {
 		struct task_struct *tsk = current;

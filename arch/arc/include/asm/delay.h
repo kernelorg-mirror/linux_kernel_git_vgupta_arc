@@ -62,8 +62,7 @@ static inline void __udelay(unsigned long usecs)
 	__delay(loops);
 }
 
-#define udelay(n)	__builtin_constant_p(n) ?	\
-				((n) > 20000 ? __bad_udelay() : __udelay(n)) : \
-				__udelay(n)
+#define udelay(n) (__builtin_constant_p(n) ? ((n) > 20000 ? __bad_udelay() \
+				: __udelay(n)) : __udelay(n))
 
 #endif /* __ASM_ARC_UDELAY_H */

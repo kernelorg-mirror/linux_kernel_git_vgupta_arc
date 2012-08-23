@@ -125,7 +125,7 @@ void flush_and_inv_dcache_all(void);
 do {									\
 	memcpy(dst, src, len);						\
 	if (vma->vm_flags & VM_EXEC)					\
-	    flush_icache_range_vaddr((unsigned long)(dst), vaddr, len);	\
+		flush_icache_range_vaddr((unsigned long)(dst), vaddr, len);\
 } while (0)
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)		\

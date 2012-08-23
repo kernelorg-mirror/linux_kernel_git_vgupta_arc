@@ -1169,8 +1169,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 		if (REG_INVALID(i))
 			continue;
 
-		switch(state.regs[i].where)
-		{
+		switch (state.regs[i].where) {
 		case Nowhere:
 			break;
 		case Memory:

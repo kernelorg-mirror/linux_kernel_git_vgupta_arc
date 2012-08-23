@@ -124,7 +124,7 @@ static inline void arch_idle(void)
 
 void cpu_idle(void)
 {
-        /* Since we SLEEP in idle loop, TIF_POLLING_NRFLAG can't be set */
+	/* Since we SLEEP in idle loop, TIF_POLLING_NRFLAG can't be set */
 
 	/* endless idle loop with no priority at all */
 	while (1) {
@@ -311,7 +311,7 @@ void exit_thread(void)
 {
 }
 
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
+int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 {
 	return 0;
 }

@@ -8,4 +8,3 @@
 lib-y	:= checksum.o \
 	   strchr-700.o strcmp.o strcpy-700.o strlen.o \
 	   memcmp.o memcpy-700.o memset.o
-

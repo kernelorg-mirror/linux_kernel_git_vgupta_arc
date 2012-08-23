@@ -36,9 +36,8 @@ void __init plat_init_IRQ()
 {
 	int i;
 
-	for (i = 0; i < NR_IRQS; i++) {
+	for (i = 0; i < NR_IRQS; i++)
 		irq_set_chip_and_handler(i, &fpga_chip, handle_level_irq);
-	}
 
 	/*
 	 * SMP Hack because UART IRQ hardwired to cpu0 (boot-cpu) but if the

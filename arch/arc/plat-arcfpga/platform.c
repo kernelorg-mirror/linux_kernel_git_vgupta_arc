@@ -28,6 +28,7 @@ static void __init setup_bvci_lat_unit(void)
 {
 #define MAX_BVCI_UNITS 12
 
+	/* TBD: rewrite this using I/O macros */
 	volatile unsigned int *base = (unsigned int *)BVCI_LAT_UNIT_BASE;
 	volatile unsigned int *lat_unit = (unsigned int *)base + 21;
 	volatile unsigned int *lat_val = (unsigned int *)base + 22;
@@ -40,7 +41,7 @@ static void __init setup_bvci_lat_unit(void)
 	 * the peripheral side).
 	 *
 	 * Unit  0 - System Arb and Mem Controller - adds latency to all
-	 * 	    memory trasactions
+	 *	    memory trasactions
 	 * Unit  1 - I$ and System Bus
 	 * Unit  2 - D$ and System Bus
 	 * ..
@@ -55,8 +56,7 @@ static void __init setup_bvci_lat_unit(void)
 		*lat_val = lat_cycles;
 		pr_info("BVCI Latency for all Memory Transactions %d cycles\n",
 			lat_cycles);
-	}
-	else {
+	} else {
 		for_each_set_bit(unit, &units_req, MAX_BVCI_UNITS) {
 			*lat_unit = unit + 1;  /* above returns 0 based */
 			*lat_val = lat_cycles;

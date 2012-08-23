@@ -177,11 +177,12 @@ void __init arc_cache_init(void)
 	}
 #if (CONFIG_ARC_MMU_VER > 2)
 	if (ic->ver != 3) {
-		if (!running_on_hw)
-			pr_err("Use -prop=icache_version=3,"
-				"-prop=dcache_version=3\n");
+		if (running_on_hw)
+			panic("Cache ver doesn't match MMU ver\n");
 
-		panic("Cache ver doesn't match MMU ver\n");
+		/* For ISS - suggest the toggles to use */
+		pr_err("Use -prop=icache_version=3,-prop=dcache_version=3\n");
+
 	}
 #endif
 

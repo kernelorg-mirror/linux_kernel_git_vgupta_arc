@@ -29,7 +29,7 @@
 #include <linux/string.h>	/* for generic string functions */
 
 
-#define __kernel_ok		(segment_eq(get_fs(),KERNEL_DS))
+#define __kernel_ok		(segment_eq(get_fs(), KERNEL_DS))
 #define __user_ok(addr, sz)	(((sz) <= TASK_SIZE) && \
 				 (((addr)+(sz)) <= get_fs()))
 #define __access_ok(addr, sz)	(unlikely(__kernel_ok) || \

@@ -385,12 +385,8 @@ ARC_ENTRY EV_TLBProtV
 	;------ (5) Type of Protection Violation? ----------
 	;
 	; ProtV Hardware Exception is triggered for Access Faults of 2 types
-	;   -Access Violaton (WRITE to READ ONLY Page)
+	;   -Access Violaton (WRITE to READ ONLY Page) - for linux COW
 	;   -Unaligned Access (READ/WRITE on odd boundary)
-	;
-	; Handling for these 2 are completely difft in Linux
-	;   -Access Violation may be legitimate as Linux implements COW using it.
-	;   -Unaligned Access is always wrong and causes process to be terminated.
 	;
 	cmp r3, 0x230400    ; Misaligned data access ?
 	beq 4f

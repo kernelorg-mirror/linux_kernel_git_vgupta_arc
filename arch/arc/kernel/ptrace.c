@@ -255,7 +255,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	case PTRACE_POKEUSR:
 		ret = 0;
 		if (addr == (int)offsetof(struct user_regs_struct, efa))
-			 return -EIO;
+			return -EIO;
 
 		if (addr > (unsigned)offsetof(struct user, regs) &&
 		    addr < (unsigned)offsetof(struct user, regs) +
@@ -309,7 +309,7 @@ asmlinkage void syscall_trace(void)
 static int arc_regs_get(struct task_struct *target,
 			const struct user_regset *regset,
 			unsigned int pos, unsigned int count,
-			void *kbuf, void __user * ubuf)
+			void *kbuf, void __user *ubuf)
 {
 	pr_debug("arc_regs_get %p %d %d\n", target, pos, count);
 
@@ -336,7 +336,7 @@ static int arc_regs_get(struct task_struct *target,
 static int arc_regs_set(struct task_struct *target,
 			const struct user_regset *regset,
 			unsigned int pos, unsigned int count,
-			const void *kbuf, const void __user * ubuf)
+			const void *kbuf, const void __user *ubuf)
 {
 	int ret = 0;
 

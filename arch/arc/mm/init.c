@@ -110,8 +110,7 @@ void __init mem_init(void)
 	datasize = _end - _etext;
 	initsize = __init_end - __init_begin;
 
-	pr_info("Memory Available: %dM / %uM "
-		"(%dK code, %dK data, %dK init, %dK reserv)\n",
+	pr_info("Memory Available: %dM / %uM (%dK code, %dK data, %dK init, %dK reserv)\n",
 		PAGES_TO_MB(free_pages),
 		TO_MB(CONFIG_ARC_PLAT_SDRAM_SIZE),
 		TO_KB(codesize), TO_KB(datasize), TO_KB(initsize),
@@ -123,7 +122,7 @@ static void __init free_init_pages(const char *what, unsigned long begin,
 {
 	unsigned long addr;
 
-	printk(KERN_INFO "Freeing %s: %ldk [%lx] to [%lx]\n",
+	pr_info("Freeing %s: %ldk [%lx] to [%lx]\n",
 		what, TO_KB(end - begin), begin, end);
 
 	/* need to check that the page we free is not a partial page */

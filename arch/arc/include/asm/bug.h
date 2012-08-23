@@ -19,9 +19,9 @@ void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs);
 #define BUG() do {						\
 	dump_stack();					\
 	pr_warn("Kernel BUG in %s: %s: %d!\n",\
-		__FILE__, __FUNCTION__,  __LINE__);		\
+		__FILE__, __func__,  __LINE__);		\
 	sort_snaps(1);						\
-} while(0)
+} while (0)
 
 #define HAVE_ARCH_BUG
 
