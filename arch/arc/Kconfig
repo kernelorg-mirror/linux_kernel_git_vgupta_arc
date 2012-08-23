@@ -27,6 +27,9 @@ config ARC
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
 
+config GENERIC_CSUM
+	def_bool y
+
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
