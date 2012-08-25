@@ -32,8 +32,8 @@
 #include <asm/processor.h>
 #include <asm/setup.h>
 
-arch_spinlock_t smp_atomic_ops_lock;
-arch_spinlock_t smp_bitops_lock;
+arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 /* XXX: per cpu ? Only needed once in early seconday boot */
 struct task_struct *secondary_idle_tsk;
