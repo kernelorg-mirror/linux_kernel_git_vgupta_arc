@@ -122,5 +122,5 @@ export CFLAGS_decompress_inflate.o = -mlong-calls
 
 # some debug printk getting out of range from sched code
 ifdef CONFIG_SMP
-export CFLAGS_sched.o = -mmedium-calls
+export CFLAGS_core.o = -mmedium-calls
 endif
