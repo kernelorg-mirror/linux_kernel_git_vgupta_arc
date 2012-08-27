@@ -85,7 +85,7 @@ void do_page_fault(struct pt_regs *regs, int write, unsigned long address,
 	struct mm_struct *mm = tsk->mm;
 	siginfo_t info;
 	int fault, ret;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY |
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
 				(write ? FAULT_FLAG_WRITE : 0);
 
 	/*
@@ -151,6 +151,14 @@ survive:
 	 * the fault.
 	 */
 	fault = handle_mm_fault(mm, vma, address, flags);
+
+	/* If Pagefault was interrupted by SIGKILL, exit page fault "early" */
+	if (unlikely(fatal_signal_pending(current))) {
+		if ((fault & VM_FAULT_ERROR) && !(fault & VM_FAULT_RETRY))
+			up_read(&mm->mmap_sem);
+		if (user_mode(regs))
+			return;
+	}
 
 	if (likely(!(fault & VM_FAULT_ERROR))) {
 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
