@@ -41,6 +41,18 @@
 #define __CONFIG_ARC_MMU_SASID_VAL 0
 #endif
 
+#ifdef CONFIG_ARC_HAS_ICACHE
+#define __CONFIG_ARC_HAS_ICACHE	1
+#else
+#define __CONFIG_ARC_HAS_ICACHE	0
+#endif
+
+#ifdef CONFIG_ARC_HAS_DCACHE
+#define __CONFIG_ARC_HAS_DCACHE	1
+#else
+#define __CONFIG_ARC_HAS_DCACHE	0
+#endif
+
 /* Lot of hand written asm routines which get inlined as well contain ZOL
  *   memset_aligned( ) etc
  * Enabling these toggles prevents their inlining, confining ZOL to very few

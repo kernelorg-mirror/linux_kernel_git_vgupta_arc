@@ -85,32 +85,21 @@ static void (*___flush_icache_rtn) (unsigned long, int);
 char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
 {
 	int n = 0;
-	struct cpuinfo_arc_cache *p_cache;
-	unsigned int cpu = smp_processor_id();
+	unsigned int c = smp_processor_id();
 
-#ifdef CONFIG_ARC_HAS_ICACHE
-	const int ic_enb = 1;
-#else
-	const int ic_enb = 0;
-#endif
+#define PR_CACHE(p, enb, str)						\
+{									\
+	if (!(p)->ver)							\
+		n += scnprintf(buf + n, len - n, str"\t\t: N/A\n");	\
+	else								\
+		n += scnprintf(buf + n, len - n,			\
+			str"\t\t: (%uK) VIPT, %dway set-asc, %ub Line %s\n", \
+			TO_KB((p)->sz), (p)->assoc, (p)->line_len,	\
+			enb ?  "" : "DISABLED (kernel-build)");		\
+}
 
-#ifdef CONFIG_ARC_HAS_DCACHE
-	const int dc_enb = 1;
-#else
-	const int dc_enb = 0;
-#endif
-
-	p_cache = &cpuinfo_arc700[cpu].icache;
-	n += scnprintf(buf + n, len - n,
-		       "I-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
-		       TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
-		       ic_enb ? "" : " (DISABLED)");
-
-	p_cache = &cpuinfo_arc700[cpu].dcache;
-	n += scnprintf(buf + n, len - n,
-		       "D-cache\t\t: (%uK) VIPT, %dway set-assoc, %ub Line %s\n",
-		       TO_KB(p_cache->sz), p_cache->assoc, p_cache->line_len,
-		       dc_enb ? "" : " (DISABLED)");
+	PR_CACHE(&cpuinfo_arc700[c].icache, __CONFIG_ARC_HAS_ICACHE, "I-Cache");
+	PR_CACHE(&cpuinfo_arc700[c].dcache, __CONFIG_ARC_HAS_DCACHE, "D-Cache");
 
 	return buf;
 }
@@ -787,7 +776,6 @@ noinline void flush_cache_all(void)
 	local_irq_save(flags);
 
 	flush_icache_all();
-
 	flush_and_inv_dcache_all();
 
 	local_irq_restore(flags);
