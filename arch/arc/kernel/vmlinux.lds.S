@@ -125,6 +125,8 @@ SECTIONS
     .debug_frame  : { *(.debug_frame) }
     __end_unwind = .;
 
+    NOTES
+
     . = ALIGN(PAGE_SIZE);
     _end = . ;
 
