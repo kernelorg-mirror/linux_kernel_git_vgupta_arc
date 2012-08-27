@@ -67,7 +67,9 @@
 #include <linux/cache.h>
 #include <linux/mmu_context.h>
 #include <linux/syscalls.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
+#include <asm/cachectl.h>
 #include <asm/setup.h>
 
 
@@ -796,16 +798,90 @@ noinline void flush_cache_all(void)
 #define __arc_icache_inv_lines(a, b)
 #endif
 
+/* Helper functions for sys_cacheflush */
+
+#ifdef CONFIG_ARC_CACHE
+
+static void __arc_cf_all(uint32_t flags)
+{
+	unsigned long irq_flags;
+
+	local_irq_save(irq_flags);
+
+	switch (flags & CF_D_FLUSH_INV) {
+	case CF_D_FLUSH:
+		flush_dcache_all();
+		break;
+	case CF_D_INV:
+		inv_dcache_all();
+		break;
+	case CF_D_FLUSH_INV:
+		flush_and_inv_dcache_all();
+		break;
+	}
+
+	if (flags & CF_I_INV)
+		flush_icache_all();
+
+	local_irq_restore(irq_flags);
+}
+
+static void __arc_cf_lines(uint32_t phy, uint32_t sz, uint32_t flags)
+{
+	unsigned long irq_flags;
+
+	local_irq_save(irq_flags);
+
+	switch (flags & CF_D_FLUSH_INV) {
+	case CF_D_FLUSH:
+		__arc_dcache_flush_lines(phy, sz);
+		break;
+	case CF_D_INV:
+		__arc_dcache_inv_lines(phy, sz, 0);
+		break;
+	case CF_D_FLUSH_INV:
+		__arc_dcache_inv_lines(phy, sz, 1);
+		break;
+	default:
+		break;
+	}
+
+	if (flags & CF_I_INV)
+		__arc_icache_inv_lines(phy, sz);
+
+	local_irq_restore(irq_flags);
+}
+#endif
+
 /*
  * Explicit Cache flush request from user space via syscall
  * Needed for JITs which generate code on the fly
  * XXX: this code is a bit of overkill for the purpose it serves,
  * lean it down
  */
-SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, end, uint32_t, flags)
+SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 {
 #ifdef CONFIG_ARC_CACHE
 	struct vm_area_struct *vma;
+	uint32_t end = start + sz;
+
+	if (!flags)
+		flags = CF_DEFAULT;
+
+	/* make sure that the address is valid, in case of virtual address */
+	if ((!(flags & CF_PHY_ADDR)) && access_ok(VERIFY_READ, start, sz))
+		return -EFAULT;
+
+	/* optimization for large areas: flush/inv entire D$ instead */
+	if (sz > PAGE_SIZE) {
+		__arc_cf_all(flags);
+		return 0;
+	}
+
+	if (flags & CF_PHY_ADDR) {
+		__arc_cf_lines(start, sz, flags);
+		return 0;
+	}
 
 	vma = find_vma(current->mm, start);
 	while ((vma) && (vma->vm_start < end)) {
@@ -815,27 +891,34 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, end, uint32_t, flags)
 		lstart &= PAGE_MASK;
 
 		for (laddr = lstart; laddr <= lend; laddr += PAGE_SIZE) {
-			uint32_t pfn, sz, phy;
-			unsigned long __flags;
+			uint32_t pfn, lsz, phy;
+			pte_t *page_table, pte;
 
 			pgd_t *pgd = pgd_offset(current->mm, laddr);
 			pud_t *pud = pud_offset(pgd, laddr);
 			pmd_t *pmd = pmd_offset(pud, laddr);
-			pte_t *page_table = pte_offset_kernel(pmd, laddr);
-			pte_t pte = *page_table;
+
+			/*
+			 * FIXME: some times these values are 0, not sure why,
+			 * but at least this prevents a crash
+			 */
+			if (!pmd)
+				return -EINVAL;
+
+			page_table = pte_offset_kernel(pmd, laddr);
+			if (!page_table)
+				return -EINVAL;
+
+			pte = *page_table;
 			pfn = pte_pfn(pte);
 			phy = pfn << PAGE_SHIFT;
-			sz = (lend < (laddr + PAGE_SIZE)) ?
+			lsz = (lend < (laddr + PAGE_SIZE)) ?
 			    (lend - laddr) : PAGE_SIZE;
 			if (start > laddr) {
 				phy += start - laddr;
-				sz -= start - laddr;
+				lsz -= start - laddr;
 			}
-
-			local_irq_save(__flags);
-			__arc_dcache_flush_lines(phy, sz);
-			__arc_icache_inv_lines(phy, sz);
-			local_irq_restore(__flags);
+			__arc_cf_lines(phy, lsz, flags);
 		}
 		start = vma->vm_end;
 		vma = find_vma(current->mm, start);
