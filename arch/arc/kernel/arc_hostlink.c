@@ -107,7 +107,7 @@ static long arc_hl_ioctl(struct file *file, unsigned int cmd,
 			unsigned long arg)
 {
 	/* we only support, returning the physical addr to mmap in user space */
-	put_user(__HOSTLINK__, (int __user *)arg);
+	put_user((unsigned int)__HOSTLINK__, (int __user *)arg);
 	return 0;
 }
 

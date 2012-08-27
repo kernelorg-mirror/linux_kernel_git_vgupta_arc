@@ -117,6 +117,8 @@ typedef struct {
 #define PAGE_U_X_W_R    __pgprot(___DEF | _PAGE_READ | _PAGE_WRITE | \
 						       _PAGE_EXECUTE)
 
+#define PAGE_SHARED	PAGE_U_W_R
+
 /* While kernel runs out of unstrslated space, vmalloc/modules use a chunk of
  * kernel vaddr space - visible in all addr spaces, but kernel mode only
  * Thus Global, all-kernel-access, no-user-access, cached

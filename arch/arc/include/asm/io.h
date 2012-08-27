@@ -16,6 +16,7 @@ extern void __iomem *__ioremap(unsigned long physaddr, unsigned long size,
 			       unsigned long flags);
 
 #define ioremap_nocache(phy, sz)	__ioremap(phy, sz, 1)
+#define ioremap_wc(phy, sz)		__ioremap(phy, sz, 1)
 
 /* Wrokaroud the braindead drivers which don't know what to do */
 #define ioremap(phy, sz)		ioremap_nocache(phy, sz)

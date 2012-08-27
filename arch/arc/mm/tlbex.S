@@ -92,7 +92,7 @@ ex_saved_reg1:
 
 	; Error if H/w and S/w ASID don't match, but NOT if in kernel mode
 	lr  r0, [erstatus]
-	bbit0, r0, STATUS_U_BIT, 5f
+	bbit0 r0, STATUS_U_BIT, 5f
 
 	; We sure are in troubled waters, Flag the error, but to do so
 	; need to switch to kernel mode stack to call error routine
