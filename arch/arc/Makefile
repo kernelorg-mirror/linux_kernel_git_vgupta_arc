@@ -94,7 +94,6 @@ core-y				+= arch/arc/plat-$(PLATFORM)/
 endif
 
 drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
-drivers-y			+= arch/arc/drivers/
 libs-y				+= arch/arc/lib/ $(LIBGCC)
 
 #default target for make without any arguements.
