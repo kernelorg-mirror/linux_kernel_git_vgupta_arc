@@ -46,15 +46,15 @@ SECTIONS
 
 
 /*
- *   The reason for having a seperate subsection .init.initramfs is to
+ *   The reason for having a seperate subsection .init.ramfs is to
  *   prevent objump from including it in kernel dumps
  *
  *   Reason for having .init.ramfs above .init is to make sure that the
  *   binary blob is tucked away to one side, reducing the displacement
- *   between .init.text and .text, avoiding any possible relocation errors
- *   because of calls from .init.text to .text
- *   Yes such calls do exit: decompress_inflate.c:gunzip( ) -> calls
- *   zlib_inflate_workspace( )
+ *   between .init.text and .text, avoiding any possible relocation
+ *   errors because of calls from .init.text to .text
+ *   Yes such calls do exist. e.g.
+ *   	decompress_inflate.c:gunzip( ) -> zlib_inflate_workspace( )
  */
 
         __init_begin = .;
@@ -65,27 +65,25 @@ SECTIONS
 
     . = ALIGN(PAGE_SIZE);
     _stext = .;
-    .init : {           /* Init code and data       */
-        _sinittext = .;
-            INIT_TEXT
-        _einittext = .;
 
+	HEAD_TEXT_SECTION
+	INIT_TEXT_SECTION(L1_CACHE_BYTES)
+
+	/* INIT_DATA_SECTION open-coded: special INIT_RAM_FS handling */
+	.init.data : {
         INIT_DATA
-
-        INIT_SETUP(16)
+        INIT_SETUP(L1_CACHE_BYTES)
         INIT_CALLS
         CON_INITCALL
         SECURITY_INITCALL
-    }
+	}
 
 	PERCPU_SECTION(L1_CACHE_BYTES)
 
 	/*
 	 * .exit.text is discard at runtime, not link time, to deal with
 	 *  references from .debug_frame
-	 *  It will be init freed, despite not strictly being inside the
-         *  init : { ... } construct, because it is still inside the
-         *  __init_{start,end} block.
+	 *  It will be init freed, being inside [__init_start : __init_end]
 	 */
 	.exit.text : { EXIT_TEXT }
 	.exit.data : { EXIT_DATA }
@@ -103,7 +101,7 @@ SECTIONS
             *(.gnu.warning)
 
     }
-    EXCEPTION_TABLE(16)
+    EXCEPTION_TABLE(L1_CACHE_BYTES)
     _etext = .;     /* End of text section      */
 
     /* writeable */
