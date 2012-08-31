@@ -634,13 +634,11 @@ resume_user_mode:
 	b   ret_from_exception
 
 skip_user_resched:
+	; setup pt_regs arg for do_signal()/do_notify_resume()
+	mov r0, sp
+
 	; --------- check for signals/restore-sigmask ------------
-	and.f  0, r9, (_TIF_SIGPENDING)
-	bz  restore_regs
-
-	; setup args for "C" routine, do_signal ( )
-
-	mov r0, sp      ;  pass ptr to pt_regs
+	bbit0  r9, TIF_SIGPENDING, chk_next_work
 
 	; save CALLEE Regs.
 	; (i) For core dump: Incase this signal causes one
@@ -660,10 +658,17 @@ skip_user_resched:
 	; unwind stack to discard Callee saved Regs
 	DISCARD_CALLEE_SAVED_USER
 
+	; reload r9 with thread_info->flags - possibly clobbered by call above
+	GET_CURR_THR_INFO_FROM_SP   r10
+	ld  r9, [r10, THREAD_INFO_FLAGS]
+
+chk_next_work:
+	btst   r9, TIF_NOTIFY_RESUME
+	blnz   @do_notify_resume
+
 	;--------- All things done, go back to Userland ------
 
 	b restore_regs
-
 
 #ifdef CONFIG_PREEMPT
 
