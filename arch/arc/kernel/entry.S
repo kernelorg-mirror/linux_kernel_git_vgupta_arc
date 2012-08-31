@@ -635,7 +635,7 @@ resume_user_mode:
 
 skip_user_resched:
 	; --------- check for signals/restore-sigmask ------------
-	and.f  0, r9, (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK)
+	and.f  0, r9, (_TIF_SIGPENDING)
 	bz  restore_regs
 
 	; setup args for "C" routine, do_signal ( )
