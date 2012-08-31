@@ -331,8 +331,19 @@
 55:
 .endm
 
+/*
+ * @reg [OUT] &thread_info of "current"
+ */
 .macro GET_CURR_THR_INFO_FROM_SP  reg
 	and \reg, sp, ~(THREAD_SIZE - 1)
+.endm
+
+/*
+ * @reg [OUT] thread_info->flags of "current"
+ */
+.macro GET_CURR_THR_INFO_FLAGS  reg
+	GET_CURR_THR_INFO_FROM_SP  \reg
+	ld  \reg, [\reg, THREAD_INFO_FLAGS]
 .endm
 
 /*--------------------------------------------------------------

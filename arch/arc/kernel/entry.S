@@ -573,12 +573,9 @@ ARC_ENTRY EV_Trap
 	; Before doing anything, return from CPU Exception Mode
 	FAKE_RET_FROM_EXCPN r11
 
-	; If TRACED, is the Tracer interested in System Call tracing
-	GET_CURR_THR_INFO_FROM_SP   r9
-	ld  r10, [r9, THREAD_INFO_FLAGS]
-	and.f   0, r10, _TIF_SYSCALL_TRACE
-
-	; If yes, call the system call with the pre and post tracing hooks
+	; If syscall tracing ongoing, invoke pre-pos-hooks
+	GET_CURR_THR_INFO_FLAGS   r10
+	btst r10, TIF_SYSCALL_TRACE
 	bnz tracesys  ; this never comes back
 
 	;============ This is normal System Call case ==========
@@ -608,16 +605,11 @@ ARC_ENTRY ret_from_exception
 	ld  r8, [sp, PT_status32]   ; returning to User/Kernel Mode
 
 #ifdef CONFIG_PREEMPT
-
 	bbit0  r8, STATUS_U_BIT, resume_kernel_mode
-
 #else
-
 	bbit0  r8, STATUS_U_BIT, restore_regs
-
 #endif
 
-	; else returning to user mode
 resume_user_mode:
 
 	; TODO: Fast PAth chk: Can we rush back to user mode?
@@ -625,8 +617,7 @@ resume_user_mode:
 
 	; --------- do we need to resched the current user task ----
 	; check Thread_info->flags for need sched flag
-	GET_CURR_THR_INFO_FROM_SP   r10
-	ld  r9, [r10, THREAD_INFO_FLAGS]
+	GET_CURR_THR_INFO_FLAGS   r9
 	bbit0  r9, TIF_NEED_RESCHED, skip_user_resched
 
 	; User Task Preemption
@@ -659,8 +650,7 @@ skip_user_resched:
 	DISCARD_CALLEE_SAVED_USER
 
 	; reload r9 with thread_info->flags - possibly clobbered by call above
-	GET_CURR_THR_INFO_FROM_SP   r10
-	ld  r9, [r10, THREAD_INFO_FLAGS]
+	GET_CURR_THR_INFO_FLAGS	    r9
 
 chk_next_work:
 	btst   r9, TIF_NOTIFY_RESUME
@@ -674,11 +664,9 @@ chk_next_work:
 
 resume_kernel_mode:
 
-	; check preempt_count
+	; Can't preempt if preemption disabled
 	GET_CURR_THR_INFO_FROM_SP   r10
 	ld  r8, [r10, THREAD_INFO_PREEMPT_COUNT]
-
-	; Preemption disabled, go back to whatever we were doing before
 	brne  r8, 0, restore_regs
 
 	; check if this task's NEED_RESCHED flag set
@@ -823,12 +811,11 @@ ARC_ENTRY sys_execve_wrapper
 	mov  r3, sp
 	bl  @sys_execve
 
-	GET_CURR_THR_INFO_FROM_SP   r9
-	ld  r10, [r9, THREAD_INFO_FLAGS]
-	and.f   0, r10, _TIF_SYSCALL_TRACE
+	GET_CURR_THR_INFO_FLAGS   r10
+	btst r10, TIF_SYSCALL_TRACE
+	bnz  tracesys_exit
 
-	bz ret_from_system_call
-	b  tracesys_exit
+	b ret_from_system_call
 ARC_EXIT sys_execve_wrapper
 
 ; TBD: call do_fork directly from here
@@ -839,12 +826,11 @@ ARC_ENTRY sys_fork_wrapper
 	bl  @sys_fork
 	DISCARD_CALLEE_SAVED_USER
 
-	GET_CURR_THR_INFO_FROM_SP   r9
-	ld  r10, [r9, THREAD_INFO_FLAGS]
-	and.f   0, r10, _TIF_SYSCALL_TRACE
+	GET_CURR_THR_INFO_FLAGS   r10
+	btst r10, TIF_SYSCALL_TRACE
+	bnz  tracesys_exit
 
-	bz ret_from_system_call
-	b  tracesys_exit
+	b ret_from_system_call
 ARC_EXIT sys_fork_wrapper
 
 ARC_ENTRY sys_vfork_wrapper
@@ -854,12 +840,11 @@ ARC_ENTRY sys_vfork_wrapper
 	bl  @sys_vfork
 	DISCARD_CALLEE_SAVED_USER
 
-	GET_CURR_THR_INFO_FROM_SP   r9
-	ld  r10, [r9, THREAD_INFO_FLAGS]
-	and.f   0, r10, _TIF_SYSCALL_TRACE
+	GET_CURR_THR_INFO_FLAGS   r10
+	btst r10, TIF_SYSCALL_TRACE
+	bnz  tracesys_exit
 
-	bz ret_from_system_call
-	b  tracesys_exit
+	b ret_from_system_call
 ARC_EXIT sys_vfork_wrapper
 
 ARC_ENTRY sys_clone_wrapper
@@ -873,12 +858,11 @@ ARC_ENTRY sys_clone_wrapper
 	bl  @sys_clone
 	DISCARD_CALLEE_SAVED_USER
 
-	GET_CURR_THR_INFO_FROM_SP   r9
-	ld  r10, [r9, THREAD_INFO_FLAGS]
-	and.f   0, r10, _TIF_SYSCALL_TRACE
+	GET_CURR_THR_INFO_FLAGS   r10
+	btst r10, TIF_SYSCALL_TRACE
+	bnz  tracesys_exit
 
-	bz ret_from_system_call
-	b  tracesys_exit
+	b ret_from_system_call
 ARC_EXIT sys_clone_wrapper
 
 #ifdef CONFIG_ARC_DW2_UNWIND
