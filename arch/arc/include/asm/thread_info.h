@@ -89,34 +89,34 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
  * - pending work-to-be-done flags are in LSW
  * - other flags in MSW
  */
+#define TIF_RESTORE_SIGMASK	0	/* restore sig mask in do_signal() */
 #define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_SYSCALL_AUDIT	4	/* syscall auditing active */
-#define TIF_SECCOMP		5	/* secure computing */
-#define TIF_RESTORE_SIGMASK	9	/* restore sig mask in do_signal() */
-/* FPU used by this task this quantum (SMP) */
-#define TIF_USEDFPU		16
+#define TIF_SYSCALL_TRACE	15	/* syscall trace active */
+
 /* true if poll_idle() is polling TIF_NEED_RESCHED */
-#define TIF_POLLING_NRFLAG	17
-#define TIF_MEMDIE		18
-#define TIF_SYSCALL_TRACE	31	/* syscall trace active */
+#define TIF_POLLING_NRFLAG	16
+#define TIF_MEMDIE		17
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
-#define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_RESTORE_SIGMASK    (1<<TIF_RESTORE_SIGMASK)
-#define _TIF_USEDFPU		(1<<TIF_USEDFPU)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
+#define _TIF_MEMDIE		(1<<TIF_MEMDIE)
 
 /* work to do on interrupt/exception return */
-#define _TIF_WORK_MASK      (0x0000ffef & ~_TIF_SECCOMP)
+#define _TIF_WORK_MASK      	(0x0000FFFF & ~_TIF_SYSCALL_TRACE)
 
-/* work to do on any return to u-space */
-#define _TIF_ALLWORK_MASK   (0x8000ffff & ~_TIF_SECCOMP)
+/*
+ * _TIF_ALLWORK_MASK includes SYSCALL_TRACE, but we don't need it.
+ * SYSCALL_TRACE is anways seperately/unconditionally tested right after a
+ * syscall, so all that reamins to be tested is _TIF_WORK_MASK
+ */
 
 #endif /* __KERNEL__ */
 
