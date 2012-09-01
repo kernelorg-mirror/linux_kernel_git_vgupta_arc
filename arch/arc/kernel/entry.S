@@ -612,47 +612,57 @@ ARC_ENTRY ret_from_exception
 	bbit0  r8, STATUS_U_BIT, restore_regs
 #endif
 
-resume_user_mode:
+resume_user_mode_begin:
 
-	; TODO: Fast PAth chk: Can we rush back to user mode?
+	; Before returning to User mode check-for-and-complete any pending work
+	; such as rescheduling/signal-delivery etc.
+	; Disable IRQs to ensures that chk for pending work itself is atomic
+	; (and we don't end up missing a NEED_RESCHED/SIGPENDING due to an
+	; interim IRQ).
+	;
+	; IRQs would be re-enabled by one of the ensuing functions such as
+	; schedule()or worst case RTIE will automatically re-enable them,
+	; based on cpu state prior to this event.
 
+	IRQ_DISABLE	r10
 
-	; check thread_info->flags for need sched flag
+	; Fast Path return to user mode if no pending work
 	GET_CURR_THR_INFO_FLAGS   r9
-	bbit0  r9, TIF_NEED_RESCHED, skip_user_resched
+	and.f  0,  r9, _TIF_WORK_MASK
+	bz     restore_regs
 
-	; User Task Preemption
-	bl  schedule
-	b   ret_from_exception
+	; --- task preemption ---
+	bbit0  r9, TIF_NEED_RESCHED, 1f
+	bl     @schedule
+	b      resume_user_mode_begin	; loop back to start of U mode ret
 
-skip_user_resched:
-	; setup pt_regs arg for do_signal()/do_notify_resume()
-	mov r0, sp
+1:
+	; --- signal handling  ---
+	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
 
 	; --------- check for signals/restore-sigmask ------------
 	bbit0  r9, TIF_SIGPENDING, chk_next_work
 
 	; save CALLEE Regs.
-	; (i) For core dump: Incase this signal causes one
-	; (ii) If this is due to SIGTRAP/SIGSTOP, task is being traced thus
-	;      tracer might call PEEKUSR for a callee reg
+	; (i)  If this signal causes coredump - full regfile needed
+	; (ii) If signal is SIGTRAP/SIGSTOP, task is being traced thus
+	;      tracer might call PEEKUSR for a CALLEE reg
 	;
 	; NOTE: SP will grow up by size of CALLEE Reg-File
-	; NOTE: macro clobbers r12
-	SAVE_CALLEE_SAVED_USER
+	SAVE_CALLEE_SAVED_USER		; clobbers r12
 
-	; save location of saved Callee Regs @ thread_struct->pc
+	; save location of saved Callee Regs @ thread_struct->callee
 	GET_CURR_TASK_FIELD_PTR   TASK_THREAD, r10
-	st  sp,[r10, THREAD_CALLEE_REG]
+	st  sp, [r10, THREAD_CALLEE_REG]
 
 	bl  @do_signal
 
-	; unwind stack to discard Callee saved Regs
+	; unwind SP for cheap discard of Callee saved Regs
 	DISCARD_CALLEE_SAVED_USER
 
-	; reload r9 with thread_info->flags - possibly clobbered by call above
-	GET_CURR_THR_INFO_FLAGS	    r9
+	b      resume_user_mode_begin	; loop back to start of U mode ret
 
+	; --- notify_resume ---
 chk_next_work:
 	btst   r9, TIF_NOTIFY_RESUME
 	blnz   @do_notify_resume
@@ -691,7 +701,8 @@ resume_kernel_mode:
 
 restore_regs :
 
-	; Disable Interrupts first
+	; Disable Interrupts while restoring reg-file back
+	; XXX can this be optimised out
 	IRQ_DISABLE_SAVE    r9, r10	;@r10 has prisitine (pre-disable) copy
 
 #ifdef CONFIG_ARC_CURR_IN_REG
