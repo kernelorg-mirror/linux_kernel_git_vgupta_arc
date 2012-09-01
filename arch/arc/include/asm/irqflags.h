@@ -19,6 +19,8 @@
 
 #include <asm/arcregs.h>
 
+#ifndef __ASSEMBLY__
+
 /******************************************************************
  * IRQ Control Macros
  ******************************************************************/
@@ -122,6 +124,23 @@ static inline void arch_unmask_irq(unsigned int irq)
 	ienb |= (1 << irq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
+
+#else
+
+.macro IRQ_DISABLE  scratch
+	lr	\scratch, [status32]
+	bic	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
+	flag	\scratch
+.endm
+
+.macro IRQ_DISABLE_SAVE  scratch, save
+	lr	\scratch, [status32]
+	mov	\save, \scratch		/* Make a copy */
+	bic	\scratch, \scratch, (STATUS_E1_MASK | STATUS_E2_MASK)
+	flag	\scratch
+.endm
+
+#endif	/* __ASSEMBLY__ */
 
 #endif	/* KERNEL */
 

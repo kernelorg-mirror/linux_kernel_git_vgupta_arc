@@ -150,7 +150,7 @@ VECTOR   reserved                ; Reserved Exceptions
 #include <asm/entry.h>       /* SAVE_ALL_{INT1,INT2,TRAP...} */
 #include <asm/errno.h>
 #include <asm/arcregs.h>
-
+#include <asm/irqflags.h>
 #include <asm/event-log-asm.h>
 
 ;##################### Scratch Mem for IRQ stack switching #############
@@ -589,19 +589,21 @@ ARC_ENTRY EV_Trap
 	jl      [r9]        ; Entry into Sys Call Handler
 
 	; fall through to ret_from_system_call
-
 ARC_EXIT EV_Trap
+
 ARC_ENTRY ret_from_system_call
 
 	st  r0, [sp, PT_r0]     ; sys call return value in pt_regs
 
-	; fall through yet again
-	; NOTE: ret_from_exception must immediately follow ret_from_system_call
+	; fall through yet again to ret_from_exception
 
-;################### Return from Intr/Excp ##########################
+;############# Return from Intr/Excp/Trap (Linux Specifics) ##############
+;
+; If ret to user mode do we need to handle signals, schedule() et al.
 
 ARC_ENTRY ret_from_exception
 
+	; Pre-{IRQ,Trap,Exception} K/U mode from pt_regs->status32
 	ld  r8, [sp, PT_status32]   ; returning to User/Kernel Mode
 
 #ifdef CONFIG_PREEMPT
@@ -615,8 +617,7 @@ resume_user_mode:
 	; TODO: Fast PAth chk: Can we rush back to user mode?
 
 
-	; --------- do we need to resched the current user task ----
-	; check Thread_info->flags for need sched flag
+	; check thread_info->flags for need sched flag
 	GET_CURR_THR_INFO_FLAGS   r9
 	bbit0  r9, TIF_NEED_RESCHED, skip_user_resched
 
@@ -673,29 +674,25 @@ resume_kernel_mode:
 	ld  r9, [r10, THREAD_INFO_FLAGS]
 	bbit0  r9, TIF_NEED_RESCHED, restore_regs
 
-	; All set to invoke preemption.
-	; NEED to make sure that further IRQs don't happen.
-	lr  r9, [status32]
-	and r9, r9, ~(STATUS_E1_MASK | STATUS_E2_MASK)
-	flag r9
+	IRQ_DISABLE	r9
 
 	; Invoke PREEMPTION
 	bl      preempt_schedule_irq
 
+	; preempt_schedule_irq() always returns with IRQ disabled
 #endif
 
 	; fall through
 
-	; Restore the saved sys context (common exit-path for EXCPN/IRQ/Trap)
-	; IRQ shd definitely not happen between now and rtie
+;############# Return from Intr/Excp/Trap (ARC Specifics) ##############
+;
+; Restore the saved sys context (common exit-path for EXCPN/IRQ/Trap)
+; IRQ shd definitely not happen between now and rtie
 
 restore_regs :
 
 	; Disable Interrupts first
-	lr  r10, [status32]
-	mov r9, r10 ;make a copy. Didn't they teach u to "save" things ?
-	and r9, r9, ~(STATUS_E1_MASK | STATUS_E2_MASK)
-	flag r9
+	IRQ_DISABLE_SAVE    r9, r10	;@r10 has prisitine (pre-disable) copy
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 	; Restore User R25
@@ -710,6 +707,8 @@ restore_regs :
 
 	; Restore REG File. In case multiple Events outstanding,
 	; use the same priorty as rtie: EXCPN, L2 IRQ, L1 IRQ, None
+	; Note that we use realtime STATUS32 (not pt_regs->status32) to
+	; decide that.
 
 	; if Returning from Exception
 	bbit0  r10, STATUS_AE_BIT, not_exception
