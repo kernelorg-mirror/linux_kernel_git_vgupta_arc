@@ -474,19 +474,21 @@ tracesys:
 	st  r12, [r11, THREAD_FAULT_ADDR]
 
 	; PRE Sys Call Ptrace hook
-	bl  @syscall_trace
+	mov r0, sp			; pt_regs needed
+	bl  @syscall_trace_entry
+
+	; Tracing code now returns the syscall num (orig or modif)
+	mov r8, r0
 
 	; Do the Sys Call as we normally would.
 	; Validate the Sys Call number
-	ld  r8, [sp, PT_r8]
 	cmp     r8,  NR_syscalls
 	mov.hi  r0, -ENOSYS
 	bhi     tracesys_exit
 
 	; Restore the sys-call args. Mere invocation of the hook abv could have
 	; clobbered them (since they are in scratch regs). The tracer could also
-	; have deliberately changed the args:  r0-r7 - Sys Calls Args
-	; Note that r8 - Sys Call Num has already been restored above
+	; have deliberately changed the syscall args: r0-r7
 	ld  r0, [sp, PT_r0]
 	ld  r1, [sp, PT_r1]
 	ld  r2, [sp, PT_r2]
@@ -502,7 +504,7 @@ tracesys_exit:
 	st  r0, [sp, PT_r0]     ; sys call return value in pt_regs
 
 	;POST Sys Call Ptrace Hook
-	bl  @syscall_trace
+	bl  @syscall_trace_exit
 	b   ret_from_exception ; NOT ret_from_system_call at is saves r0 which
 	; we'd done before calling post hook above
 
@@ -633,7 +635,7 @@ resume_user_mode_begin:
 
 	; --- task preemption ---
 	bbit0  r9, TIF_NEED_RESCHED, 1f
-	bl     @schedule
+	bl     @schedule		; blnz yields relocation errors
 	b      resume_user_mode_begin	; loop back to start of U mode ret
 
 1:

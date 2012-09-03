@@ -25,6 +25,7 @@
 #include <linux/regset.h>
 #include <linux/unistd.h>
 #include <linux/uaccess.h>
+#include <linux/tracehook.h>
 #include <asm/setup.h>
 
 char *get_str_from_id(int id, const struct id_to_str *tbl)
@@ -283,27 +284,17 @@ out:
 
 }
 
-asmlinkage void syscall_trace(void)
+asmlinkage int syscall_trace_entry(struct pt_regs *regs)
 {
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+	if (tracehook_report_syscall_entry(regs))
+		return ULONG_MAX;
 
-	/* The 0x80 provides a way for the tracing parent to distinguish
-	   between a syscall entry/exit stop and SIGTRAP delivery */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ?
-				 0x80 : 0));
+	return regs->r8;
+}
 
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
+asmlinkage void syscall_trace_exit(struct pt_regs *regs)
+{
+	tracehook_report_syscall_exit(regs, 0);
 }
 
 static int arc_regs_get(struct task_struct *target,
