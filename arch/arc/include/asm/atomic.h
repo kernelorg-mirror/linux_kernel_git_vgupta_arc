@@ -213,7 +213,7 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 
 #define atomic_add_negative(i, v)	(atomic_add_return(i, v) < 0)
 
-#define ATOMIC_INIT(i)			((atomic_t) { (i) })
+#define ATOMIC_INIT(i)			{ (i) }
 
 #ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
