@@ -114,12 +114,16 @@ SECTIONS
 
 	BSS_SECTION(0, 0, 0)
 
+#ifdef CONFIG_ARC_DW2_UNWIND
 	. = ALIGN(PAGE_SIZE);
 	.debug_frame  : {
 		__start_unwind = .;
 		*(.debug_frame)
 		__end_unwind = .;
 	}
+#else
+	/DISCARD/ : {	*(.debug_frame) }
+#endif
 
 	NOTES
 
@@ -134,7 +138,7 @@ SECTIONS
 		*(.arcextmap.*)
 	}
 
-	/* open-coded because we need .debug_frame for unwinding */
+	/* open-coded because we need .debug_frame seperately for unwinding */
 	.debug_aranges 0 : { *(.debug_aranges) }
 	.debug_pubnames 0 : { *(.debug_pubnames) }
 	.debug_info 0 : { *(.debug_info) }
