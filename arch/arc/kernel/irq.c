@@ -59,7 +59,7 @@ void __init arc_init_IRQ(void)
  */
 void __init init_IRQ(void)
 {
-	const int irq = TIMER0_INT;
+	const int irq = TIMER0_IRQ;
 
 	/*
 	 * Each CPU needs to register irq of it's private TIMER0.

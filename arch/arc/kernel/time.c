@@ -151,7 +151,7 @@ static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
 	.mode		= CLOCK_EVT_MODE_UNUSED,
 	.rating		= 300,
-	.irq		= TIMER0_INT,	/* hardwired, no need for resources */
+	.irq		= TIMER0_IRQ,	/* hardwired, no need for resources */
 	.set_next_event = arc_clkevent_set_next_event,
 	.set_mode	= arc_clkevent_set_mode,
 };
@@ -184,7 +184,7 @@ void __cpuinit arc_clockevent_init(void)
 	 * (Treated a re-registration for a !IRQF_SHARED irq)
 	 */
 	if (cpu == 0) {
-		rc = request_percpu_irq(TIMER0_INT, timer_irq_handler,
+		rc = request_percpu_irq(TIMER0_IRQ, timer_irq_handler,
 					"Timer0 (clock-evt-dev)", evt);
 
 		if (rc)
@@ -192,7 +192,7 @@ void __cpuinit arc_clockevent_init(void)
 	}
 
 	/* This is done on each CPU */
-	enable_percpu_irq(TIMER0_INT, 0);
+	enable_percpu_irq(TIMER0_IRQ, 0);
 
 }
 

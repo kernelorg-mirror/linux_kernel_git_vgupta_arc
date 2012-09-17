@@ -9,6 +9,10 @@
 #ifndef __ASM_ARC_IRQ_H
 #define __ASM_ARC_IRQ_H
 
+/* Platform Inependent IRQs */
+#define TIMER0_IRQ      3
+#define TIMER1_IRQ      4
+
 #include <plat/irq.h>		/* Board Specific IRQ assignments */
 #include <asm-generic/irq.h>
 

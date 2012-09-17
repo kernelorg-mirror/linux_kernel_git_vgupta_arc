@@ -18,9 +18,6 @@
 #define NR_IRQS 16
 #endif
 
-#define TIMER0_INT      3
-#define TIMER1_INT      4
-
 #define UART0_IRQ       5
 #define UART1_IRQ      10
 #define UART2_IRQ      11
