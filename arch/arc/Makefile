@@ -52,6 +52,9 @@ cflags-$(CONFIG_ARC_DBG_EVENT_TIMELINE) += -g
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mbig-endian
 ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB
 
+# GNU ld doesn't accept --build-id w/o this workaround
+ldflags-y				+= -marclinux
+
 ARC_LIBGCC				:= -mA7
 cflags-$(CONFIG_ARC_HAS_HW_MPY)		+= -multcost=16
 
