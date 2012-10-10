@@ -70,9 +70,7 @@ void __init read_decode_mmu_bcr(void);
 #define tlb_start_vma(tlb, vma)
 #define tlb_end_vma(tlb, vma)
 
-static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
-{
-}
+#define enter_lazy_tlb(mm, tsk)
 
 #include <linux/pagemap.h>
 #include <asm-generic/tlb.h>

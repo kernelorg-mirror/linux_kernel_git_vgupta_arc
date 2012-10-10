@@ -39,9 +39,6 @@
 
 #ifndef __ASSEMBLY__
 
-struct mm_struct;
-struct vm_area_struct;
-struct page;
 
 /* TBD: for now don't worry about VIPT D$ aliasing */
 #define clear_page(paddr)  memset((unsigned int *)(paddr), 0, PAGE_SIZE)
