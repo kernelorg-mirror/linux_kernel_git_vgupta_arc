@@ -15,26 +15,12 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/smp.h>
-#include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
-#include <linux/reboot.h>
-#include <linux/uaccess.h>
 #include <linux/elf.h>
 #include <linux/tick.h>
-#include <linux/random.h>
-#include <linux/vmalloc.h>
-#include <linux/bug.h>
-#include <asm/switch_to.h>
-#include <asm/setup.h>
-#include <asm/pgtable.h>
-#include <asm/processor.h>
-#include <asm/pgalloc.h>
-#include <asm/arcregs.h>
 
 asmlinkage int sys_fork(struct pt_regs *regs)
 {
@@ -204,64 +190,32 @@ int copy_thread(unsigned long clone_flags,
 		unsigned long usp, unsigned long topstk,
 		struct task_struct *p, struct pt_regs *regs)
 {
-	struct pt_regs *child_ptregs;
-	struct callee_regs *child_cregs, *parent_cregs;
-	unsigned long *childksp;
+	struct pt_regs *c_regs;        /* child's pt_regs */
+	unsigned long *childksp;       /* to unwind out of __switch_to() */
+	struct callee_regs *c_callee;  /* child's callee regs */
+	struct callee_regs *parent_callee;  /* paren't callee */
 
-	/*
-	 * Note that parent's pt_regs are passed to this function.
-	 * They may not be same as one returned by task_pt_regs(current)
-	 * _IF_ we are starting a kernel thread, because it doesn't have a
-	 * parent in true sense
-	 */
-	if (user_mode(regs))
-		BUG_ON(regs != task_pt_regs(current));
-
-	/****************************************************************
-	 * setup child for its first ever return to user land
-	 ****************************************************************/
+	c_regs = task_pt_regs(p);
+	childksp = (unsigned long *)c_regs - 2;  /* 2 words for FP/BLINK */
+	c_callee = ((struct callee_regs *)childksp) - 1;
 
 	/* Copy parents pt regs on child's kernel mode stack */
-	child_ptregs = task_pt_regs(p);
-	*child_ptregs = *regs;
+	*c_regs = *regs;
 
-	/* its kernel mode SP is now @ start of pt_regs */
-	childksp = (unsigned long *)child_ptregs;
+	/* __switch_to expects FP(0), BLINK(return addr) at top of stack */
+	childksp[0] = 0;        			/* for POP fp */
+	childksp[1] = (unsigned long)ret_from_fork;	/* for POP blink */
 
-	/* fork return value 0 for the child */
-	child_ptregs->r0 = 0;
-
-	/* I the parent is a kernel thread then we change the stack pointer
-	 * of the child its kernel stack
-	 */
-	if (!user_mode(regs)) {
-		/* Arc gcc stack adjustment */
-		child_ptregs->sp =
-		    (unsigned long)task_thread_info(p) + (THREAD_SIZE - 4);
-	} else
-		child_ptregs->sp = usp;
-
-	/****************************************************************
-	 * setup child for its first kernel mode execution,
-	 * to be "switched-in" by schedular and have ability to unwind
-	 * out of schedular
-	 ****************************************************************/
-
-	/*
-	 * push frame pointer and return address (blink) as expected by
-	 * __switch_to on top of pt_regs
-	 */
-
-	*(--childksp) = (unsigned long)ret_from_fork;	/* push blink */
-	*(--childksp) = 0;	/* push fp */
-
-	/* copy CALLEE regs now, on top of above 2 and pt_regs */
-	child_cregs = ((struct callee_regs *)childksp) - 1;
-
-	/* For kernel threads, callee regs were not saved to begin with */
 	if (user_mode(regs)) {
-		parent_cregs = ((struct callee_regs *)regs) - 1;
-		*child_cregs = *parent_cregs;
+		c_regs->sp = usp;
+		c_regs->r0 = 0;		/* fork returns 0 in child */
+
+		parent_callee = ((struct callee_regs *)regs) - 1;
+		*c_callee = *parent_callee;
+
+	} else {
+		c_regs->sp =
+		    (unsigned long)task_thread_info(p) + (THREAD_SIZE - 4);
 	}
 
 	/*
@@ -271,7 +225,7 @@ int copy_thread(unsigned long clone_flags,
 	 * it unwinds stack, loading CALLEE Regs from top and goes it's
 	 * merry way
 	 */
-	p->thread.ksp = (unsigned long)child_cregs;	/* THREAD_KSP */
+	p->thread.ksp = (unsigned long)c_callee;	/* THREAD_KSP */
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 	/* Replicate parent's user mode r25 for child */
@@ -289,7 +243,7 @@ int copy_thread(unsigned long clone_flags,
 		} else {
 			/* Normal fork case: set parent's TLS ptr in child */
 			task_thread_info(p)->thr_ptr =
-			    task_thread_info(current)->thr_ptr;
+			task_thread_info(current)->thr_ptr;
 		}
 	}
 #endif
