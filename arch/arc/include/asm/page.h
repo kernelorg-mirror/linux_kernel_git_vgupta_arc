@@ -39,13 +39,12 @@
 
 #ifndef __ASSEMBLY__
 
-
 /* TBD: for now don't worry about VIPT D$ aliasing */
-#define clear_page(paddr)  memset((unsigned int *)(paddr), 0, PAGE_SIZE)
-extern void copy_page(void *to, void *from);
-extern void clear_user_page(void *addr, unsigned long vaddr, struct page *page);
-extern void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
-			   struct page *to);
+#define clear_page(paddr)		memset((paddr), 0, PAGE_SIZE)
+#define copy_page(to, from)		memcpy((to), (from), PAGE_SIZE)
+
+#define clear_user_page(addr, vaddr, pg)	clear_page(addr)
+#define copy_user_page(vto, vfrom, vaddr, pg)	copy_page(vto, vfrom)
 
 #define get_user_page(vaddr)        __get_free_page(GFP_KERNEL)
 #define free_user_page(page, addr)  free_page(addr)
