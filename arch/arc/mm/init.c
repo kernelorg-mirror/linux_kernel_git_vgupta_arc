@@ -42,18 +42,9 @@ static int __init setup_mem_sz(char *str)
 }
 early_param("mem", setup_mem_sz);
 
-void __init pagetable_init(void)
-{
-	pgd_init((unsigned long)swapper_pg_dir);
-	pgd_init((unsigned long)swapper_pg_dir +
-		 sizeof(pgd_t) * USER_PTRS_PER_PGD);
-}
-
 void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, 0 };
-
-	pagetable_init();
 
 	/* num_phypages has already been calc in setup_arch_memory( ) */
 	zones_size[ZONE_NORMAL] = num_physpages;

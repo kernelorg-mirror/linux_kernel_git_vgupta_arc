@@ -36,32 +36,6 @@ void copy_page(void *to, void *from)
 }
 EXPORT_SYMBOL(copy_page);
 
-/* Initialize the new pgd with invalid ptes */
-
-void pgd_init(unsigned long page)
-{
-	const int zero = 0;
-	unsigned long dummy1, dummy2;
-
-	__asm__ __volatile__(
-		"sub   %0, %0, 4\n\t"
-		"1:\n\t"
-		"st.a  %2, [%0, 4]\n\t"
-		"st.a  %2, [%0, 4]\n\t"
-		"st.a  %2, [%0, 4]\n\t"
-		"st.a  %2, [%0, 4]\n\t"
-		"st.a  %2, [%0, 4]\n\t"
-		"st.a  %2, [%0, 4]\n\t"
-		"st.a  %2, [%0, 4]\n\t"
-		"st.a  %2, [%0, 4]\n\t"
-		"sub.f %1, %1, 1\n\t"
-		"nop\n\t"
-		"bnz   1b\n\t"
-		: "=r"(dummy1), "=r"(dummy2)
-		: "r"(zero), "0"(page), "1"(USER_PTRS_PER_PGD / 8)
-	);
-}
-
 #else
 
 void copy_page(void *to, void *from)
@@ -69,10 +43,6 @@ void copy_page(void *to, void *from)
 	memcpy(to, from, PAGE_SIZE);
 }
 
-void pgd_init(unsigned long page)
-{
-	memzero((void *)page, USER_PTRS_PER_PGD * 4);
-}
 #endif
 
 void clear_user_page(void *addr, unsigned long vaddr, struct page *page)
