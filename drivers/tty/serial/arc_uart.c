@@ -95,27 +95,19 @@
 #define UART_RX_IRQ_ENABLE(uart)   UART_REG_OR(uart, R_STS, RXIENB)
 #define UART_TX_IRQ_ENABLE(uart)   UART_REG_OR(uart, R_STS, TXIENB)
 
-#define ARC_SERIAL_DEV_NAME	"ttyS"
-
-/* ttySxx per Documentation/devices.txt */
-#define ARC_SERIAL_MAJOR	4
-#define ARC_SERIAL_MINOR	64
+#define ARC_SERIAL_DEV_NAME	"ttyARC"
 
 struct arc_uart_port {
 	struct uart_port port;
 	unsigned long baud;
+	int is_emulated;	/* H/w vs. Instruction Set Simulator */
 };
 
 static struct arc_uart_port arc_uart_ports[CONFIG_SERIAL_ARC_NR_PORTS];
 
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
-static struct console arc_serial_console;
-#define ARC_SERIAL_CONSOLE	(&arc_serial_console)
-#else
-#define ARC_SERIAL_CONSOLE	NULL
+static struct console arc_console;
 #endif
-
-int __attribute__((weak)) running_on_hw;
 
 #define DRIVER_NAME	"arc-uart"
 
@@ -123,10 +115,14 @@ static struct uart_driver arc_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= ARC_SERIAL_DEV_NAME,
-	.major		= ARC_SERIAL_MAJOR,
-	.minor		= ARC_SERIAL_MINOR,
+	.major		= 0,
+	.minor		= 0,
 	.nr		= CONFIG_SERIAL_ARC_NR_PORTS,
-	.cons		= ARC_SERIAL_CONSOLE,
+#ifdef CONFIG_SERIAL_ARC_CONSOLE
+	.cons		= &arc_console,
+#else
+	.cons		= NULL,
+#endif
 };
 
 static void arc_serial_stop_rx(struct uart_port *port)
@@ -159,7 +155,6 @@ static unsigned int arc_serial_tx_empty(struct uart_port *port)
 		return TIOCSER_TEMT;
 	else
 		return 0;
-
 }
 
 /*
@@ -197,10 +192,8 @@ static void arc_serial_tx_chars(struct arc_uart_port *uart)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&uart->port);
 
-	/*if (uart_circ_chars_pending(xmit)) */
 	if (sent)
 		UART_TX_IRQ_ENABLE(uart);
-
 }
 
 /*
@@ -216,10 +209,11 @@ static void arc_serial_start_tx(struct uart_port *port)
 
 static void arc_serial_rx_chars(struct arc_uart_port *uart)
 {
-	struct tty_struct *tty = NULL;
+	struct tty_struct *tty = tty_port_tty_get(&uart->port.state->port);
 	unsigned int status, ch, flg = 0;
 
-	tty = uart->port.state->port.tty;
+	if (!tty)
+		return;
 
 	/*
 	 * UART has 4 deep RX-FIFO. Driver's recongnition of this fact
@@ -258,6 +252,8 @@ static void arc_serial_rx_chars(struct arc_uart_port *uart)
 done:
 		tty_flip_buffer_push(tty);
 	}
+
+	tty_kref_put(tty);
 }
 
 /*
@@ -352,7 +348,7 @@ static void arc_serial_enable_ms(struct uart_port *port)
 
 static void arc_serial_break_ctl(struct uart_port *port, int break_state)
 {
-	/* ARC UART doesn't support sendind Break signal */
+	/* ARC UART doesn't support sending Break signal */
 }
 
 static int arc_serial_startup(struct uart_port *port)
@@ -380,13 +376,8 @@ static void arc_serial_shutdown(struct uart_port *port)
 	free_irq(uart->port.irq, uart);
 }
 
-static void arc_serial_set_ldisc(struct uart_port *port, int ld)
-{
-	/* this might need implementing for the touch driver */
-}
-
 static void
-arc_serial_set_termios(struct uart_port *port, struct ktermios *termios,
+arc_serial_set_termios(struct uart_port *port, struct ktermios *new,
 		       struct ktermios *old)
 {
 	struct arc_uart_port *uart = (struct arc_uart_port *)port;
@@ -400,21 +391,21 @@ arc_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * Formula for ARC UART is: hw-val = ((CLK/(BAUD*4)) -1)
 	 * spread over two 8-bit registers
 	 */
-	baud = uart_get_baud_rate(port, termios, old, 0, 460800);
+	baud = uart_get_baud_rate(port, new, old, 0, 460800);
 
 	hw_val = port->uartclk / (uart->baud * 4) - 1;
 	uartl = hw_val & 0xFF;
 	uarth = (hw_val >> 8) & 0xFF;
 
 	/*
-	 * ISS UART emulation has a subtle bug:
+	 * UART ISS(Instruction Set simulator) emulation has a subtle bug:
 	 * A existing value of Baudh = 0 is used as a indication to startup
 	 * it's internal state machine.
 	 * Thus if baudh is set to 0, 2 times, it chokes.
 	 * This happens with BAUD=115200 and the formaula above
-	 * Until that is fixed, when runnign on ISS, we will set baudh to !0
+	 * Until that is fixed, when running on ISS, we will set baudh to !0
 	 */
-	if (!running_on_hw)
+	if (uart->is_emulated)
 		uarth = 1;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -426,8 +417,21 @@ arc_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	UART_RX_IRQ_ENABLE(uart);
 
-	/* Port speed changed, update the per-port timeout. */
-	uart_update_timeout(port, termios->c_cflag, baud);
+	/*
+	 * UART doesn't support Parity/Hardware Flow Control;
+	 * Only supports 8N1 character size
+	 */
+	new->c_cflag &= ~(CMSPAR|CRTSCTS|CSIZE);
+	new->c_cflag |= CS8;
+
+	if (old)
+		tty_termios_copy_hw(new, old);
+
+	/* Don't rewrite B0 */
+	if (tty_termios_baud_rate(new))
+		tty_termios_encode_baud_rate(new, baud, baud);
+
+	uart_update_timeout(port, new->c_cflag, baud);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -511,7 +515,6 @@ static struct uart_ops arc_serial_pops = {
 	.startup	= arc_serial_startup,
 	.shutdown	= arc_serial_shutdown,
 	.set_termios	= arc_serial_set_termios,
-	.set_ldisc	= arc_serial_set_ldisc,
 	.type		= arc_serial_type,
 	.release_port	= arc_serial_release_port,
 	.request_port	= arc_serial_request_port,
@@ -567,6 +570,8 @@ arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 	 */
 	uart->port.ignore_status_mask = 0;
 
+	/* Real Hardware vs. emulated to work around a bug */
+	uart->is_emulated = !!plat_data[2];
 
 	return 0;
 }
@@ -585,7 +590,7 @@ static int __devinit arc_serial_console_setup(struct console *co, char *options)
 		return -ENODEV;
 
 	/*
-	 * The uart port backing the console (e.g. ttyS1) might not have been
+	 * The uart port backing the console (e.g. ttyARC1) might not have been
 	 * init yet. If so, defer the console setup to after the port.
 	 */
 	port = &arc_uart_ports[co->index].port;
@@ -621,7 +626,7 @@ static void arc_serial_console_write(struct console *co, const char *s,
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static struct console arc_serial_console = {
+static struct console arc_console = {
 	.name	= ARC_SERIAL_DEV_NAME,
 	.write	= arc_serial_console_write,
 	.device	= uart_console_device,

@@ -146,7 +146,7 @@ void __init arc_platform_early_init(void)
 	/*
 	 * This is to make sure that arc uart would be preferred console
 	 * despite one/more of following:
-	 *   -command line lacked "console=ttyS0" or
+	 *   -command line lacked "console=ttyARC0" or
 	 *   -CONFIG_VT_CONSOLE was enabled (for no reason whatsoever)
 	 * Note that this needs to be done after above early console is reg,
 	 * otherwise the early console never gets a chance to run.
