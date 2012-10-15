@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/console.h>
 #include <asm/serial.h>
+#include <asm/setup.h>
 #include <plat/irq.h>
 #include <plat/memmap.h>
 
@@ -76,7 +77,10 @@ static void __init setup_bvci_lat_unit(void)
 #ifdef CONFIG_SERIAL_ARC
 
 static unsigned long arc_uart_info[] = {
-	CONFIG_ARC_SERIAL_BAUD, CONFIG_ARC_PLAT_CLK, 0
+	CONFIG_ARC_SERIAL_BAUD,	/* uart->baud */
+	CONFIG_ARC_PLAT_CLK,	/* uart->port.uartclk */
+	-1,			/* uart->is_emulated (runtime @running_on_hw) */
+	0
 };
 
 #define ARC_UART_DEV(n)					\
@@ -127,6 +131,10 @@ void __init arc_platform_early_init(void)
 	setup_bvci_lat_unit();
 
 #ifdef CONFIG_SERIAL_ARC
+
+	/* To let driver workaround ISS bug: baudh Reg can't be set to 0 */
+	arc_uart_info[2] = !running_on_hw;
+
 	early_platform_add_devices(fpga_early_devs,
 				   ARRAY_SIZE(fpga_early_devs));
 
@@ -151,7 +159,7 @@ void __init arc_platform_early_init(void)
 	 * Note that this needs to be done after above early console is reg,
 	 * otherwise the early console never gets a chance to run.
 	 */
-	add_preferred_console("ttyS", 0, "115200");
+	add_preferred_console("ttyARC", 0, "115200");
 #endif
 }
 
