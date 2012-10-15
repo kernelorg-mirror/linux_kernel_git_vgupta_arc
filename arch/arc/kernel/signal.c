@@ -21,22 +21,14 @@
  *  -Modified Code to support the uClibc provided userland sigreturn stub
  *   to avoid kernel synthesing it on user stack at runtime, costing TLB
  *   probes and Cache line flushes.
- *  -In case uClibc doesnot provide the sigret stub, rewrote the PTE/TLB
- *   permission chg code to not duplicate the code in case of kernel stub
- *   straddling 2 pages
  *
  * vineetg: July 2009
  *  -In stash_usr_regs( ) and restore_usr_regs( ), save/restore of user regs
  *   in done in block copy rather than one word at a time.
- *   This saves around 2K of code and 500 lines of asm in just 2 functions,
- *   and LMB lat_sig "catch" numbers are lot better
+ *   This saves around 2K of code and improves LMBench lat_sig <catch>
  *
  * rajeshwarr: Feb 2009
  *  - Support for Realtime Signals
- *
- * vineetg: Feb 2009
- *  -small goofup in calculating if Frame straddles 2 pages
- *    now SUPER efficient
  *
  * vineetg: Aug 11th 2008: Bug #94183
  *  -ViXS were still seeing crashes when using insmod to load drivers.
@@ -57,19 +49,13 @@
 
 #include <linux/signal.h>
 #include <linux/ptrace.h>
-#include <linux/unistd.h>
 #include <linux/personality.h>
-#include <linux/freezer.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/tracehook.h>
 #include <asm/ucontext.h>
-#include <asm/tlb.h>
-#include <asm/cacheflush.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
-static noinline void set_frame_exec(unsigned long vaddr, unsigned int exec_on);
 
 asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
@@ -82,11 +68,8 @@ asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
  */
 struct sigframe {
 	struct ucontext uc;
-#define MAGIC_USERLAND_STUB     0x11097600
-#define MAGIC_KERNEL_SYNTH_STUB 0x07300400
-#define MAGIC_SIGALTSTK		0x00000001
+#define MAGIC_SIGALTSTK		0x07302004
 	unsigned int sigret_magic;
-	unsigned long retcode[5];
 };
 
 struct rt_sigframe {
@@ -122,25 +105,9 @@ static int restore_usr_regs(struct pt_regs *regs, struct sigframe __user *sf)
 	return err;
 }
 
-static inline int is_sigret_synth(unsigned int magic)
-{
-	if ((MAGIC_KERNEL_SYNTH_STUB & magic) == MAGIC_KERNEL_SYNTH_STUB)
-		return 1;
-	else
-		return 0;
-}
-
-static inline int is_sigret_userspace(unsigned int magic)
-{
-	if ((MAGIC_USERLAND_STUB & magic) == MAGIC_USERLAND_STUB)
-		return 1;
-	else
-		return 0;
-}
-
 static inline int is_do_ss_needed(unsigned int magic)
 {
-	if ((MAGIC_SIGALTSTK & magic) == MAGIC_SIGALTSTK)
+	if (MAGIC_SIGALTSTK == magic)
 		return 1;
 	else
 		return 0;
@@ -174,19 +141,6 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	err |= __get_user(magic, &sf->sigret_magic);
 	if (err)
 		goto badframe;
-
-	/*
-	 * If C-lib provided userland sigret stub, no need to do anything.
-	 * If kernel sythesized sigret stub, need to undo PTE/TLB changes
-	 * for making stack executable.
-	 */
-	if (unlikely(is_sigret_synth(magic))) {
-		set_frame_exec((unsigned long)&sf->retcode, 0);
-	} else if (unlikely(!is_sigret_userspace(magic))) {
-		/* user corrupted the signal stack */
-		pr_notice("sys_rt_sigreturn: sig stack corrupted");
-		goto badframe;
-	}
 
 	if (unlikely(is_do_ss_needed(magic)))
 		if (do_sigaltstack(&sf->uc.uc_stack, NULL, regs->sp) == -EFAULT)
@@ -227,65 +181,6 @@ static inline void __user *get_sigframe(struct k_sigaction *ka,
 		frame = NULL;
 
 	return frame;
-}
-
-static noinline int
-create_sigret_stub(struct k_sigaction *ka, unsigned long __user *retcode)
-{
-	unsigned int code;
-	int err;
-
-	code = 0x12c2208a;	/* code for mov r8, __NR_rt_sigreturn */
-	err = __put_user(code, retcode);
-	code = 0x003f226f;	/* code for trap0 */
-	err |= __put_user(code, retcode + 1);
-	code = 0x7000264a;	/* code for nop */
-	err |= __put_user(code, retcode + 2);
-	code = 0x7000264a;	/* code for nop */
-	err |= __put_user(code, retcode + 3);
-
-	if (err)
-		return err;
-
-	/* Temp wiggle stack page to be exec, to allow synth sigreturn to run */
-	set_frame_exec((unsigned long)retcode, 1);
-	return 0;
-}
-
-/* Set up to return from userspace signal handler back into kernel */
-static int
-setup_ret_from_usr_sighdlr(struct k_sigaction *ka, struct pt_regs *regs,
-			   struct sigframe __user *frame, unsigned int magic)
-{
-	unsigned long __user *retcode;
-	int err = 0;
-
-	/* If provided, use a stub already in userspace */
-	if (likely(ka->sa.sa_flags & SA_RESTORER)) {
-		magic |= MAGIC_USERLAND_STUB;
-		retcode = (unsigned long __user *)ka->sa.sa_restorer;
-	} else {
-		magic |= MAGIC_KERNEL_SYNTH_STUB;
-		/*
-		 * Note that with uClibc providing userland sigreturn stub,
-		 * this code is more of a legacy and will not be executed
-		 * The really bad part was flushing the TLB and caches which
-		 * we no longer have to do
-		 */
-		retcode = frame->retcode;
-		err = create_sigret_stub(ka, retcode);
-	}
-
-	err |= __put_user(magic, &frame->sigret_magic);
-	if (err)
-		return err;
-
-	/* Upon return of handler, enable sigreturn sys call (synth or real) */
-	regs->blink = (unsigned long)retcode;
-
-	take_snap(SNAP_BEFORE_SIG, 0, 0);
-
-	return 0;
 }
 
 static int
@@ -338,7 +233,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * inspected by userland: but are they allowed to fiddle with it ?
 	 */
 	err |= stash_usr_regs(sf, regs, set);
-	err |= setup_ret_from_usr_sighdlr(ka, regs, sf, magic);
+	err |= __put_user(magic, &sf->sigret_magic);
 	if (err)
 		return err;
 
@@ -347,6 +242,12 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* setup PC of user space signal handler */
 	regs->ret = (unsigned long)ka->sa.sa_handler;
+
+	/*
+	 * handler returns using sigreturn stub provided already by userpsace
+	 */
+	BUG_ON(!(ka->sa.sa_flags & SA_RESTORER));
+	regs->blink = (unsigned long)ka->sa.sa_restorer;
 
 	/* User Stack for signal handler will be above the frame just carved */
 	regs->sp = (unsigned long)rtf;
@@ -470,91 +371,4 @@ void do_notify_resume(struct pt_regs *regs)
 	 */
 	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
 		tracehook_notify_resume(regs);
-}
-
-static noinline void
-mod_tlb_permission(unsigned long frame_vaddr, struct mm_struct *mm,
-		   int exec_on)
-{
-	unsigned long frame_tlbpd1, flags;
-	unsigned int asid;
-
-	if (!mm)
-		return;
-	local_irq_save(flags);
-
-	asid = mm->context.asid;
-
-	frame_vaddr = frame_vaddr & PAGE_MASK;
-	/* get the ASID */
-	frame_vaddr = frame_vaddr | (asid & 0xff);
-	write_aux_reg(ARC_REG_TLBPD0, frame_vaddr);
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBProbe);
-
-	if (read_aux_reg(ARC_REG_TLBINDEX) != TLB_LKUP_ERR) {
-		write_aux_reg(ARC_REG_TLBCOMMAND, TLBRead);
-		frame_tlbpd1 = read_aux_reg(ARC_REG_TLBPD1);
-
-		if (!exec_on) {
-			/* disable execute permissions for the user stack */
-			frame_tlbpd1 = frame_tlbpd1 & ~_PAGE_EXECUTE;
-		} else {
-			/* enable execute */
-			frame_tlbpd1 = frame_tlbpd1 | _PAGE_EXECUTE;
-		}
-
-		write_aux_reg(ARC_REG_TLBPD1, frame_tlbpd1);
-		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
-	}
-
-	local_irq_restore(flags);
-}
-
-static noinline void
-set_frame_exec(unsigned long vaddr, unsigned int exec_on)
-{
-	unsigned long paddr, vaddr_pg, off_from_pg_start;
-	pgd_t *pgdp;
-	pud_t *pudp;
-	pmd_t *pmdp;
-	pte_t *ptep, pte;
-	unsigned long size_on_pg, size_on_pg2;
-	unsigned long fr_sz = sizeof(((struct sigframe *) (0))->retcode);
-
-	off_from_pg_start = vaddr - (vaddr & PAGE_MASK);
-	size_on_pg = min(fr_sz, PAGE_SIZE - off_from_pg_start);
-	size_on_pg2 = fr_sz - size_on_pg;
-
-do_per_page:
-
-	vaddr_pg = vaddr & PAGE_MASK;	/* Get the virtual page address */
-
-	/* Get the physical page address for the virtual page address */
-	pgdp = pgd_offset_fast(current->mm, vaddr_pg),
-	    pudp = pud_offset(pgdp, vaddr_pg);
-	pmdp = pmd_offset(pudp, vaddr_pg);
-	ptep = pte_offset(pmdp, vaddr_pg);
-
-	/* Set the Execution Permission in the pte entry */
-	pte = *ptep;
-	if (exec_on)
-		pte = pte_mkexec(pte);
-	else
-		pte = pte_exprotect(pte);
-	set_pte(ptep, pte);
-
-	/* Get the physical page address */
-	paddr = (vaddr & ~PAGE_MASK) | (pte_val(pte) & PAGE_MASK);
-
-	/* Flush dcache line, and inv Icache line for frame->retcode */
-	flush_icache_range_vaddr(paddr, vaddr, size_on_pg);
-
-	mod_tlb_permission(vaddr_pg, current->mm, exec_on);
-
-	if (size_on_pg2) {
-		vaddr = vaddr_pg + PAGE_SIZE;
-		size_on_pg = size_on_pg2;
-		size_on_pg2 = 0;
-		goto do_per_page;
-	}
 }
