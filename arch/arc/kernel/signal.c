@@ -63,22 +63,15 @@ asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 	return do_sigaltstack(uss, uoss, regs->sp);
 }
 
-/*
- * Do a signal return; undo the signal stack.  These are aligned to 64-bit.
- */
-struct sigframe {
+struct rt_sigframe {
+	struct siginfo info;
 	struct ucontext uc;
 #define MAGIC_SIGALTSTK		0x07302004
 	unsigned int sigret_magic;
 };
 
-struct rt_sigframe {
-	struct siginfo info;
-	struct sigframe frame;
-};
-
 static int
-stash_usr_regs(struct sigframe __user *sf, struct pt_regs *regs,
+stash_usr_regs(struct rt_sigframe __user *sf, struct pt_regs *regs,
 	       sigset_t *set)
 {
 	int err;
@@ -88,7 +81,7 @@ stash_usr_regs(struct sigframe __user *sf, struct pt_regs *regs,
 	return err;
 }
 
-static int restore_usr_regs(struct pt_regs *regs, struct sigframe __user *sf)
+static int restore_usr_regs(struct pt_regs *regs, struct rt_sigframe __user *sf)
 {
 	sigset_t set;
 	int err;
@@ -115,8 +108,7 @@ static inline int is_do_ss_needed(unsigned int magic)
 
 SYSCALL_DEFINE0(rt_sigreturn)
 {
-	struct rt_sigframe __user *rtf;
-	struct sigframe __user *sf;
+	struct rt_sigframe __user *sf;
 	unsigned int magic;
 	int err;
 	struct pt_regs *regs = task_pt_regs(current);
@@ -131,12 +123,11 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	if (regs->sp & 3)
 		goto badframe;
 
-	rtf = (struct rt_sigframe __user *)(regs->sp);
+	sf = (struct rt_sigframe __user *)(regs->sp);
 
-	if (!access_ok(VERIFY_READ, rtf, sizeof(*rtf)))
+	if (!access_ok(VERIFY_READ, sf, sizeof(*sf)))
 		goto badframe;
 
-	sf = &rtf->frame;
 	err = restore_usr_regs(regs, sf);
 	err |= __get_user(magic, &sf->sigret_magic);
 	if (err)
@@ -187,17 +178,14 @@ static int
 setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	       sigset_t *set, struct pt_regs *regs)
 {
-	struct rt_sigframe __user *rtf;
-	struct sigframe __user *sf;
+	struct rt_sigframe __user *sf;
 	unsigned int magic = 0;
 	stack_t stk;
 	int err = 0;
 
-	rtf = get_sigframe(ka, regs, sizeof(struct rt_sigframe));
-	if (!rtf)
+	sf = get_sigframe(ka, regs, sizeof(struct rt_sigframe));
+	if (!sf)
 		return 1;
-
-	sf = &rtf->frame;
 
 	/*
 	 * SA_SIGINFO requires 3 args to signal handler:
@@ -206,7 +194,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 *  #3: struct ucontext (completely populated)
 	 */
 	if (unlikely(ka->sa.sa_flags & SA_SIGINFO)) {
-		err |= copy_siginfo_to_user(&rtf->info, info);
+		err |= copy_siginfo_to_user(&sf->info, info);
 		err |= __put_user(0, &sf->uc.uc_flags);
 		err |= __put_user(NULL, &sf->uc.uc_link);
 		stk.ss_sp = (void __user *)current->sas_ss_sp;
@@ -215,7 +203,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		err |= __copy_to_user(&sf->uc.uc_stack, &stk, sizeof(stk));
 
 		/* setup args 2 and 3 fo ruse rmode handler */
-		regs->r1 = (unsigned long)&rtf->info;
+		regs->r1 = (unsigned long)&sf->info;
 		regs->r2 = (unsigned long)&sf->uc;
 
 		/*
@@ -250,7 +238,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->blink = (unsigned long)ka->sa.sa_restorer;
 
 	/* User Stack for signal handler will be above the frame just carved */
-	regs->sp = (unsigned long)rtf;
+	regs->sp = (unsigned long)sf;
 
 	/*
 	 * Bug 94183, Clear the DE bit, so that when signal handler
