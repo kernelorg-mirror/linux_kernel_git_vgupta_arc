@@ -74,9 +74,9 @@
 
 
 #ifdef CONFIG_ARC_HAS_ICACHE
-static void __arc_icache_inv_lines_no_alias(unsigned long, int);
-static void __arc_icache_inv_lines_2_alias(unsigned long, int);
-static void __arc_icache_inv_lines_4_alias(unsigned long, int);
+static void __ic_line_inv_no_alias(unsigned long, int);
+static void __ic_line_inv_2_alias(unsigned long, int);
+static void __ic_line_inv_4_alias(unsigned long, int);
 
 /* Holds the ptr to flush routine, dependign on size due to aliasing issues */
 static void (*___flush_icache_rtn) (unsigned long, int);
@@ -189,13 +189,13 @@ void __init arc_cache_init(void)
 	switch (way_pg_ratio) {
 	case 0:
 	case 1:
-		___flush_icache_rtn = __arc_icache_inv_lines_no_alias;
+		___flush_icache_rtn = __ic_line_inv_no_alias;
 		break;
 	case 2:
-		___flush_icache_rtn = __arc_icache_inv_lines_2_alias;
+		___flush_icache_rtn = __ic_line_inv_2_alias;
 		break;
 	case 4:
-		___flush_icache_rtn = __arc_icache_inv_lines_4_alias;
+		___flush_icache_rtn = __ic_line_inv_4_alias;
 		break;
 	default:
 		panic("Unsupported I-Cache Sz\n");
@@ -251,16 +251,15 @@ void __init arc_cache_init(void)
 	return;
 }
 
+#define OP_INV		0x1
+#define OP_FLUSH	0x2
+#define OP_FLUSH_N_INV	0x3
+
 #ifdef CONFIG_ARC_HAS_DCACHE
 
-/*
- **************************************************************
+/***************************************************************
  * Machine specific helpers for Entire D-Cache or Per Line ops
- **************************************************************/
-
-#define OP_INV          0x1
-#define OP_FLUSH        0x2
-#define OP_FLUSH_N_INV  0x3
+ */
 
 static inline void wait_for_flush(void)
 {
@@ -271,13 +270,13 @@ static inline void wait_for_flush(void)
 /*
  * Operation on Entire D-Cache
  * @cacheop = {OP_INV, OP_FLUSH, OP_FLUSH_N_INV}
- * @aux_reg: Relevant Register in Cache
  * Note that constant propagation ensures all the checks are gone
- *  in generated code, while havign a signle core routine to maintain
+ * in generated code
  */
-static inline void __arc_dcache_entire_op(const int aux_reg, const int cacheop)
+static inline void __dc_entire_op(const int cacheop)
 {
 	unsigned long flags, tmp = tmp;
+	int aux;
 
 	local_irq_save(flags);
 
@@ -285,21 +284,25 @@ static inline void __arc_dcache_entire_op(const int aux_reg, const int cacheop)
 		/* Dcache provides 2 cmd: FLUSH or INV
 		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
 		 * flush-n-inv is achieved by INV cmd but with IM=1
-		 * Default INV sub-mode is DISCARD, which is wiggled here
+		 * Default INV sub-mode is DISCARD, which needs to be toggled
 		 */
 		tmp = read_aux_reg(ARC_REG_DC_CTRL);
 		write_aux_reg(ARC_REG_DC_CTRL, tmp | DC_CTRL_INV_MODE_FLUSH);
 	}
 
-	write_aux_reg(aux_reg, 0x1);
+	if (cacheop & OP_INV)	/* Inv or flush-n-inv use same cmd reg */
+		aux = ARC_REG_DC_IVDC;
+	else
+		aux = ARC_REG_DC_FLSH;
 
-	if (cacheop & OP_FLUSH)
+	write_aux_reg(aux, 0x1);
+
+	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
 		wait_for_flush();
 
-	if (cacheop == OP_FLUSH_N_INV) {
-		/* Switch back the DISCARD ONLY Invalidate mode */
+	/* Switch back the DISCARD ONLY Invalidate mode */
+	if (cacheop == OP_FLUSH_N_INV)
 		write_aux_reg(ARC_REG_DC_CTRL, tmp & ~DC_CTRL_INV_MODE_FLUSH);
-	}
 
 	local_irq_restore(flags);
 }
@@ -309,8 +312,8 @@ static inline void __arc_dcache_entire_op(const int aux_reg, const int cacheop)
  * Doesn't deal with type-of-op/IRQ-disabling/waiting-for-flush-to-complete
  * It's sole purpose is to help gcc generate ZOL
  */
-static inline void __arc_dcache_per_line_op(unsigned long start,
-					    unsigned long sz, int aux_reg)
+static inline void __dc_line_loop(unsigned long start, unsigned long sz,
+					  int aux_reg)
 {
 	int num_lines, slack;
 
@@ -345,105 +348,51 @@ static inline void __arc_dcache_per_line_op(unsigned long start,
 }
 
 /*
- * D-Cache : Per Line FLUSH (wback)
+ * D-Cache : Per Line INV (discard or wback+discard) or FLUSH (wback)
  */
-static inline void __arc_dcache_flush_lines(unsigned long start,
-					    unsigned long sz)
+static inline void __dc_line_op(unsigned long start, unsigned long sz,
+					const int cacheop)
 {
-	unsigned long flags;
+	unsigned long flags, tmp = tmp;
+	int aux;
 
 	local_irq_save(flags);
 
-	__arc_dcache_per_line_op(start, sz, ARC_REG_DC_FLDL);
-
-	wait_for_flush();
-
-	local_irq_restore(flags);
-}
-
-/*
- * D-Cache : Per Line INV (discard or wback+discard)
- */
-static inline void __arc_dcache_inv_lines(unsigned long start, unsigned long sz,
-					  int flush_n_inv)
-{
-	unsigned long flags, orig_d_ctrl = orig_d_ctrl;
-
-	local_irq_save(flags);
-
-	if (flush_n_inv) {
+	if (cacheop == OP_FLUSH_N_INV) {
 		/*
-		 *  Dcache provides 2 cmd: FLUSH or INV
+		 * Dcache provides 2 cmd: FLUSH or INV
 		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
-		 * Default INV sub-mode is DISCARD, hence this check
+		 * flush-n-inv is achieved by INV cmd but with IM=1
+		 * Default INV sub-mode is DISCARD, which needs to be toggled
 		 */
-		orig_d_ctrl = read_aux_reg(ARC_REG_DC_CTRL);
-		write_aux_reg(ARC_REG_DC_CTRL,
-				  orig_d_ctrl | DC_CTRL_INV_MODE_FLUSH);
+		tmp = read_aux_reg(ARC_REG_DC_CTRL);
+		write_aux_reg(ARC_REG_DC_CTRL, tmp | DC_CTRL_INV_MODE_FLUSH);
 	}
 
-	__arc_dcache_per_line_op(start, sz, ARC_REG_DC_IVDL);
+	if (cacheop & OP_INV)	/* Inv / flush-n-inv use same cmd reg */
+		aux = ARC_REG_DC_IVDL;
+	else
+		aux = ARC_REG_DC_FLDL;
 
-	if (flush_n_inv) {
+	__dc_line_loop(start, sz, aux);
+
+	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
 		wait_for_flush();
 
-		/* Switch back the DISCARD ONLY Invalidate mode */
-		write_aux_reg(ARC_REG_DC_CTRL,
-				  orig_d_ctrl & ~DC_CTRL_INV_MODE_FLUSH);
-	}
+	/* Switch back the DISCARD ONLY Invalidate mode */
+	if (cacheop == OP_FLUSH_N_INV)
+		write_aux_reg(ARC_REG_DC_CTRL, tmp & ~DC_CTRL_INV_MODE_FLUSH);
 
 	local_irq_restore(flags);
 }
 
-/*
- ***********************************************************
- * Exported APIs
- **********************************************************/
-
-void inv_dcache_all(void)
-{
-	/* Throw away the contents of entrie Dcache */
-	__arc_dcache_entire_op(ARC_REG_DC_IVDC, OP_INV);
-}
-
-void flush_and_inv_dcache_all(void)
-{
-	__arc_dcache_entire_op(ARC_REG_DC_IVDC, OP_FLUSH_N_INV);
-}
-
-void flush_dcache_all(void)
-{
-	__arc_dcache_entire_op(ARC_REG_DC_FLSH, OP_FLUSH);
-}
-EXPORT_SYMBOL(flush_dcache_all);
-
-void flush_dcache_range(unsigned long start, unsigned long end)
-{
-	__arc_dcache_flush_lines(start, end - start);
-}
-EXPORT_SYMBOL(flush_dcache_range);
-
-void flush_dcache_page(struct page *page)
-{
-	__arc_dcache_flush_lines((unsigned long)page_address(page), PAGE_SIZE);
-}
-EXPORT_SYMBOL(flush_dcache_page);
-
-void flush_and_inv_dcache_range(unsigned long start, unsigned long end)
-{
-	__arc_dcache_inv_lines(start, end - start, 1);
-}
-EXPORT_SYMBOL(flush_and_inv_dcache_all);
-
-void inv_dcache_range(unsigned long start, unsigned long end)
-{
-	__arc_dcache_inv_lines(start, end - start, 0);
-}
-EXPORT_SYMBOL(inv_dcache_range);
-
 #else
-#define __arc_dcache_flush_lines(a, b)
-#endif
+
+#define __dc_entire_op(cacheop)
+#define __dc_line_op(start, sz, cacheop)
+
+#endif /* CONFIG_ARC_HAS_DCACHE */
+
 
 #ifdef CONFIG_ARC_HAS_ICACHE
 
@@ -526,13 +475,12 @@ EXPORT_SYMBOL(inv_dcache_range);
  * "tag" bits are provided in PTAG, index bits in existing IVIL/IVDL/FLDL regs
  */
 
-/*
- ***********************************************************
+/***********************************************************
  * Machine specific helpers for per line I-Cache invalidate.
  * 3 routines to accpunt for 1, 2, 4 aliases possible
- **********************************************************/
+ */
 
-static void __arc_icache_inv_lines_no_alias(unsigned long start, int num_lines)
+static void __ic_line_inv_no_alias(unsigned long start, int num_lines)
 {
 	while (num_lines-- > 0) {
 #if (CONFIG_ARC_MMU_VER > 2)
@@ -543,7 +491,7 @@ static void __arc_icache_inv_lines_no_alias(unsigned long start, int num_lines)
 	}
 }
 
-static void __arc_icache_inv_lines_2_alias(unsigned long start, int num_lines)
+static void __ic_line_inv_2_alias(unsigned long start, int num_lines)
 {
 	while (num_lines-- > 0) {
 
@@ -572,7 +520,7 @@ static void __arc_icache_inv_lines_2_alias(unsigned long start, int num_lines)
 	}
 }
 
-static void __arc_icache_inv_lines_4_alias(unsigned long start, int num_lines)
+static void __ic_line_inv_4_alias(unsigned long start, int num_lines)
 {
 	while (num_lines-- > 0) {
 
@@ -596,7 +544,7 @@ static void __arc_icache_inv_lines_4_alias(unsigned long start, int num_lines)
 	}
 }
 
-static void __arc_icache_inv_lines(unsigned long start, unsigned long sz)
+static void __ic_line_inv(unsigned long start, unsigned long sz)
 {
 	unsigned long flags;
 	int num_lines, slack;
@@ -625,7 +573,7 @@ static void __arc_icache_inv_lines(unsigned long start, unsigned long sz)
  * prevents the need to speculatively kill the lines in multiple sets
  * based on ratio of way_sz : pg_sz
  */
-static void __arc_icache_inv_lines_vaddr(unsigned long phy_start,
+static void __ic_line_inv_vaddr(unsigned long phy_start,
 					 unsigned long vaddr, unsigned long sz)
 {
 	unsigned long flags;
@@ -663,9 +611,43 @@ static void __arc_icache_inv_lines_vaddr(unsigned long phy_start,
 	local_irq_restore(flags);
 }
 
+#else
+
+#define __ic_line_inv(start, sz)
+#define __ic_line_inv_vaddr(pstart, vstart, sz)
+
+#endif /* CONFIG_ARC_HAS_ICACHE */
+
+
 /***********************************************************
  * Exported APIs
- **********************************************************/
+ */
+
+/* TBD: use pg_arch_1 to optimize this */
+void flush_dcache_page(struct page *page)
+{
+	__dc_line_op((unsigned long)page_address(page), PAGE_SIZE, OP_FLUSH);
+}
+EXPORT_SYMBOL(flush_dcache_page);
+
+
+void dma_cache_wback_inv(unsigned long start, unsigned long sz)
+{
+	__dc_line_op(start, sz, OP_FLUSH_N_INV);
+}
+EXPORT_SYMBOL(dma_cache_wback_inv);
+
+void dma_cache_inv(unsigned long start, unsigned long sz)
+{
+	__dc_line_op(start, sz, OP_INV);
+}
+EXPORT_SYMBOL(dma_cache_inv);
+
+void dma_cache_wback(unsigned long start, unsigned long sz)
+{
+	__dc_line_op(start, sz, OP_FLUSH);
+}
+EXPORT_SYMBOL(dma_cache_wback);
 
 /*
  * This is API for making I/D Caches consistent when modifying code
@@ -699,8 +681,8 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 
 	/* Case: Kernel Phy addr (0x8000_0000 onwards) */
 	if (likely(kstart > PAGE_OFFSET)) {
-		__arc_icache_inv_lines(kstart, kend - kstart);
-		__arc_dcache_flush_lines(kstart, kend - kstart);
+		__ic_line_inv(kstart, kend - kstart);
+		__dc_line_op(kstart, kend - kstart, OP_FLUSH);
 		return;
 	}
 
@@ -719,13 +701,12 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 		phy = (pfn << PAGE_SHIFT) + off;
 		sz = min_t(unsigned int, tot_sz, PAGE_SIZE - off);
 		local_irq_save(flags);
-		__arc_dcache_flush_lines(phy, sz);
-		__arc_icache_inv_lines(phy, sz);
+		__dc_line_op(phy, sz, OP_FLUSH);
+		__ic_line_inv(phy, sz);
 		local_irq_restore(flags);
 		kstart += sz;
 		tot_sz -= sz;
 	}
-
 }
 
 /*
@@ -739,11 +720,12 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 void flush_icache_range_vaddr(unsigned long paddr, unsigned long u_vaddr,
 			      int len)
 {
-	__arc_icache_inv_lines_vaddr(paddr, u_vaddr, len);
-	__arc_dcache_flush_lines(paddr, len);
+	__ic_line_inv_vaddr(paddr, u_vaddr, len);
+	__dc_line_op(paddr, len, OP_FLUSH);
 }
 
 /*
+ * XXX: This also needs to be optim using pg_arch_1
  * This is called when a page-cache page is about to be mapped into a
  * user process' address space.  It offers an opportunity for a
  * port to ensure d-cache/i-cache coherency if necessary.
@@ -753,7 +735,7 @@ void flush_icache_page(struct vm_area_struct *vma, struct page *page)
 	if (!(vma->vm_flags & VM_EXEC))
 		return;
 
-	__arc_icache_inv_lines((unsigned long)page_address(page), PAGE_SIZE);
+	__ic_line_inv((unsigned long)page_address(page), PAGE_SIZE);
 }
 
 void flush_icache_all(void)
@@ -776,19 +758,14 @@ noinline void flush_cache_all(void)
 	local_irq_save(flags);
 
 	flush_icache_all();
-	flush_and_inv_dcache_all();
+	__dc_entire_op(OP_FLUSH_N_INV);
 
 	local_irq_restore(flags);
 
 }
 
-#else
-#define __arc_icache_inv_lines(a, b)
-#endif
-
 /* Helper functions for sys_cacheflush */
 
-#ifdef CONFIG_ARC_CACHE
 
 static void __arc_cf_all(uint32_t flags)
 {
@@ -798,13 +775,13 @@ static void __arc_cf_all(uint32_t flags)
 
 	switch (flags & CF_D_FLUSH_INV) {
 	case CF_D_FLUSH:
-		flush_dcache_all();
+		__dc_entire_op(OP_FLUSH);
 		break;
 	case CF_D_INV:
-		inv_dcache_all();
+		__dc_entire_op(OP_INV);
 		break;
 	case CF_D_FLUSH_INV:
-		flush_and_inv_dcache_all();
+		__dc_entire_op(OP_FLUSH_N_INV);
 		break;
 	}
 
@@ -822,30 +799,27 @@ static void __arc_cf_lines(uint32_t phy, uint32_t sz, uint32_t flags)
 
 	switch (flags & CF_D_FLUSH_INV) {
 	case CF_D_FLUSH:
-		__arc_dcache_flush_lines(phy, sz);
+		__dc_line_op(phy, sz, OP_FLUSH);
 		break;
 	case CF_D_INV:
-		__arc_dcache_inv_lines(phy, sz, 0);
+		__dc_line_op(phy, sz, OP_INV);
 		break;
 	case CF_D_FLUSH_INV:
-		__arc_dcache_inv_lines(phy, sz, 1);
+		__dc_line_op(phy, sz, OP_FLUSH_N_INV);
 		break;
 	default:
 		break;
 	}
 
 	if (flags & CF_I_INV)
-		__arc_icache_inv_lines(phy, sz);
+		__ic_line_inv(phy, sz);
 
 	local_irq_restore(irq_flags);
 }
-#endif
 
-/*
+/**********************************************************************
  * Explicit Cache flush request from user space via syscall
  * Needed for JITs which generate code on the fly
- * XXX: this code is a bit of overkill for the purpose it serves,
- * lean it down
  */
 SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 {
@@ -916,5 +890,4 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 #else
 	return -EINVAL;
 #endif
-
 }

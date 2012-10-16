@@ -428,9 +428,7 @@ static int arc_emac_clean(struct net_device *dev
 
 				/* Prepare arrived pkt for delivery to stack */
 
-				inv_dcache_range((unsigned long)skb->data,
-						 (unsigned long)skb->data +
-						 len);
+				dma_cache_inv((unsigned long)skb->data, len);
 
 				skb->dev = dev;
 				skb_put(skb, len - 4);	/* Make room for data */
@@ -824,7 +822,7 @@ int arc_emac_tx(struct sk_buff *skb, struct net_device *dev)
 	pkt = skb->data;
 	dev->trans_start = jiffies;
 
-	flush_dcache_range((unsigned long)pkt, (unsigned long)pkt + len);
+	dma_cache_wback((unsigned long)pkt, len);
 
 	/* Set First bit */
 	bitmask = FRST_MASK;
