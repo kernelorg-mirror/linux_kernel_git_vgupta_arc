@@ -168,19 +168,30 @@ test_and_change_bit(unsigned long nr, volatile unsigned long *m)
 
 #include <asm/smp.h>
 
+/*
+ * There's "significant" micro-optimization in writing our own variants of
+ * bitops.
+ * (1) The generic APIs have "signed" @nr while we have it "unsigned"
+ *     This avoids extra code to be generated for pointer arithmatic, since
+ *     is "not sure" that index is NOT -ve
+ * (2) Utilize the fact that ARCompact bit fidding insn (BSET/BCLR/ASL) etc
+ *     only consider bottom 5 bits of @nr, so NO need to mask them off.
+ *     (GCC Quirk: however for constant @nr we still need to do the masking
+ *             at compile time)
+ */
+
 static inline void set_bit(unsigned long nr, volatile unsigned long *m)
 {
 	unsigned long temp, flags;
 	m += nr >> 5;
 
+	if (__builtin_constant_p(nr))
+		nr &= 0x1f;
+
 	bitops_lock(flags);
 
-	__asm__ __volatile__(
-	"	ld%U3 %0,%3	\n"
-	"	bset %0,%0,%2	\n"
-	"	st%U1 %0,%1	\n"
-	: "=&r"(temp), "=o"(*m)
-	: "ir"(nr), "m"(*m));
+	temp = *m;
+	*m = temp | (1UL << nr);
 
 	bitops_unlock(flags);
 }
@@ -190,14 +201,13 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *m)
 	unsigned long temp, flags;
 	m += nr >> 5;
 
+	if (__builtin_constant_p(nr))
+		nr &= 0x1f;
+
 	bitops_lock(flags);
 
-	__asm__ __volatile__(
-	"	ld%U3 %0,%3	\n"
-	"	bclr %0,%0,%2	\n"
-	"	st%U1 %0,%1	\n"
-	: "=&r"(temp), "=o"(*m)
-	: "ir"(nr), "m"(*m));
+	temp = *m;
+	*m = temp & ~(1UL << nr);
 
 	bitops_unlock(flags);
 }
@@ -207,14 +217,13 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *m)
 	unsigned long temp, flags;
 	m += nr >> 5;
 
+	if (__builtin_constant_p(nr))
+		nr &= 0x1f;
+
 	bitops_lock(flags);
 
-	__asm__ __volatile__(
-	"	ld%U3 %0,%3	\n"
-	"	bxor %0,%0,%2	\n"
-	"	st%U1 %0,%1	\n"
-	: "=&r"(temp), "=o"(*m)
-	: "ir"(nr), "m"(*m));
+	temp = *m;
+	*m = temp ^ (1UL << nr);
 
 	bitops_unlock(flags);
 }
@@ -224,20 +233,15 @@ static inline int test_and_set_bit(unsigned long nr, volatile unsigned long *m)
 	unsigned long old, temp, flags;
 	m += nr >> 5;
 
+	if (__builtin_constant_p(nr))
+		nr &= 0x1f;
+
 	bitops_lock(flags);
 
 	old = *m;
-
-	__asm__ __volatile__(
-	"	bset  %0,%3,%2	\n"
-	"	st%U1 %0,%1	\n"
-	: "=&r"(temp), "=o"(*m)
-	: "ir"(nr), "r"(old));
+	*m = old | (1 << nr);
 
 	bitops_unlock(flags);
-
-	if (__builtin_constant_p(nr))
-		nr &= 0x1f;
 
 	return (old & (1 << nr)) != 0;
 }
@@ -248,20 +252,15 @@ test_and_clear_bit(unsigned long nr, volatile unsigned long *m)
 	unsigned long temp, old, flags;
 	m += nr >> 5;
 
+	if (__builtin_constant_p(nr))
+		nr &= 0x1f;
+
 	bitops_lock(flags);
 
 	old = *m;
-
-	__asm__ __volatile__(
-	"	bclr  %0,%3,%2	\n"
-	"	st%U1 %0,%1	\n"
-	: "=&r"(temp), "=o"(*m)
-	: "ir"(nr), "r"(old));
+	*m = old | (1 << nr);
 
 	bitops_unlock(flags);
-
-	if (__builtin_constant_p(nr))
-		nr &= 0x1f;
 
 	return (old & (1 << nr)) != 0;
 }
@@ -272,20 +271,15 @@ test_and_change_bit(unsigned long nr, volatile unsigned long *m)
 	unsigned long temp, old, flags;
 	m += nr >> 5;
 
+	if (__builtin_constant_p(nr))
+		nr &= 0x1f;
+
 	bitops_lock(flags);
 
 	old = *m;
-
-	__asm__ __volatile__(
-	"	bxor %0,%3,%2	\n"
-	"	st%U1 %0,%1	\n"
-	: "=&r"(temp), "=o"(*m)
-	: "ir"(nr), "r"(old));
+	*m = old ^ (1 << nr);
 
 	bitops_unlock(flags);
-
-	if (__builtin_constant_p(nr))
-		nr &= 0x1f;
 
 	return (old & (1 << nr)) != 0;
 }
