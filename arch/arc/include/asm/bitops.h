@@ -399,81 +399,13 @@ __test_bit(unsigned int nr, const volatile unsigned long *addr)
 					__test_bit((nr), (addr)))
 
 /*
- * ffz = Find First Zero in word.
- * @return:[0-31], 32 if all 1's
- */
-static __attribute__ ((const))
-inline unsigned long ffz(unsigned long word)
-{
-	int result = 0;
-
-	/* Given the way inline asm is written, it would infinite loop for
-	@word = 0xFFFF_FFFF. So we need to test it anyways.
-	The question is what to return ?
-	I wanted to return 0, but old while loop used to return 32, so keeping
-	that way. Also since this routine is Zero based, it makes sense to
-	return 32 as indicative error value.
-	*/
-
-	if ((int)word == -1)
-		return 32;
-
-	__asm__ __volatile__(
-	"1:	bbit1.d  %1, %0, 1b	\n"
-	"	add      %0, %0, 1	\n"
-	: "+r"(result)
-	: "r"(word));
-
-	/* On ARC700, delay slot insn is always executed for XX.d branch.
-	 *Thus need to account for 1 extra add insn being executed
-	 */
-	result -= 1;
-
-	return result;
-}
-
-/*
- * ffs = Find First Set in word (LSB to MSB)
- * @result: [1-32], 0 if all 0's
- */
-static __attribute__ ((const))
-inline unsigned long ffs(unsigned long word)
-{
-	int result = 0;
-
-	if ((int)word == 0)
-		return 0;
-
-	__asm__ __volatile__(
-	"1:	bbit0.d  %1, %0, 1b	\n"
-	"	add      %0, %0, 1	\n"
-	: "+r"(result)
-	: "r"(word));
-
-	/* Since it is 1 based, we need not worry abt result -= 1 as in ffz */
-
-	return result;
-}
-
-/*
- * __ffs: Similar to ffs, but zero based (0-31)
- */
-static __attribute__ ((const))
-inline unsigned long __ffs(unsigned long word)
-{
-	if (!word)
-		return word;
-	return ffs(word) - 1;
-}
-
-/*
  * Count the number of zeros, starting from MSB
- * Helper for fls( ) routines
+ * Helper for fls( ) friends
  * This is a pure count, so (1-32) or (0-31) doesn't apply
  * It could be 0 to 32, based on num of 0's in there
  * clz(0x8000_0000) = 0, clz(0xFFFF_FFFF)=0, clz(0) = 32, clz(1) = 31
  */
-static inline int __attribute__ ((const))clz(unsigned int x)
+static inline __attribute__ ((const)) int clz(unsigned int x)
 {
 	unsigned int res;
 
@@ -492,9 +424,8 @@ static inline int __attribute__ ((const))clz(unsigned int x)
  * fls = Find Last Set in word
  * @result: [1-32]
  * fls(1) = 1, fls(0x80000000) = 32, fls(0) = 0
- * Loopless: based on ARC norm insn
  */
-static inline int __attribute__ ((const))fls(unsigned long x)
+static inline __attribute__ ((const)) int fls(unsigned long x)
 {
 	return 32 - clz(x);
 }
@@ -502,13 +433,36 @@ static inline int __attribute__ ((const))fls(unsigned long x)
 /*
  * __fls: Similar to fls, but zero based (0-31)
  */
-static inline int __attribute__ ((const))__fls(unsigned long x)
+static inline __attribute__ ((const)) int __fls(unsigned long x)
 {
 	if (!x)
 		return 0;
 	else
 		return fls(x) - 1;
 }
+
+/*
+ * ffs = Find First Set in word (LSB to MSB)
+ * @result: [1-32], 0 if all 0's
+ */
+#define ffs(x)	({ unsigned long __t = (x); fls(__t & -__t); })
+
+/*
+ * __ffs: Similar to ffs, but zero based (0-31)
+ */
+static inline __attribute__ ((const)) int __ffs(unsigned long word)
+{
+	if (!word)
+		return word;
+
+	return ffs(word) - 1;
+}
+
+/*
+ * ffz = Find First Zero in word.
+ * @return:[0-31], 32 if all 1's
+ */
+#define ffz(x)	__ffs(~(x))
 
 /* TODO does this affect uni-processor code */
 #define smp_mb__before_clear_bit()  barrier()
