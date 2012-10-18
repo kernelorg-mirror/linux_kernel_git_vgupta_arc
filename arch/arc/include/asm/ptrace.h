@@ -101,12 +101,16 @@ struct callee_regs {
 	long r13;
 };
 
-#ifdef __KERNEL__
+/* User mode registers, used for core dumps. */
+struct user_regs_struct {
+	struct pt_regs scratch;
+	struct callee_regs callee;
+	long efa;	/* break pt addr, for break points in delay slots */
+	long stop_pc;	/* give dbg stop_pc directly after checking orig_r8 */
+};
 
 #define PTRACE_GETREGS		12
 #define PTRACE_SETREGS		13
-#define PTRACE_GETFPREGS	14
-#define PTRACE_SETFPREGS	15
 
 #define instruction_pointer(regs)	((regs)->ret)
 #define profile_pc(regs)		instruction_pointer(regs)
@@ -133,8 +137,6 @@ struct callee_regs {
 		sp = -1;	\
 	sp;			\
 })
-
-#endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
 

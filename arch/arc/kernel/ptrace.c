@@ -193,7 +193,7 @@ void setreg(unsigned int off, unsigned int data, struct task_struct *child)
 long arch_ptrace(struct task_struct *child, long request,
 		 unsigned long addr, unsigned long data)
 {
-	int ret;
+	int ret = -EIO;
 	int i;
 	unsigned long tmp;
 	unsigned int __user *u_addr = (unsigned int __user *)data;
@@ -232,47 +232,23 @@ long arch_ptrace(struct task_struct *child, long request,
 	 * From offset @addr in @child's struct user into location @data
 	 */
 	case PTRACE_PEEKUSR:
-		/* user regs */
-		if (addr > (unsigned)offsetof(struct user, regs) &&
-		    addr < (unsigned)offsetof(struct user, regs) +
-			    sizeof(struct user_regs_struct)) {
-			pr_debug("\tPeek-usr\n");
-			tmp = getreg(addr, child);
-			ret = put_user(tmp, u_addr);
+		if (addr >= sizeof(struct user_regs_struct))
+			break;
 
-		} else if (addr == (unsigned)offsetof(struct user, signal)) {
-			/* set by syscall_trace */
-			tmp = current->exit_code;
-			ret = put_user(tmp, u_addr);
-
-		} else if (addr > 0 && addr < sizeof(struct user)) {
-			return -EIO; /* nothing else is interesting yet */
-		} else {
-			return -EIO; /* out of bounds */
-		}
-
+		pr_debug("\tPeek-usr\n");
+		tmp = getreg(addr, child);
+		ret = put_user(tmp, u_addr);
 		break;
 
 	case PTRACE_POKEUSR:
+		if ((addr == (int)offsetof(struct user_regs_struct, efa)) ||
+		    (addr == (int)offsetof(struct pt_regs, status32)) ||
+		    (addr >= sizeof(struct user_regs_struct)))
+			break;
+
+		setreg(addr, data, child);
 		ret = 0;
-		if (addr == (int)offsetof(struct user_regs_struct, efa))
-			return -EIO;
-
-		if (addr > (unsigned)offsetof(struct user, regs) &&
-		    addr < (unsigned)offsetof(struct user, regs) +
-			    sizeof(struct user_regs_struct))
-			setreg(addr, data, child);
-		else
-			return -EIO;
-
 		break;
-
-	/*
-	 * Single step not supported.  ARC's single step bit won't
-	 * work for us.  It is in the DEBUG register, which the RTI
-	 * instruction does not restore.
-	 */
-	case PTRACE_SINGLESTEP:
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
@@ -281,7 +257,6 @@ long arch_ptrace(struct task_struct *child, long request,
 
 out:
 	return ret;
-
 }
 
 asmlinkage int syscall_trace_entry(struct pt_regs *regs)
