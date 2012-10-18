@@ -317,7 +317,7 @@ static inline void __clear_bit(unsigned long nr, volatile unsigned long *m)
 		nr &= 0x1f;
 
 	temp = *m;
-	*m = temp & ~(1UL << (nr & 0x1f));
+	*m = temp & ~(1UL << nr);
 }
 
 static inline void __change_bit(unsigned long nr, volatile unsigned long *m)
@@ -329,7 +329,7 @@ static inline void __change_bit(unsigned long nr, volatile unsigned long *m)
 		nr &= 0x1f;
 
 	temp = *m;
-	*m = temp ^ (1UL << (nr & 0x1f));
+	*m = temp ^ (1UL << nr);
 }
 
 static inline int
@@ -357,7 +357,7 @@ __test_and_clear_bit(unsigned long nr, volatile unsigned long *m)
 		nr &= 0x1f;
 
 	old = *m;
-	*m = old & ~(1UL << (nr & 0x1f));
+	*m = old & ~(1 << nr);
 
 	return (old & (1 << nr)) != 0;
 }
