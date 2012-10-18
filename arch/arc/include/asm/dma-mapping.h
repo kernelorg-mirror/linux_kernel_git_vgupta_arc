@@ -6,74 +6,150 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Shamelessly copied from OpenRISC
  */
 
 #ifndef ASM_ARC_DMA_MAPPING_H
 #define ASM_ARC_DMA_MAPPING_H
 
 #include <asm-generic/dma-coherent.h>
-#include <linux/dma-mapping.h>
-#include <linux/dma-debug.h>
-#include <linux/kmemcheck.h>
+#include <plat/dma_addr.h>
 
-extern struct dma_map_ops arc_dma_map_ops;
+void *dma_alloc_noncoherent(struct device *dev, size_t size,
+			    dma_addr_t *dma_handle, gfp_t gfp);
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+void dma_free_noncoherent(struct device *dev, size_t size, void *vaddr,
+			  dma_addr_t dma_handle);
+
+void *dma_alloc_coherent(struct device *dev, size_t size,
+			 dma_addr_t *dma_handle, gfp_t gfp);
+
+void dma_free_coherent(struct device *dev, size_t size, void *kvaddr,
+		       dma_addr_t dma_handle);
+
+/*
+ * streaming DMA Mapping API...
+ * CPU accesses page via normal paddr, thus needs to explicitly made
+ * consistent before each use
+ */
+
+static inline void __inline_dma_cache_sync(unsigned long paddr, size_t size,
+					   enum dma_data_direction dir)
 {
-	return &arc_dma_map_ops;
+	switch (dir) {
+	case DMA_FROM_DEVICE:
+		dma_cache_inv(paddr, size);
+		break;
+	case DMA_TO_DEVICE:
+		dma_cache_wback(paddr, size);
+		break;
+	case DMA_BIDIRECTIONAL:
+		dma_cache_wback_inv(paddr, size);
+		break;
+	default:
+		pr_err("Invalid DMA dir [%d] for OP @ %lx\n", dir, paddr);
+	}
 }
 
-#include <asm-generic/dma-mapping-common.h>
+void __arc_dma_cache_sync(unsigned long paddr, size_t size,
+			  enum dma_data_direction dir);
 
-#define dma_alloc_coherent(d,s,h,f) dma_alloc_attrs(d,s,h,f,NULL)
+#define _dma_cache_sync(addr, sz, dir)			\
+do {							\
+	if (__builtin_constant_p(dir))			\
+		__inline_dma_cache_sync(addr, sz, dir);	\
+	else						\
+		__arc_dma_cache_sync(addr, sz, dir);	\
+}							\
+while (0);
 
-static inline void *dma_alloc_attrs(struct device *dev, size_t size,
-				    dma_addr_t *dma_handle, gfp_t gfp,
-				    struct dma_attrs *attrs)
+static inline dma_addr_t
+dma_map_single(struct device *dev, void *cpu_addr, size_t size,
+	       enum dma_data_direction dir)
 {
-	struct dma_map_ops *ops = get_dma_ops(dev);
-	void *memory;
-
-	memory = ops->alloc(dev, size, dma_handle, gfp, attrs);
-
-	debug_dma_alloc_coherent(dev, size, *dma_handle, memory);
-
-	return memory;
+	_dma_cache_sync((unsigned long)cpu_addr, size, dir);
+	return plat_kernel_addr_to_dma(dev, cpu_addr);
 }
 
-#define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
-
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				  void *cpu_addr, dma_addr_t dma_handle,
-				  struct dma_attrs *attrs)
+static inline void
+dma_unmap_single(struct device *dev, dma_addr_t dma_addr,
+		 size_t size, enum dma_data_direction dir)
 {
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
-	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
-
-	ops->free(dev, size, cpu_addr, dma_handle, attrs);
 }
 
-static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
-					  dma_addr_t *dma_handle, gfp_t gfp)
+static inline dma_addr_t
+dma_map_page(struct device *dev, struct page *page,
+	     unsigned long offset, size_t size,
+	     enum dma_data_direction dir)
 {
-	struct dma_attrs attrs;
-
-	dma_set_attr(DMA_ATTR_NON_CONSISTENT, &attrs);
-
-	return dma_alloc_attrs(dev, size, dma_handle, gfp, &attrs);
+	unsigned long paddr = page_to_phys(page) + offset;
+	return dma_map_single(dev, (void *)paddr, size, dir);
 }
 
-static inline void dma_free_noncoherent(struct device *dev, size_t size,
-					 void *cpu_addr, dma_addr_t dma_handle)
+static inline void
+dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
+	       size_t size, enum dma_data_direction dir)
 {
-	struct dma_attrs attrs;
+}
 
-	dma_set_attr(DMA_ATTR_NON_CONSISTENT, &attrs);
+static inline int
+dma_map_sg(struct device *dev, struct scatterlist *sg,
+	   int nents, enum dma_data_direction dir)
+{
+	struct scatterlist *s;
+	int i;
 
-	dma_free_attrs(dev, size, cpu_addr, dma_handle, &attrs);
+	for_each_sg(sg, s, nents, i)
+		sg->dma_address = dma_map_page(dev, sg_page(s), s->offset,
+					       s->length, dir);
+
+	return nents;
+}
+
+static inline void
+dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+	     int nents, enum dma_data_direction dir)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i)
+		dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
+}
+
+static inline void
+dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
+			size_t size, enum dma_data_direction dir)
+{
+	_dma_cache_sync(plat_dma_addr_to_kernel(dev, dma_handle), size,
+			DMA_FROM_DEVICE);
+}
+
+static inline void
+dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
+			   size_t size, enum dma_data_direction dir)
+{
+	_dma_cache_sync(plat_dma_addr_to_kernel(dev, dma_handle), size,
+			DMA_TO_DEVICE);
+}
+
+static inline void
+dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
+		    enum dma_data_direction dir)
+{
+	int i;
+
+	for (i = 0; i < nelems; i++, sg++)
+		_dma_cache_sync((unsigned int)sg_virt(sg), sg->length, dir);
+}
+
+static inline void
+dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
+		       enum dma_data_direction dir)
+{
+	int i;
+
+	for (i = 0; i < nelems; i++, sg++)
+		_dma_cache_sync((unsigned int)sg_virt(sg), sg->length, dir);
 }
 
 static inline int dma_supported(struct device *dev, u64 dma_mask)
