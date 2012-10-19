@@ -390,14 +390,6 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 
-	/* Kconfig doesn't "auto-select" DEVTMPFS as follows:
-	 *    select HOTPLUG if INITRAMFS_SOURCE
-	 *    select DEVTMPFS if INITRAMFS_SOURCE
-	 */
-#if defined(CONFIG_INITRAMFS_SOURCE) && !defined(CONFIG_DEVTMPFS)
-#error "CONFIG_DEVTMPFS missing in your .config"
-#endif
-
 	paging_init();
 
 	arc_unwind_init();
