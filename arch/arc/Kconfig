@@ -23,6 +23,10 @@ config ARC
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_SMP_IDLE_THREAD
+	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
+	# DEVTMPS in turn needs HOTPLUG
+	select HOTPLUG if !INITRAMFS_SOURCE=""
+	select DEVTMPFS if !INITRAMFS_SOURCE=""
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
