@@ -109,8 +109,7 @@ static const struct id_to_str ptrace_reg_nm[] = {
 	 {0, NULL}
 };
 
-static struct callee_regs *task_callee_regs(struct task_struct *tsk,
-					    struct callee_regs *calleereg)
+static struct callee_regs *task_callee_regs(struct task_struct *tsk)
 {
 	struct callee_regs *tmp = (struct callee_regs *)tsk->thread.callee_reg;
 	return tmp;
@@ -131,8 +130,7 @@ unsigned long getreg(const unsigned int off, struct task_struct *child)
 		reg_file = (unsigned int *)ptregs;
 		data = reg_file[off / 4];
 	} else if (off < offsetof(struct user_regs_struct, efa)) {
-		struct callee_regs calleeregs;
-		reg_file = (unsigned int *)task_callee_regs(child, &calleeregs);
+		reg_file = (unsigned int *)task_callee_regs(child);
 		data =
 		    reg_file[(off -
 			      offsetof(struct user_regs_struct, callee)) / 4];
@@ -176,8 +174,7 @@ void setreg(unsigned int off, unsigned int data, struct task_struct *child)
 		reg_file = (unsigned int *)ptregs;
 		reg_file[off / 4] = data;
 	} else if (off < offsetof(struct user_regs_struct, efa)) {
-		struct callee_regs calleeregs;
-		reg_file = (unsigned int *)task_callee_regs(child, &calleeregs);
+		reg_file = (unsigned int *)task_callee_regs(child);
 		off -= offsetof(struct user_regs_struct, callee);
 		reg_file[off / 4] = data;
 	} else {
@@ -272,80 +269,110 @@ asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 	tracehook_report_syscall_exit(regs, 0);
 }
 
-static int arc_regs_get(struct task_struct *target,
-			const struct user_regset *regset,
-			unsigned int pos, unsigned int count,
-			void *kbuf, void __user *ubuf)
+static int genregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
 {
-	pr_debug("arc_regs_get %p %d %d\n", target, pos, count);
+	const struct pt_regs *ptregs = task_pt_regs(target);
+	const struct callee_regs *cregs = task_callee_regs(target);
+	int ret = 0;
+	unsigned int stop_pc_val;
 
-	if (kbuf) {
-		unsigned long *k = kbuf;
-		while (count > 0) {
-			*k++ = getreg(pos, target);
-			count -= sizeof(*k);
-			pos += sizeof(*k);
+#define REG_O_CHUNK(START, END, PTR)	\
+	if (!ret)	\
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, PTR, \
+			offsetof(struct user_regs_struct, START), \
+			offsetof(struct user_regs_struct, END));
+
+#define REG_O_ONE(LOC, PTR)	\
+	if (!ret)		\
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, PTR, \
+			offsetof(struct user_regs_struct, LOC), \
+			offsetof(struct user_regs_struct, LOC) + 4);
+
+	REG_O_CHUNK(scratch, callee, ptregs);
+	REG_O_CHUNK(callee, efa, cregs);
+	REG_O_CHUNK(efa, stop_pc, &target->thread.fault_address);
+
+	if (!ret) {
+		if (in_brkpt_trap(ptregs)) {
+			stop_pc_val = target->thread.fault_address;
+			pr_debug("\t\tstop_pc (brk-pt)\n");
+		} else {
+			stop_pc_val = ptregs->ret;
+			pr_debug("\t\tstop_pc (others)\n");
 		}
-	} else {
-		unsigned long __user *u = ubuf;
-		while (count > 0) {
-			if (__put_user(getreg(pos, target), u++))
-				return -EFAULT;
-			count -= sizeof(*u);
-			pos += sizeof(*u);
-		}
+
+		REG_O_ONE(stop_pc, &stop_pc_val);
 	}
 
-	return 0;
+	return ret;
 }
 
-static int arc_regs_set(struct task_struct *target,
-			const struct user_regset *regset,
-			unsigned int pos, unsigned int count,
-			const void *kbuf, const void __user *ubuf)
+static int genregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
 {
+	const struct pt_regs *ptregs = task_pt_regs(target);
+	const struct callee_regs *cregs = task_callee_regs(target);
 	int ret = 0;
 
-	pr_debug("arc_regs_set %p %d %d\n", target, pos, count);
+#define REG_IN_CHUNK(FIRST, NEXT, PTR)	\
+	if (!ret)			\
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, \
+			(void *)(PTR), \
+			offsetof(struct user_regs_struct, FIRST), \
+			offsetof(struct user_regs_struct, NEXT));
 
-	if (kbuf) {
-		const unsigned long *k = kbuf;
-		while (count > 0) {
-			setreg(pos, *k++, target);
-			count -= sizeof(*k);
-			pos += sizeof(*k);
-		}
-	} else {
-		const unsigned long __user *u = ubuf;
-		unsigned long word;
-		while (count > 0) {
-			ret = __get_user(word, u++);
-			if (ret)
-				return ret;
-			setreg(pos, word, target);
-			count -= sizeof(*u);
-			pos += sizeof(*u);
-		}
-	}
+#define REG_IN_ONE(LOC, PTR)		\
+	if (!ret)			\
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, \
+			(void *)(PTR), \
+			offsetof(struct user_regs_struct, LOC), \
+			offsetof(struct user_regs_struct, LOC) + 4);
 
-	return 0;
+#define REG_IGNORE_ONE(LOC)		\
+	if (!ret)			\
+		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, \
+			offsetof(struct user_regs_struct, LOC), \
+			offsetof(struct user_regs_struct, LOC) + 4);
+
+	REG_IGNORE_ONE(scratch); 		/* pt_regs[res] */
+
+	/* TBD: disallow updates to STATUS32, orig_r8 etc*/
+	REG_IN_CHUNK(scratch.bta, callee, ptregs); /* pt_regs[bta..orig_r8] */
+
+	REG_IGNORE_ONE(callee); 		/* callee_regs[res] */
+
+	REG_IN_CHUNK(callee.r25, efa, cregs);	/* callee_regs[r25..r13] */
+	REG_IGNORE_ONE(efa);			/* efa update invalid */
+	REG_IN_ONE(stop_pc, &ptregs->ret);	/* stop_pc: PC update */
+
+	return ret;
 }
 
+enum arc_getset {
+	REGSET_GENERAL,
+};
+
 static const struct user_regset arc_regsets[] = {
-	[0] = {
+	[REGSET_GENERAL] = {
 	       .core_note_type = NT_PRSTATUS,
 	       .n = ELF_NGREG,
-	       .size = sizeof(long),
-	       .align = sizeof(long),
-	       .get = arc_regs_get,
-	       .set = arc_regs_set}
+	       .size = sizeof(unsigned long),
+	       .align = sizeof(unsigned long),
+	       .get = genregs_get,
+	       .set = genregs_set,
+	}
 };
 
 static const struct user_regset_view user_arc_view = {
-	.name = UTS_MACHINE,
-	.e_machine = EM_ARCOMPACT,
-	.regsets = arc_regsets,
-	.n = ARRAY_SIZE(arc_regsets)
+	.name		= UTS_MACHINE,
+	.e_machine	= EM_ARCOMPACT,
+	.regsets	= arc_regsets,
+	.n		= ARRAY_SIZE(arc_regsets)
 };
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)

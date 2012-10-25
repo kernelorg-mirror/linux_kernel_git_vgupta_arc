@@ -27,6 +27,7 @@ config ARC
 	# DEVTMPS in turn needs HOTPLUG
 	select HOTPLUG if !INITRAMFS_SOURCE=""
 	select DEVTMPFS if !INITRAMFS_SOURCE=""
+	select HAVE_ARCH_TRACEHOOK
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
