@@ -74,7 +74,7 @@ static void __init setup_bvci_lat_unit(void)
 
 /*----------------------- Platform Devices -----------------------------*/
 
-#ifdef CONFIG_SERIAL_ARC
+#if defined(CONFIG_SERIAL_ARC) || defined(CONFIG_SERIAL_ARC_MODULE)
 
 static unsigned long arc_uart_info[] = {
 	CONFIG_ARC_SERIAL_BAUD,	/* uart->baud */
@@ -113,13 +113,13 @@ ARC_UART_DEV(0);
 ARC_UART_DEV(1);
 #endif
 
-static struct platform_device *fpga_early_devs[] __initdata = {
-#if defined(CONFIG_SERIAL_ARC_CONSOLE)
-	&arc_uart0_dev,
-#endif
-};
-
 #endif	/* CONFIG_SERIAL_ARC */
+
+#if defined(CONFIG_SERIAL_ARC_CONSOLE)
+static struct platform_device *fpga_early_devs[] __initdata = {
+	&arc_uart0_dev,
+};
+#endif
 
 /*
  * Early Platform Initialization called from setup_arch()
@@ -130,10 +130,12 @@ void __init arc_platform_early_init(void)
 
 	setup_bvci_lat_unit();
 
-#ifdef CONFIG_SERIAL_ARC
+#if defined(CONFIG_SERIAL_ARC) || defined(CONFIG_SERIAL_ARC_MODULE)
 
 	/* To let driver workaround ISS bug: baudh Reg can't be set to 0 */
 	arc_uart_info[2] = !running_on_hw;
+
+#ifdef CONFIG_SERIAL_ARC_CONSOLE
 
 	early_platform_add_devices(fpga_early_devs,
 				   ARRAY_SIZE(fpga_early_devs));
@@ -161,10 +163,11 @@ void __init arc_platform_early_init(void)
 	 */
 	add_preferred_console("ttyARC", 0, "115200");
 #endif
+#endif
 }
 
 static struct platform_device *fpga_devs[] __initdata = {
-#if defined(CONFIG_SERIAL_ARC)
+#if defined(CONFIG_SERIAL_ARC) || defined(CONFIG_SERIAL_ARC_MODULE)
 	&arc_uart0_dev,
 #if CONFIG_SERIAL_ARC_NR_PORTS > 1
 	&arc_uart1_dev,
