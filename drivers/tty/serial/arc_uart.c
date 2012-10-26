@@ -48,13 +48,13 @@
  * Also each reg is Word aligned, but only 8 bits wide
  */
 #define R_ID0	0
-#define R_ID1	1
-#define R_ID2	2
-#define R_ID3	3
-#define R_DATA	4
-#define R_STS	5
-#define R_BAUDL	6
-#define R_BAUDH	7
+#define R_ID1	4
+#define R_ID2	8
+#define R_ID3	12
+#define R_DATA	16
+#define R_STS	20
+#define R_BAUDL	24
+#define R_BAUDH	28
 
 /* Bits for UART Status Reg (R/W) */
 #define RXIENB  0x04	/* Receive Interrupt Enable */
@@ -70,7 +70,7 @@
 #define RXOERR  0x02	/* OverFlow Err: Char recv but RXFULL still set */
 
 /* Uart bit fiddling helpers: lowest level */
-#define RBASE(uart, reg)      ((unsigned int *)uart->port.membase + reg)
+#define RBASE(uart, reg)      (uart->port.membase + reg)
 #define UART_REG_SET(u, r, v) writeb((v), RBASE(u, r))
 #define UART_REG_GET(u, r)    readb(RBASE(u, r))
 
@@ -103,6 +103,8 @@ struct arc_uart_port {
 	int is_emulated;	/* H/w vs. Instruction Set Simulator */
 };
 
+#define to_arc_port(uport)  container_of(uport, struct arc_uart_port, port)
+
 static struct arc_uart_port arc_uart_ports[CONFIG_SERIAL_ARC_NR_PORTS];
 
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
@@ -120,21 +122,19 @@ static struct uart_driver arc_uart_driver = {
 	.nr		= CONFIG_SERIAL_ARC_NR_PORTS,
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
 	.cons		= &arc_console,
-#else
-	.cons		= NULL,
 #endif
 };
 
 static void arc_serial_stop_rx(struct uart_port *port)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 
 	UART_RX_IRQ_DISABLE(uart);
 }
 
 static void arc_serial_stop_tx(struct uart_port *port)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 
 	while (!(UART_GET_STATUS(uart) & TXEMPTY))
 		cpu_relax();
@@ -147,14 +147,14 @@ static void arc_serial_stop_tx(struct uart_port *port)
  */
 static unsigned int arc_serial_tx_empty(struct uart_port *port)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 	unsigned int stat;
 
 	stat = UART_GET_STATUS(uart);
 	if (stat & TXEMPTY)
 		return TIOCSER_TEMT;
-	else
-		return 0;
+
+	return 0;
 }
 
 /*
@@ -202,7 +202,7 @@ static void arc_serial_tx_chars(struct arc_uart_port *uart)
  */
 static void arc_serial_start_tx(struct uart_port *port)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 
 	arc_serial_tx_chars(uart);
 }
@@ -353,14 +353,14 @@ static void arc_serial_break_ctl(struct uart_port *port, int break_state)
 
 static int arc_serial_startup(struct uart_port *port)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 
 	/* Before we hook up the ISR, Disable all UART Interrupts */
 	UART_ALL_IRQ_DISABLE(uart);
 
 	if (request_irq(uart->port.irq, arc_serial_isr, 0, "arc uart rx-tx",
 			uart)) {
-		pr_warn("Unable to attach ARC UART interrupt\n");
+		dev_warn(uart->port.dev, "Unable to attach ARC UART intr\n");
 		return -EBUSY;
 	}
 
@@ -372,7 +372,7 @@ static int arc_serial_startup(struct uart_port *port)
 /* This is not really needed */
 static void arc_serial_shutdown(struct uart_port *port)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 	free_irq(uart->port.irq, uart);
 }
 
@@ -380,7 +380,7 @@ static void
 arc_serial_set_termios(struct uart_port *port, struct ktermios *new,
 		       struct ktermios *old)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 	unsigned int baud, uartl, uarth, hw_val;
 	unsigned long flags;
 
@@ -438,21 +438,15 @@ arc_serial_set_termios(struct uart_port *port, struct ktermios *new,
 
 static const char *arc_serial_type(struct uart_port *port)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 
 	return uart->port.type == PORT_ARC ? DRIVER_NAME : NULL;
 }
 
-/*
- * Release the memory region(s) being used by 'port'.
- */
 static void arc_serial_release_port(struct uart_port *port)
 {
 }
 
-/*
- * Request the memory region(s) being used by 'port'.
- */
 static int arc_serial_request_port(struct uart_port *port)
 {
 	return 0;
@@ -464,6 +458,9 @@ static int arc_serial_request_port(struct uart_port *port)
 static int
 arc_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
+	if (port->type != PORT_UNKNOWN && ser->type != PORT_ARC)
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -472,27 +469,29 @@ arc_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
  */
 static void arc_serial_config_port(struct uart_port *port, int flags)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 
-	if (flags & UART_CONFIG_TYPE &&
-	    arc_serial_request_port(&uart->port) == 0)
+	if (flags & UART_CONFIG_TYPE)
 		uart->port.type = PORT_ARC;
 }
 
+#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_ARC_CONSOLE)
+
 static void arc_serial_poll_putchar(struct uart_port *port, unsigned char chr)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 
 	while (!(UART_GET_STATUS(uart) & TXEMPTY))
 		cpu_relax();
 
 	UART_SET_DATA(uart, chr);
 }
+#endif
 
 #ifdef CONFIG_CONSOLE_POLL
 static int arc_serial_poll_getchar(struct uart_port *port)
 {
-	struct arc_uart_port *uart = (struct arc_uart_port *)port;
+	struct arc_uart_port *uart = to_arc_port(port);
 	unsigned char chr;
 
 	while (!(UART_GET_STATUS(uart) & RXEMPTY))
@@ -551,7 +550,7 @@ arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 	uart->port.mapbase = res->start;
 	uart->port.membase = ioremap_nocache(res->start, resource_size(res));
 	if (!uart->port.membase)
-		/* No point of pr_err since UART itself is hosed here */
+		/* No point of dev_err since UART itself is hosed here */
 		return -ENXIO;
 
 	uart->port.irq = res2->start;
@@ -667,8 +666,12 @@ static int __devinit arc_serial_probe_earlyprintk(struct platform_device *pdev)
 	register_console(&arc_early_serial_console);
 	return 0;
 }
-#endif
-
+#else
+static int __devinit arc_serial_probe_earlyprintk(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+#endif	/* CONFIG_SERIAL_ARC_CONSOLE */
 
 static int __devinit arc_serial_probe(struct platform_device *pdev)
 {
@@ -717,17 +720,13 @@ static int __init arc_serial_init(void)
 {
 	int ret;
 
-	pr_info("Serial: ARC serial driver: platform register\n");
-
 	ret = uart_register_driver(&arc_uart_driver);
 	if (ret)
 		return ret;
 
 	ret = platform_driver_register(&arc_platform_driver);
-	if (ret) {
-		pr_debug("uart register failed\n");
+	if (ret)
 		uart_unregister_driver(&arc_uart_driver);
-	}
 
 	return ret;
 }
