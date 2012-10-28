@@ -73,12 +73,7 @@ pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t ptep)
 
 static inline int __get_order_pgd(void)
 {
-	const int num_pgs = (PTRS_PER_PGD * 4) / PAGE_SIZE;
-
-	if (num_pgs)
-		return order_base_2(num_pgs);
-
-	return 0;		/* 1 Page */
+	return get_order(PTRS_PER_PGD * 4);
 }
 
 static inline pgd_t *get_pgd_slow(void)
@@ -108,34 +103,23 @@ static inline void free_pgd_slow(pgd_t *pgd)
 #define pgd_free(mm, pgd)      free_pgd_slow(pgd)
 #define pgd_alloc(mm)          get_pgd_slow()
 
-/* 1 Page whatever is PAGE_SIZE: 8k or 16k or 4k */
-#define PTE_ORDER 0
-
 /*
- * We want to cap Page Table Size to 1 pg (although multiple tables can fit in
- * one page). This is obviously done to conserve resident-lockedup-memory and
- * also be able to use quicklists in future.
  * With software-only page-tables, addr-split for traversal is tweakable and
- * that directly governs how big tables would be at each level. A wrong split
- * can overflow table size (complicated further by variable page size).
- * thus we need to programatically assert the size constraint
- *
+ * that directly governs how big tables would be at each level.
+ * Further, the MMU page size is configurable.
+ * Thus we need to programatically assert the size constraint
  * All of this is const math, allowing gcc to do constant folding/propagation.
- * For good cases the entire function is elimiated away.
  */
-static inline void __verify_pte_order(void)
+
+static inline int __get_order_pte(void)
 {
 	/* SASID requires PTE to be two words: thus Pg Tbl sz doubled */
 #ifdef CONFIG_ARC_MMU_SASID
-	const int multiplier = 2;
+	return get_order(PTRS_PER_PTE * 8);
 #else
-	const int multiplier = 1;
+	return get_order(PTRS_PER_PTE * 4);
 #endif
 
-	const int num_pgs = (PTRS_PER_PTE * 4 * multiplier) / PAGE_SIZE;
-
-	if (num_pgs > 1)
-		panic("PTE TBL too big\n");
 }
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
@@ -143,10 +127,8 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 {
 	pte_t *pte;
 
-	__verify_pte_order();
-
 	pte = (pte_t *) __get_free_pages(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO,
-					 PTE_ORDER);
+					 __get_order_pte());
 
 	return pte;
 }
@@ -156,9 +138,7 @@ pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	pgtable_t pte_pg;
 
-	__verify_pte_order();
-
-	pte_pg = __get_free_pages(GFP_KERNEL | __GFP_REPEAT, PTE_ORDER);
+	pte_pg = __get_free_pages(GFP_KERNEL | __GFP_REPEAT, __get_order_pte());
 	if (pte_pg) {
 		memset_aligned((void *)pte_pg, PTRS_PER_PTE * 4);
 		pgtable_page_ctor(virt_to_page(pte_pg));
@@ -169,13 +149,13 @@ pte_alloc_one(struct mm_struct *mm, unsigned long address)
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-	free_pages((unsigned long)pte, PTE_ORDER);	/* takes phy addr */
+	free_pages((unsigned long)pte, __get_order_pte()); /* takes phy addr */
 }
 
 static inline void pte_free(struct mm_struct *mm, pgtable_t ptep)
 {
 	pgtable_page_dtor(virt_to_page(ptep));
-	free_pages(ptep, PTE_ORDER);
+	free_pages(ptep, __get_order_pte());
 }
 
 #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
