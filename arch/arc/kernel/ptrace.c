@@ -113,125 +113,6 @@ static struct callee_regs *task_callee_regs(struct task_struct *tsk)
 	return tmp;
 }
 
-void ptrace_disable(struct task_struct *child)
-{
-	/* DUMMY: dummy function to resolve undefined references */
-}
-
-unsigned long getreg(const unsigned int off, struct task_struct *child)
-{
-	unsigned int *reg_file;
-	struct pt_regs *ptregs = task_pt_regs(child);
-	unsigned int data = 0;
-
-	if (off < offsetof(struct user_regs_struct, callee)) {
-		reg_file = (unsigned int *)ptregs;
-		data = reg_file[off / 4];
-	} else if (off < offsetof(struct user_regs_struct, efa)) {
-		reg_file = (unsigned int *)task_callee_regs(child);
-		data =
-		    reg_file[(off -
-			      offsetof(struct user_regs_struct, callee)) / 4];
-	} else if (off == offsetof(struct user_regs_struct, efa)) {
-		data = child->thread.fault_address;
-	} else if (off == offsetof(struct user_regs_struct, stop_pc)) {
-		if (in_brkpt_trap(ptregs)) {
-			data = child->thread.fault_address;
-			pr_debug("\t\tstop_pc (brk-pt)\n");
-		} else {
-			data = ptregs->ret;
-			pr_debug("\t\tstop_pc (others)\n");
-		}
-	}
-
-	pr_debug("\t\t%s:0x%2x (%s) = %x\n", __func__, off, reg_nm(off),
-		data);
-
-	return data;
-}
-
-void setreg(unsigned int off, unsigned int data, struct task_struct *child)
-{
-	unsigned int *reg_file;
-	struct pt_regs *ptregs = task_pt_regs(child);
-
-	pr_debug("\t\t%s:0x%2x (%s) = 0x%x\n", __func__, off, reg_nm(off),
-		data);
-
-	if (off == offsetof(struct user_regs_struct, scratch.res) ||
-	    off == offsetof(struct user_regs_struct, callee.res) ||
-	    off == offsetof(struct user_regs_struct, efa)) {
-		pr_warn("Bogus ptrace setreg request\n");
-		return;
-	}
-
-	if (off == offsetof(struct user_regs_struct, stop_pc)) {
-		pr_debug("\t\tstop_pc (others)\n");
-		ptregs->ret = data;
-	} else if (off < offsetof(struct user_regs_struct, callee)) {
-		reg_file = (unsigned int *)ptregs;
-		reg_file[off / 4] = data;
-	} else if (off < offsetof(struct user_regs_struct, efa)) {
-		reg_file = (unsigned int *)task_callee_regs(child);
-		off -= offsetof(struct user_regs_struct, callee);
-		reg_file[off / 4] = data;
-	} else {
-		pr_warn("Bogus ptrace setreg request\n");
-	}
-}
-
-/*
- * As a User API, @data is payload of API and it's interpretation depends
- * on the @request. However most of the getxxx requests, it has the user
- * address where data needs to be copied to.
- */
-long arch_ptrace(struct task_struct *child, long request,
-		 unsigned long addr, unsigned long data)
-{
-	int ret = -EIO;
-	int i;
-	unsigned long tmp;
-	unsigned int __user *u_addr = (unsigned int __user *)data;
-
-	if (!(request == PTRACE_PEEKTEXT || request == PTRACE_PEEKDATA ||
-	      request == PTRACE_PEEKUSR)) {
-		pr_debug("REQ=%ld (%s), ADDR =0x%lx, DATA=0x%lx)\n",
-		    request, req_nm(request), addr, data);
-	}
-
-	switch (request) {
-
-	/*
-	 * U-AREA Read (Registers, signal etc)
-	 * From offset @addr in @child's struct user into location @data
-	 */
-	case PTRACE_PEEKUSR:
-		if (addr >= sizeof(struct user_regs_struct))
-			break;
-
-		pr_debug("\tPeek-usr\n");
-		tmp = getreg(addr, child);
-		ret = put_user(tmp, u_addr);
-		break;
-
-	case PTRACE_POKEUSR:
-		if ((addr == (int)offsetof(struct user_regs_struct, efa)) ||
-		    (addr >= sizeof(struct user_regs_struct)))
-			break;
-
-		setreg(addr, data, child);
-		ret = 0;
-		break;
-
-	default:
-		ret = ptrace_request(child, request, addr, data);
-		break;
-	}
-
-out:
-	return ret;
-}
-
 asmlinkage int syscall_trace_entry(struct pt_regs *regs)
 {
 	if (tracehook_report_syscall_entry(regs))
@@ -354,4 +235,53 @@ static const struct user_regset_view user_arc_view = {
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
 	return &user_arc_view;
+}
+
+void ptrace_disable(struct task_struct *child)
+{
+}
+
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
+{
+	int ret = -EIO;
+	unsigned int count, pos;
+	unsigned int __user *u_addr;
+	void *kbuf;
+
+	pr_debug("REQ=%ld (%s), ADDR =0x%lx, DATA=0x%lx)\n",
+		    request, req_nm(request), addr, data);
+
+	switch (request) {
+
+	case PTRACE_PEEKUSR:
+		pos = addr;	/* offset in struct user_regs_struct */
+		count = 4;	/* 1 register only */
+		u_addr = (unsigned int __user *)data;
+		kbuf = NULL;
+		ret = genregs_get(child, NULL, pos, count, kbuf, u_addr);
+		break;
+
+	case PTRACE_POKEUSR:
+		pos = addr;	/* offset in struct user_regs_struct */
+		count = 4;	/* 1 register only */
+
+		/* Ideally @data would have abeen a user space buffer, from
+		 * where, we do a copy_from_user.
+		 * However this request only involves one word, which courtesy
+		 * our ABI can be passed in a reg.
+		 * regset interface however expects some buffer to copyin from
+		 */
+		kbuf = &data;
+		u_addr = NULL;
+
+		ret = genregs_set(child, NULL, pos, count, kbuf, u_addr);
+		break;
+
+	default:
+		ret = ptrace_request(child, request, addr, data);
+		break;
+	}
+
+	return ret;
 }
