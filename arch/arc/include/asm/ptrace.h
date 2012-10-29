@@ -109,9 +109,6 @@ struct user_regs_struct {
 	long stop_pc;	/* give dbg stop_pc directly after checking orig_r8 */
 };
 
-#define PTRACE_GETREGS		12
-#define PTRACE_SETREGS		13
-
 #define instruction_pointer(regs)	((regs)->ret)
 #define profile_pc(regs)		instruction_pointer(regs)
 

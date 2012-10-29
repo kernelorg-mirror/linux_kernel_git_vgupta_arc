@@ -54,8 +54,6 @@ static const struct id_to_str ptrace_req_nm[] = {
 	 {PTRACE_KILL, "kill $#%#$$"},
 	 {PTRACE_ATTACH, "attach"},
 	 {PTRACE_DETACH, "detach"},
-	 {PTRACE_GETREGS, "getreg"},
-	 {PTRACE_SETREGS, "setreg"},
 	 {PTRACE_SETOPTIONS, "set-option"},
 	 {PTRACE_SETSIGINFO, "set-siginfo"},
 	 {PTRACE_GETSIGINFO, "get-siginfo"},
@@ -202,27 +200,6 @@ long arch_ptrace(struct task_struct *child, long request,
 	}
 
 	switch (request) {
-
-	case PTRACE_GETREGS:
-		for (i = 0; i < sizeof(struct user_regs_struct) / 4; i++) {
-			/* getreg wants a byte offset */
-			tmp = getreg(i << 2, child);
-			ret = put_user(tmp, u_addr + i);
-			if (ret < 0)
-				goto out;
-		}
-		break;
-
-	case PTRACE_SETREGS:
-		for (i = 0; i < sizeof(struct user_regs_struct) / 4; i++) {
-			ret = get_user(tmp, (u_addr + i));
-			if (ret < 0)
-				goto out;
-			setreg(i << 2, tmp, child);
-		}
-
-		ret = 0;
-		break;
 
 	/*
 	 * U-AREA Read (Registers, signal etc)
