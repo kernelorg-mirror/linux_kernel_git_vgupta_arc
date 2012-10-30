@@ -196,14 +196,9 @@ static int genregs_set(struct task_struct *target,
 			offsetof(struct user_regs_struct, LOC), \
 			offsetof(struct user_regs_struct, LOC) + 4);
 
-	REG_IGNORE_ONE(scratch); 		/* pt_regs[res] */
-
 	/* TBD: disallow updates to STATUS32, orig_r8 etc*/
-	REG_IN_CHUNK(scratch.bta, callee, ptregs); /* pt_regs[bta..orig_r8] */
-
-	REG_IGNORE_ONE(callee); 		/* callee_regs[res] */
-
-	REG_IN_CHUNK(callee.r25, efa, cregs);	/* callee_regs[r25..r13] */
+	REG_IN_CHUNK(scratch, callee, ptregs);	/* pt_regs[bta..orig_r8] */
+	REG_IN_CHUNK(callee, efa, cregs);	/* callee_regs[r25..r13] */
 	REG_IGNORE_ONE(efa);			/* efa update invalid */
 	REG_IN_ONE(stop_pc, &ptregs->ret);	/* stop_pc: PC update */
 
