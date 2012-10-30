@@ -253,9 +253,9 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 		"	.word   17b,4b			\n"
 		"	.word   18b,4b			\n"
 		"	.previous			\n"
-		: "=r" (res), "=r"(to), "=r"(from), "=r"(n), "=r"(val),
+		: "=r" (res), "+r"(to), "+r"(from), "+r"(n), "=r"(val),
 		  "=r"(tmp1), "=r"(tmp2), "=r"(tmp3), "=r"(tmp4)
-		: "3"(n), "1"(to), "2"(from)
+		:
 		: "lp_count", "memory");
 	}
 
@@ -478,9 +478,9 @@ __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 		"	.word   17b,4b			\n"
 		"	.word   18b,4b			\n"
 		"	.previous			\n"
-		: "=r" (res), "=r"(to), "=r"(from), "=r"(n), "=r"(val),
+		: "=r" (res), "+r"(to), "+r"(from), "+r"(n), "=r"(val),
 		  "=r"(tmp1), "=r"(tmp2), "=r"(tmp3), "=r"(tmp4)
-		: "3"(n), "1"(to), "2"(from)
+		:
 		: "lp_count", "memory");
 	}
 
