@@ -216,7 +216,6 @@ long arch_ptrace(struct task_struct *child, long request,
 
 	case PTRACE_POKEUSR:
 		if ((addr == (int)offsetof(struct user_regs_struct, efa)) ||
-		    (addr == (int)offsetof(struct pt_regs, status32)) ||
 		    (addr >= sizeof(struct user_regs_struct)))
 			break;
 
