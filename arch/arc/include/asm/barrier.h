@@ -17,6 +17,7 @@
 #define wmb() mb()
 #define set_mb(var, value)  do { var = value; mb(); } while (0)
 #define set_wmb(var, value) do { var = value; wmb(); } while (0)
+#define read_barrier_depends()  mb()
 
 /* TODO-vineetg verify the correctness of macros here */
 #ifdef CONFIG_SMP
