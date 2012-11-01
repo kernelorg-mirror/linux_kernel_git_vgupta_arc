@@ -89,7 +89,8 @@ extern int elf_check_arch(const struct elf32_hdr *);
  */
 #define ELF_PLATFORM	(NULL)
 
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX)
+#define SET_PERSONALITY(ex) \
+	set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
 
 #endif  /* __KERNEL__ */
 
