@@ -12,16 +12,14 @@
 #ifndef _ASM_ARC_MODULE_H
 #define _ASM_ARC_MODULE_H
 
-struct mod_arch_specific {
+#include <asm-generic/module.h>
+
 #ifdef CONFIG_ARC_DW2_UNWIND
+struct mod_arch_specific {
 	void *unw_info;
 	int unw_sec_idx;
-#endif
 };
-
-#define Elf_Shdr	Elf32_Shdr
-#define Elf_Sym		Elf32_Sym
-#define Elf_Ehdr	Elf32_Ehdr
+#endif
 
 #define MODULE_PROC_FAMILY "ARC700"
 
