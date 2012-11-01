@@ -261,6 +261,10 @@ static ssize_t tlb_stats_output(struct file *file,	/* file descriptor */
 	size_t num;
 	char *kbuf = (char *)file->private_data;
 
+	/* All of the data can he shoved in one iteration */
+	if (*offset != 0)
+		return 0;
+
 	num = fill_display_data(kbuf);
 
 	/* simple_read_from_buffer() is helper for copy to user space
