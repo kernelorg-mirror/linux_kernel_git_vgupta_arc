@@ -9,6 +9,7 @@ header-y += cachectl.h
 generic-y += auxvec.h
 generic-y += bugs.h
 generic-y += bitsperlong.h
+generic-y += clkdev.h
 generic-y += cputime.h
 generic-y += device.h
 generic-y += div64.h
