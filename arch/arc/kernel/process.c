@@ -210,9 +210,18 @@ int copy_thread(unsigned long clone_flags,
 	struct callee_regs *c_callee;  /* child's callee regs */
 	struct callee_regs *parent_callee;  /* paren't callee */
 
+	/* Mark the specific anchors to begin with (see pic above) */
 	c_regs = task_pt_regs(p);
 	childksp = (unsigned long *)c_regs - 2;  /* 2 words for FP/BLINK */
 	c_callee = ((struct callee_regs *)childksp) - 1;
+
+	/*
+	 * At the end of this function, kernel SP is all set for
+	 * switch_to to start unwinding.
+	 * For kernel threads we don't have callee regs, but the stack
+	 * layout nevertheless needs to remain the same
+	 */
+	p->thread.ksp = (unsigned long)c_callee;	/* THREAD_KSP */
 
 	/* Copy parents pt regs on child's kernel mode stack */
 	*c_regs = *regs;
@@ -221,39 +230,30 @@ int copy_thread(unsigned long clone_flags,
 	childksp[0] = 0;				/* for POP fp */
 	childksp[1] = (unsigned long)ret_from_fork;	/* for POP blink */
 
-	if (user_mode(regs)) {
-		c_regs->sp = usp;
-		c_regs->r0 = 0;		/* fork returns 0 in child */
-
-		parent_callee = ((struct callee_regs *)regs) - 1;
-		*c_callee = *parent_callee;
-
-	} else {
+	if (!(user_mode(regs))) {
 		c_regs->sp =
 		    (unsigned long)task_thread_info(p) + (THREAD_SIZE - 4);
+		return 0;
 	}
 
-	/*
-	 * The kernel SP for child has grown further up, now it is
-	 * at the start of where CALLEE Regs were copied.
-	 * When child is passed to schedule( ) for the very first time,
-	 * it unwinds stack, loading CALLEE Regs from top and goes it's
-	 * merry way
-	 */
-	p->thread.ksp = (unsigned long)c_callee;	/* THREAD_KSP */
+	/*--------- User Task Only --------------*/
 
-	if (user_mode(regs)) {
-		if (unlikely(clone_flags & CLONE_SETTLS)) {
-			/*
-			 * set task's userland tls data ptr from 4th arg
-			 * clone C-lib call is difft from clone sys-call
-			 */
-			task_thread_info(p)->thr_ptr = regs->r3;
-		} else {
-			/* Normal fork case: set parent's TLS ptr in child */
-			task_thread_info(p)->thr_ptr =
-			task_thread_info(current)->thr_ptr;
-		}
+	c_regs->sp = usp;
+	c_regs->r0 = 0;		/* fork returns 0 in child */
+
+	parent_callee = ((struct callee_regs *)regs) - 1;
+	*c_callee = *parent_callee;
+
+	if (unlikely(clone_flags & CLONE_SETTLS)) {
+		/*
+		 * set task's userland tls data ptr from 4th arg
+		 * clone C-lib call is difft from clone sys-call
+		 */
+		task_thread_info(p)->thr_ptr = regs->r3;
+	} else {
+		/* Normal fork case: set parent's TLS ptr in child */
+		task_thread_info(p)->thr_ptr =
+		task_thread_info(current)->thr_ptr;
 	}
 
 	return 0;
