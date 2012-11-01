@@ -6,9 +6,6 @@
  * published by the Free Software Foundation.
  */
 
-#if !defined(_ASM_ARC_UNISTD_H) || defined(__SYSCALL)
-#define _ASM_ARC_UNISTD_H
-
 /*
  * Being uClibc based we need some of the deprecated syscalls:
  * -Not emulated by uClibc at all
@@ -45,5 +42,3 @@ __SYSCALL(__NR_arc_gettls, sys_arc_gettls)
 /* Generic syscall (fs/filesystems.c - lost in asm-generic/unistd.h */
 #define __NR_sysfs		(__NR_arch_specific_syscall + 3)
 __SYSCALL(__NR_sysfs, sys_sysfs)
-
-#endif /* _ASM_ARC_UNISTD_H */
