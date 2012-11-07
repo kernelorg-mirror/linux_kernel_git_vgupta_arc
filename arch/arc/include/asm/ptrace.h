@@ -124,6 +124,14 @@ struct user_regs_struct {
 #define in_syscall(regs) (((regs->orig_r8) >= 0 && \
 			   (regs->orig_r8 <= NR_syscalls)) ? 1 : 0)
 
+#define current_pt_regs()					\
+({								\
+	/* open-coded current_thread_info() */			\
+	register unsigned long sp asm ("sp");			\
+	unsigned long pg_start = (sp & ~(THREAD_SIZE - 1));	\
+	(struct pt_regs *)(pg_start + THREAD_SIZE - 4) - 1;	\
+})
+
 #define in_brkpt_trap(regs) (((regs->orig_r8) == (NR_syscalls + 2)) ? 1 : 0)
 
 #define user_stack_pointer(regs)\
