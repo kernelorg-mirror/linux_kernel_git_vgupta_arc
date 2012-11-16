@@ -146,17 +146,20 @@ int copy_thread(unsigned long clone_flags,
 	c_callee = ((struct callee_regs *)childksp) - 1;
 
 	/*
-	 * At the end of this function, kernel SP is all set for
-	 * switch_to to start unwinding.
-	 * For kernel threads we don't have callee regs, but the stack
-	 * layout nevertheless needs to remain the same
+	 * __switch_to() uses thread.ksp to start unwinding stack
+	 * For kernel threads we don't need to create callee regs, the
+	 * stack layout nevertheless needs to remain the same.
+	 * Also, since __switch_to anyways unwinds callee regs, we use
+	 * this to populate kernel thread entry-pt/args into callee regs,
+	 * so that ret_from_kernel_thread() becomes simpler.
 	 */
 	p->thread.ksp = (unsigned long)c_callee;	/* THREAD_KSP */
 
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(c_regs, 0, sizeof(struct pt_regs));
-		c_regs->r0 = arg; /* argument to kernel thread */
-		c_regs->r1 = usp;  /* function */
+
+		c_callee->r13 = arg; /* argument to kernel thread */
+		c_callee->r14 = usp;  /* function */
 
 		/* __switch_to expects FP(0), BLINK(return addr) at top */
 		childksp[0] = 0;			/* fp */

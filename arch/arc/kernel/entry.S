@@ -818,9 +818,8 @@ ARC_EXIT ret_from_fork
 
 ARC_ENTRY ret_from_kernel_thread
 	bl  @schedule_tail
-	ld  r1, [sp, PT_r1]
-	jl.d [r1]
-	ld  r0, [sp, PT_r0]
+	jl.d [r14]		; kernel_thread "payload"
+	mov  r0, r13		; arg to payload
 	j   @sys_exit
 ARC_EXIT ret_from_kernel_thread
 
