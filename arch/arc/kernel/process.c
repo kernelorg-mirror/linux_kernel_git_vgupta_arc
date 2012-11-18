@@ -99,7 +99,6 @@ void cpu_idle(void)
 }
 
 asmlinkage void ret_from_fork(void);
-asmlinkage void ret_from_kernel_thread(void) __attribute__((noreturn));
 
 /* Layout of Child kernel mode stack as setup at the end of this function is
  *
@@ -155,15 +154,16 @@ int copy_thread(unsigned long clone_flags,
 	 */
 	p->thread.ksp = (unsigned long)c_callee;	/* THREAD_KSP */
 
+	/* __switch_to expects FP(0), BLINK(return addr) at top */
+	childksp[0] = 0;			/* fp */
+	childksp[1] = (unsigned long)ret_from_fork; /* blink */
+
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(c_regs, 0, sizeof(struct pt_regs));
 
 		c_callee->r13 = arg; /* argument to kernel thread */
 		c_callee->r14 = usp;  /* function */
 
-		/* __switch_to expects FP(0), BLINK(return addr) at top */
-		childksp[0] = 0;			/* fp */
-		childksp[1] = (unsigned long)ret_from_kernel_thread; /* blink */
 		return 0;
 	}
 
