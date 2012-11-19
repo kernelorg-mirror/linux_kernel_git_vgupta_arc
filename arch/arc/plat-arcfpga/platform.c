@@ -13,9 +13,8 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/console.h>
-#include <asm/serial.h>
 #include <asm/setup.h>
-#include <plat/irq.h>
+#include <asm/irq.h>
 #include <plat/memmap.h>
 
 /*-----------------------BVCI Latency Unit -----------------------------*/
@@ -113,29 +112,16 @@ ARC_UART_DEV(0);
 ARC_UART_DEV(1);
 #endif
 
-#endif	/* CONFIG_SERIAL_ARC */
-
-#if defined(CONFIG_SERIAL_ARC_CONSOLE)
 static struct platform_device *fpga_early_devs[] __initdata = {
+#if defined(CONFIG_SERIAL_ARC_CONSOLE)
 	&arc_uart0_dev,
-};
 #endif
+};
 
-/*
- * Early Platform Initialization called from setup_arch()
- */
-void __init arc_platform_early_init(void)
+static void arc_fpga_serial_init(void)
 {
-	pr_info("[plat-arcfpga]: registering early dev resources\n");
-
-	setup_bvci_lat_unit();
-
-#if defined(CONFIG_SERIAL_ARC) || defined(CONFIG_SERIAL_ARC_MODULE)
-
 	/* To let driver workaround ISS bug: baudh Reg can't be set to 0 */
 	arc_uart_info[2] = !running_on_hw;
-
-#ifdef CONFIG_SERIAL_ARC_CONSOLE
 
 	early_platform_add_devices(fpga_early_devs,
 				   ARRAY_SIZE(fpga_early_devs));
@@ -162,8 +148,26 @@ void __init arc_platform_early_init(void)
 	 * otherwise the early console never gets a chance to run.
 	 */
 	add_preferred_console("ttyARC", 0, "115200");
-#endif
-#endif
+}
+
+#else
+
+static void arc_fpga_serial_init(void)
+{
+}
+
+#endif	/* CONFIG_SERIAL_ARC */
+
+/*
+ * Early Platform Initialization called from setup_arch()
+ */
+void __init arc_platform_early_init(void)
+{
+	pr_info("[plat-arcfpga]: registering early dev resources\n");
+
+	setup_bvci_lat_unit();
+
+	arc_fpga_serial_init();
 }
 
 static struct platform_device *fpga_devs[] __initdata = {

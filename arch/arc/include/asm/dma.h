@@ -4,15 +4,11 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Amit Bhor, Martin Kite
  */
 
-#define MAX_DMA_ADDRESS (PAGE_OFFSET + 0x01000000)
+#ifndef ASM_ARC_DMA_H
+#define ASM_ARC_DMA_H
 
-/* MK: Copied in from ARM version to support modules */
-#ifdef CONFIG_PCI
-extern int isa_dma_bridge_buggy;
-#else
-#define isa_dma_bridge_buggy    (0)
+#define MAX_DMA_ADDRESS 0xC0000000
+
 #endif

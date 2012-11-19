@@ -53,11 +53,4 @@
 #define __CONFIG_ARC_HAS_DCACHE	0
 #endif
 
-/* Lot of hand written asm routines which get inlined as well contain ZOL
- *   memset_aligned( ) etc
- * Enabling these toggles prevents their inlining, confining ZOL to very few
- * routines - good test to check if arc-gcc is generating ZOLs or not
- */
-#undef  NONINLINE_MEMSET
-
 #endif /* __ARC_ASM_DEFINES_H__ */

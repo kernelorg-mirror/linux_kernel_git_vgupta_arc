@@ -26,4 +26,5 @@ struct mod_arch_specific {
 #define MODULE_PROC_FAMILY "ARC700"
 
 #define MODULE_ARCH_VERMAGIC MODULE_PROC_FAMILY
+
 #endif /* _ASM_ARC_MODULE_H */

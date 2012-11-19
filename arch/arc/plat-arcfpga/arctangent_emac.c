@@ -428,7 +428,8 @@ static int arc_emac_clean(struct net_device *dev
 
 				/* Prepare arrived pkt for delivery to stack */
 
-				dma_cache_inv((unsigned long)skb->data, len);
+				dma_map_single(&dev->dev, (void *)skb->data, len,
+						DMA_FROM_DEVICE);
 
 				skb->dev = dev;
 				skb_put(skb, len - 4);	/* Make room for data */
@@ -598,8 +599,11 @@ int arc_emac_open(struct net_device *dev)
 		return -ENODEV;
 
 	/* Register interrupt handler for device */
-	request_irq(dev->irq, arc_emac_intr, 0, dev->name, dev);
-
+	i = request_irq(dev->irq, arc_emac_intr, 0, dev->name, dev);
+	if (i) {
+		dev_err(&dev->dev, "EMAC request_irq failed\n");
+		return i;
+	}
 	EMAC_REG(ap)->enable |= MDIO_MASK;	/* MDIO Complete Interrupt Mask */
 
 	/* Reset the PHY */
@@ -822,7 +826,7 @@ int arc_emac_tx(struct sk_buff *skb, struct net_device *dev)
 	pkt = skb->data;
 	dev->trans_start = jiffies;
 
-	dma_cache_wback((unsigned long)pkt, len);
+	dma_map_single(&dev->dev, (void *)pkt, len, DMA_TO_DEVICE);
 
 	/* Set First bit */
 	bitmask = FRST_MASK;

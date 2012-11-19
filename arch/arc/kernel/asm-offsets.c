@@ -4,8 +4,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Derived largely from ARM port
  */
 
 #include <linux/sched.h>
@@ -15,15 +13,11 @@
 #include <linux/thread_info.h>
 #include <asm/page.h>
 #include <linux/kbuild.h>
+#include <asm/event-log.h>
 
 int main(void)
 {
-	DEFINE(TASK_STATE, offsetof(struct task_struct, state));
-	DEFINE(TASK_FLAGS, offsetof(struct task_struct, flags));
-	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
 	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
-	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
-	DEFINE(TASK_PID, offsetof(struct task_struct, pid));
 	DEFINE(TASK_THREAD_INFO, offsetof(struct task_struct, stack));
 
 	BLANK();
@@ -41,7 +35,6 @@ int main(void)
 	DEFINE(THREAD_INFO_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(THREAD_INFO_PREEMPT_COUNT,
 	       offsetof(struct thread_info, preempt_count));
-	DEFINE(THREAD_INFO_TSK, offsetof(struct thread_info, task));
 
 	BLANK();
 

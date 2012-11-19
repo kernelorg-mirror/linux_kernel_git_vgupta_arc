@@ -8,16 +8,15 @@
  * Based on orig code from @author John Levon <levon@movementarian.org>
  */
 
-#include <linux/kernel.h>
 #include <linux/oprofile.h>
-#include <linux/errno.h>
-#include <linux/init.h>
+#include <linux/perf_event.h>
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
-	return -ENODEV;
+	return oprofile_perf_init(ops);
 }
 
 void oprofile_arch_exit(void)
 {
+	oprofile_perf_exit();
 }

@@ -9,7 +9,7 @@
 #ifndef __ASM_TLB_MMU_V1_H__
 #define __ASM_TLB_MMU_V1_H__
 
-#if defined(__ASSEMBLY__) && (METAL_FIX || (CONFIG_ARC_MMU_VER == 1))
+#if defined(__ASSEMBLY__) && defined(CONFIG_ARC_MMU_VER == 1)
 
 #include <asm/tlb.h>
 

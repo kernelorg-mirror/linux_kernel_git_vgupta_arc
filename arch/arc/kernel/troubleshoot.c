@@ -14,13 +14,14 @@
 #include <linux/proc_fs.h>
 #include <linux/file.h>
 #include <asm/arcregs.h>
+#include <asm/event-log.h>
 
 /*
  * Common routine to print scratch regs (r0-r12) or callee regs (r13-r25)
  *   -Prints 3 regs per line and a CR.
  *   -To continue, callee regs right after scratch, special handling of CR
  */
-static noinline void print_reg_file(unsigned long *reg_rev, int start_num)
+static noinline void print_reg_file(long *reg_rev, int start_num)
 {
 	unsigned int i;
 	char buf[512];
@@ -29,7 +30,7 @@ static noinline void print_reg_file(unsigned long *reg_rev, int start_num)
 	/* weird loop because pt_regs regs rev r12..r0, r25..r13 */
 	for (i = start_num; i < start_num + 13; i++) {
 		n += scnprintf(buf + n, len - n, "r%02u: 0x%08lx\t",
-			       i, *reg_rev);
+			       i, (unsigned long)*reg_rev);
 
 		if (((i + 1) % 3) == 0)
 			n += scnprintf(buf + n, len - n, "\n");

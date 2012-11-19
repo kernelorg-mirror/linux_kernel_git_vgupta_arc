@@ -4,126 +4,18 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- *  vineetg: Jan 2010
- *      -Enabling dynamic printk for fun
- *      -str to id conversion for ptrace requests and reg names
- *      -Consistently use offsets wrt "struct user" for all ptrace req
- *      -callee_reg accessed using accessor to implement alternate ways of
- *       fetcing it (say using dwarf unwinder)
- *      -Using generic_ptrace_(peek|poke)data
- *
- * Soam Vasani, Kanika Nema: Codito Technologies 2004
  */
 
-#include <linux/kernel.h>
 #include <linux/ptrace.h>
-#include <linux/sched.h>
-#include <linux/user.h>
-#include <linux/mm.h>
-#include <linux/elf.h>
+#include <linux/tracehook.h>
 #include <linux/regset.h>
 #include <linux/unistd.h>
-#include <linux/uaccess.h>
-#include <linux/tracehook.h>
-#include <asm/setup.h>
-
-char *get_str_from_id(int id, const struct id_to_str *tbl)
-{
-	int i;
-	for (i = 0; tbl[i].str != NULL; i++) {
-		if (id == tbl[i].id)
-			return tbl[i].str;
-	}
-
-	return "???";
-}
-
-#define reg_nm(reg)	get_str_from_id(reg, ptrace_reg_nm)
-#define req_nm(req)	get_str_from_id(req, ptrace_req_nm)
-
-static const struct id_to_str ptrace_req_nm[] = {
-	 {PTRACE_SYSCALL, "syscall"},
-	 {PTRACE_PEEKTEXT, "peek-text"},
-	 {PTRACE_PEEKDATA, "peek-data"},
-	 {PTRACE_PEEKUSR, "peek-user"},
-	 {PTRACE_POKETEXT, "poke-text"},
-	 {PTRACE_POKEDATA, "poke-data"},
-	 {PTRACE_POKEUSR, "poke-user"},
-	 {PTRACE_CONT, "continue...."},
-	 {PTRACE_KILL, "kill $#%#$$"},
-	 {PTRACE_ATTACH, "attach"},
-	 {PTRACE_DETACH, "detach"},
-	 {PTRACE_SETOPTIONS, "set-option"},
-	 {PTRACE_SETSIGINFO, "set-siginfo"},
-	 {PTRACE_GETSIGINFO, "get-siginfo"},
-	 {PTRACE_GETEVENTMSG, "get-event-msg"},
-	 {0, NULL}
-};
-
-static const struct id_to_str ptrace_reg_nm[] = {
-	 {0, "res1"},
-	 {4, "BTA"},
-	 {8, "LPS"},
-	 {12, "LPE"},
-	 {16, "LPC"},
-	 {20, "STATUS3"},
-	 {24, "PC"},
-	 {28, "BLINK"},
-	 {32, "FP"},
-	 {36, "GP"},
-	 {40, "r12"},
-	 {44, "r11"},
-	 {48, "r10"},
-	 {52, "r9"},
-	 {56, "r8"},
-	 {60, "r7"},
-	 {64, "r6"},
-	 {68, "r5"},
-	 {72, "r4"},
-	 {76, "r3"},
-	 {80, "r2"},
-	 {84, "r1"},
-	 {88, "r0"},
-	 {92, "ORIG r0 (sys-call only)"},
-	 {96, "ORIG r8 (event type)"},
-	 {100, "SP"},
-	 {104, "res2"},
-	 {108, "r25"},
-	 {112, "r24"},
-	 {116, "r23"},
-	 {120, "r22"},
-	 {124, "r21"},
-	 {128, "r20"},
-	 {132, "r19"},
-	 {136, "r18"},
-	 {140, "r17"},
-	 {144, "r16"},
-	 {148, "r15"},
-	 {152, "r14"},
-	 {156, "r13"},
-	 {160, "(EFA) Break Pt addr"},
-	 {164, "STOP PC"},
-	 {0, NULL}
-};
+#include <linux/elf.h>
 
 static struct callee_regs *task_callee_regs(struct task_struct *tsk)
 {
 	struct callee_regs *tmp = (struct callee_regs *)tsk->thread.callee_reg;
 	return tmp;
-}
-
-asmlinkage int syscall_trace_entry(struct pt_regs *regs)
-{
-	if (tracehook_report_syscall_entry(regs))
-		return ULONG_MAX;
-
-	return regs->r8;
-}
-
-asmlinkage void syscall_trace_exit(struct pt_regs *regs)
-{
-	tracehook_report_syscall_exit(regs, 0);
 }
 
 static int genregs_get(struct task_struct *target,
@@ -244,8 +136,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	unsigned int __user *u_addr;
 	void *kbuf;
 
-	pr_debug("REQ=%ld (%s), ADDR =0x%lx, DATA=0x%lx)\n",
-		    request, req_nm(request), addr, data);
+	pr_debug("REQ=%ld: ADDR =0x%lx, DATA=0x%lx)\n", request, addr, data);
 
 	switch (request) {
 
@@ -279,4 +170,17 @@ long arch_ptrace(struct task_struct *child, long request,
 	}
 
 	return ret;
+}
+
+asmlinkage int syscall_trace_entry(struct pt_regs *regs)
+{
+	if (tracehook_report_syscall_entry(regs))
+		return ULONG_MAX;
+
+	return regs->r8;
+}
+
+asmlinkage void syscall_trace_exit(struct pt_regs *regs)
+{
+	tracehook_report_syscall_exit(regs, 0);
 }

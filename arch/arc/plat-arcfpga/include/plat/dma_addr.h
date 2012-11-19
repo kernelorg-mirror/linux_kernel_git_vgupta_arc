@@ -10,13 +10,7 @@
  */
 
 /*
- * Some notes on DMA <=> kernel address generation
- *
- * A simplistic implementation will generate 0 based bus address.
- * For e.g. 0x8AAA_0000 becomes 0x0AAA_0000 bus addr
- * However this doesnt work with PCI devices behind the PCI Host Bridge on AA4
- * which can't allow 0 based addresses. So the API for special case of PCI
- * makes corrections
+ * kernel addresses are 0x800_000 based, while Bus addr are 0 based
  */
 
 #ifndef __PLAT_DMA_ADDR_H

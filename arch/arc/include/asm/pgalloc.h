@@ -32,32 +32,8 @@
 #ifndef _ASM_ARC_PGALLOC_H
 #define _ASM_ARC_PGALLOC_H
 
-#include <linux/highmem.h>
+#include <linux/mm.h>
 #include <linux/log2.h>
-
-#ifndef NONINLINE_MEMSET
-
-/* @sz is bytes, but gauranteed to be multiple of 8
- * Similarly @ptr is alo word aligned
- */
-static inline void memset_aligned(void *ptr, unsigned int sz)
-{
-	void *tmp = ptr;
-
-	__asm__ __volatile__(
-	"	mov     lp_count,%1	\n"
-	"	lp      1f		\n"
-	"	st.ab   0, [%0, 4]	\n"
-	"	st.ab   0, [%0, 4]	\n"
-	"1:				\n"
-	: "+r"(tmp)
-	: "ir"(sz / 8) /* 4: bytes to word, 2: instances of st.ab in loop */
-	: "lp_count");
-}
-
-#else
-#define memset_aligned(p, s)	memzero(p, s)
-#endif
 
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
@@ -76,32 +52,30 @@ static inline int __get_order_pgd(void)
 	return get_order(PTRS_PER_PGD * 4);
 }
 
-static inline pgd_t *get_pgd_slow(void)
+static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	int num, num2;
 	pgd_t *ret = (pgd_t *) __get_free_pages(GFP_KERNEL, __get_order_pgd());
 
 	if (ret) {
 		num = USER_PTRS_PER_PGD + USER_KERNEL_GUTTER / PGDIR_SIZE;
-		memset_aligned(ret, num * sizeof(pgd_t));
+		memzero(ret, num * sizeof(pgd_t));
 
 		num2 = VMALLOC_SIZE / PGDIR_SIZE;
 		memcpy(ret + num, swapper_pg_dir + num, num2 * sizeof(pgd_t));
 
-		memset_aligned(ret + num + num2,
+		memzero(ret + num + num2,
 			       (PTRS_PER_PGD - num - num2) * sizeof(pgd_t));
 
 	}
 	return ret;
 }
 
-static inline void free_pgd_slow(pgd_t *pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	free_pages((unsigned long)pgd, __get_order_pgd());
 }
 
-#define pgd_free(mm, pgd)      free_pgd_slow(pgd)
-#define pgd_alloc(mm)          get_pgd_slow()
 
 /*
  * With software-only page-tables, addr-split for traversal is tweakable and
@@ -113,13 +87,7 @@ static inline void free_pgd_slow(pgd_t *pgd)
 
 static inline int __get_order_pte(void)
 {
-	/* SASID requires PTE to be two words: thus Pg Tbl sz doubled */
-#ifdef CONFIG_ARC_MMU_SASID
-	return get_order(PTRS_PER_PTE * 8);
-#else
 	return get_order(PTRS_PER_PTE * 4);
-#endif
-
 }
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
@@ -140,7 +108,7 @@ pte_alloc_one(struct mm_struct *mm, unsigned long address)
 
 	pte_pg = __get_free_pages(GFP_KERNEL | __GFP_REPEAT, __get_order_pte());
 	if (pte_pg) {
-		memset_aligned((void *)pte_pg, PTRS_PER_PTE * 4);
+		memzero((void *)pte_pg, PTRS_PER_PTE * 4);
 		pgtable_page_ctor(virt_to_page(pte_pg));
 	}
 
@@ -161,7 +129,6 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptep)
 #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
 
 #define check_pgt_cache()   do { } while (0)
-
 #define pmd_pgtable(pmd) pmd_page_vaddr(pmd)
 
 #endif /* _ASM_ARC_PGALLOC_H */

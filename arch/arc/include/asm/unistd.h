@@ -26,19 +26,24 @@
 #define __ARCH_WANT_SYSCALL_OFF_T
 #define __ARCH_WANT_SYSCALL_DEPRECATED
 
-/* To handle @cmd|0x100 passed by uClibc for semctl(), shmctl() and msgctl() */
-#define __ARCH_WANT_IPC_PARSE_VERSION
+#define sys_mmap2 sys_mmap_pgoff
 
 #include <asm-generic/unistd.h>
 
 #define NR_syscalls	__NR_syscalls
 
 /* ARC specific syscall */
-#define __NR_cacheflush        (__NR_arch_specific_syscall + 0)
+#define __NR_cacheflush		(__NR_arch_specific_syscall + 0)
+#define __NR_arc_settls		(__NR_arch_specific_syscall + 1)
+#define __NR_arc_gettls		(__NR_arch_specific_syscall + 2)
+
 __SYSCALL(__NR_cacheflush, sys_cacheflush)
+__SYSCALL(__NR_arc_settls, sys_arc_settls)
+__SYSCALL(__NR_arc_gettls, sys_arc_gettls)
+
 
 /* Generic syscall (fs/filesystems.c - lost in asm-generic/unistd.h */
-#define __NR_sysfs		(__NR_arch_specific_syscall + 1)
+#define __NR_sysfs		(__NR_arch_specific_syscall + 3)
 __SYSCALL(__NR_sysfs, sys_sysfs)
 
 #endif /* _ASM_ARC_UNISTD_H */

@@ -72,19 +72,18 @@ void module_arch_cleanup(struct module *mod)
 #endif
 }
 
-int
-apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
-	       unsigned int relindex, struct module *module)
+int apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symidx,
+		   unsigned int relindex, struct module *module)
 {
 	pr_err("%s: Only RELA relocations supported\n", module->name);
 	return 0;
 }
 
 int apply_relocate_add(Elf32_Shdr *sechdrs,
-			const char *strtab,
-			unsigned int symindex,	/* sec index for sym tbl */
-			unsigned int relsec,	/* sec index for relo sec */
-			struct module *module)
+		       const char *strtab,
+		       unsigned int symindex,	/* sec index for sym tbl */
+		       unsigned int relsec,	/* sec index for relo sec */
+		       struct module *module)
 {
 	int i, n;
 	Elf32_Rela *rel_entry = (void *)sechdrs[relsec].sh_addr;

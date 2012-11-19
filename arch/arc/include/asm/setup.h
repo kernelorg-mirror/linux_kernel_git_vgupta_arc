@@ -19,7 +19,12 @@
  */
 struct id_to_str {
 	int id;
-	char *str;
+	const char *str;
+};
+
+struct cpuinfo_data {
+	struct id_to_str info;
+	int up_range;
 };
 
 extern int root_mountflags, end_mem;

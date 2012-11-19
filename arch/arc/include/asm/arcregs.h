@@ -11,7 +11,7 @@
 
 #ifdef __KERNEL__
 
-/* These are extension BCR's*/
+/* Build Configuration Registers */
 #define ARC_REG_DCCMBASE_BCR	0x61	/* DCCM Base Addr */
 #define ARC_REG_CRC_BCR		0x62
 #define ARC_REG_DVFB_BCR	0x64
@@ -83,47 +83,55 @@
 #define ECR_C_BIT_DTLB_ST_MISS		9
 
 
-/* Auxiliary registers not supported by the assembler */
+/* Auxiliary registers */
 #define AUX_IDENTITY		4
 #define AUX_INTR_VEC_BASE	0x25
 #define AUX_IRQ_LEV		0x200	/* IRQ Priority: L1 or L2 */
 #define AUX_IRQ_HINT		0x201	/* For generating Soft Interrupts */
 #define AUX_IRQ_LV12		0x43	/* interrupt level register */
 
-#define AUX_IENABLE		0x40c	/* gas knows as auxienable */
+#define AUX_IENABLE		0x40c
 #define AUX_ITRIGGER		0x40d
 #define AUX_IPULSE		0x415
 
-/* Privileged MMU auxiliary register definitions */
+/* Timer related Aux registers */
+#define ARC_REG_TIMER0_LIMIT	0x23	/* timer 0 limit */
+#define ARC_REG_TIMER0_CTRL	0x22	/* timer 0 control */
+#define ARC_REG_TIMER0_CNT	0x21	/* timer 0 count */
+#define ARC_REG_TIMER1_LIMIT	0x102	/* timer 1 limit */
+#define ARC_REG_TIMER1_CTRL	0x101	/* timer 1 control */
+#define ARC_REG_TIMER1_CNT	0x100	/* timer 1 count */
+
+#define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
+#define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
+
+/* MMU Management regs */
 #define ARC_REG_TLBPD0		0x405
 #define ARC_REG_TLBPD1		0x406
 #define ARC_REG_TLBINDEX	0x407
 #define ARC_REG_TLBCOMMAND	0x408
 #define ARC_REG_PID		0x409
-#define ARC_REG_SCRATCH_DATA0   0x418
-#define ARC_REG_SASID		0x40e
+#define ARC_REG_SCRATCH_DATA0	0x418
 
 /* Bits in MMU PID register */
-#define TLB_ENABLE		(1 << 31)	/* Enable MMU for process */
-
-/* Software can choose whether to utilize SASID (provided by v3) */
-#ifdef CONFIG_ARC_MMU_SASID
-#define SASID_ENABLE		(1 << 29)	/* enable SASID for process */
-#else
-#define SASID_ENABLE		0
-#endif
-
-/*
- * In MMU-v3, there is option to enable sasid per process.
- * However for now, it is enabled for all.
- * Non-relevant processes won't have a shared TLB entry to begin with
- * thus this bit being set for them won't matter anyways
- * Also it will help catch bugs initially - due to stray shared TLB entries
- */
-#define MMU_ENABLE		(TLB_ENABLE|SASID_ENABLE)
+#define MMU_ENABLE		(1 << 31)	/* Enable MMU for process */
 
 /* Error code if probe fails */
 #define TLB_LKUP_ERR		0x80000000
+
+/* TLB Commands */
+#define TLBWrite    0x1
+#define TLBRead     0x2
+#define TLBGetIndex 0x3
+#define TLBProbe    0x4
+
+#if (CONFIG_ARC_MMU_VER >= 2)
+#define TLBWriteNI  0x5		/* write JTLB without inv uTLBs */
+#define TLBIVUTLB   0x6		/* explicitly inv uTLBs */
+#else
+#undef TLBWriteNI		/* These cmds don't exist on older MMU */
+#undef TLBIVUTLB
+#endif
 
 /* Instruction cache related Auxiliary registers */
 #define ARC_REG_IC_BCR		0x77	/* Build Config reg */
@@ -152,22 +160,12 @@
 #define DC_CTRL_INV_MODE_FLUSH  0x40
 #define DC_CTRL_FLUSH_STATUS    0x100
 
-/* Timer related Aux registers */
-#define ARC_REG_TIMER0_LIMIT	0x23	/* timer 0 limit */
-#define ARC_REG_TIMER0_CTRL	0x22	/* timer 0 control */
-#define ARC_REG_TIMER0_CNT	0x21	/* timer 0 count */
-#define ARC_REG_TIMER1_LIMIT	0x102	/* timer 1 limit */
-#define ARC_REG_TIMER1_CTRL	0x101	/* timer 1 control */
-#define ARC_REG_TIMER1_CNT	0x100	/* timer 1 count */
+/* MMU Management regs */
+#define ARC_REG_PID		0x409
+#define ARC_REG_SCRATCH_DATA0	0x418
 
-#define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
-#define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
-
-/* Profiling AUX regs. */
-#define ARC_PCT_CONTROL         0x255
-#define ARC_HWP_CTRL            0xc0fcb018
-#define PR_CTRL_EN              (1<<0)
-#define ARC_PR_ID               0xc0fcb000
+/* Bits in MMU PID register */
+#define MMU_ENABLE		(1 << 31)	/* Enable MMU for process */
 
 /*
  * Floating Pt Registers
@@ -241,6 +239,45 @@
 	: "r"(val), "memory"(&reg_in_var));	\
 })
 
+#endif
+
+#define READ_BCR(reg, into)				\
+{							\
+	unsigned int tmp;				\
+	tmp = read_aux_reg(reg);			\
+	if (sizeof(tmp) == sizeof(into)) {		\
+		into = *((typeof(into) *)&tmp);		\
+	} else {					\
+		extern void bogus_undefined(void);	\
+		bogus_undefined();			\
+	}						\
+}
+
+#define WRITE_BCR(reg, into)				\
+{							\
+	unsigned int tmp;				\
+	if (sizeof(tmp) == sizeof(into)) {		\
+		tmp = (*(unsigned int *)(into));	\
+		write_aux_reg(reg, tmp);		\
+	} else  {					\
+		extern void bogus_undefined(void);	\
+		bogus_undefined();			\
+	}						\
+}
+
+/* Helpers */
+#define TO_KB(bytes)		((bytes) >> 10)
+#define TO_MB(bytes)		(TO_KB(bytes) >> 10)
+#define PAGES_TO_KB(n_pages)	((n_pages) << (PAGE_SHIFT - 10))
+#define PAGES_TO_MB(n_pages)	(PAGES_TO_KB(n_pages) >> 10)
+
+#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
+/* These DPFP regs need to be saved/restored across ctx-sw */
+struct arc_fpu {
+	struct {
+		unsigned int l, h;
+	} aux_dpfp[2];
+};
 #endif
 
 /*
@@ -360,16 +397,16 @@ struct bcr_fp {
  * Generic structures to hold build configuration used at runtime
  */
 
-struct cpuinfo_arc_ccm {
-	unsigned int base_addr, sz;
+struct cpuinfo_arc_mmu {
+	unsigned int ver, pg_sz, sets, ways, u_dtlb, u_itlb, num_tlb;
 };
 
 struct cpuinfo_arc_cache {
 	unsigned int has_aliasing, sz, line_len, assoc, ver;
 };
 
-struct cpuinfo_arc_mmu {
-	unsigned int ver, pg_sz, sets, ways, u_dtlb, u_itlb, num_tlb;
+struct cpuinfo_arc_ccm {
+	unsigned int base_addr, sz;
 };
 
 struct cpuinfo_arc {
@@ -386,44 +423,7 @@ struct cpuinfo_arc {
 	struct bcr_fp fp, dpfp;
 };
 
-#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
-/* These DPFP regs need to be saved/restored across ctx-sw */
-struct arc_fpu {
-	struct {
-		unsigned int l, h;
-	} aux_dpfp[2];
-};
-#endif
-
-/* Helpers */
-#define TO_KB(bytes)		((bytes) >> 10)
-#define TO_MB(bytes)		(TO_KB(bytes) >> 10)
-#define PAGES_TO_KB(n_pages)	((n_pages) << (PAGE_SHIFT - 10))
-#define PAGES_TO_MB(n_pages)	(PAGES_TO_KB(n_pages) >> 10)
-
-#define READ_BCR(reg, into)				\
-{							\
-	unsigned int tmp;				\
-	tmp = read_aux_reg(reg);			\
-	if (sizeof(tmp) == sizeof(into))		\
-		into = *((typeof(into) *)&tmp);		\
-	else  {						\
-		extern void bogus_undefined(void);	\
-		bogus_undefined();			\
-	}						\
-}
-
-#define WRITE_BCR(reg, into)				\
-{							\
-	unsigned int tmp;				\
-	if (sizeof(tmp) == sizeof(into))		\
-		tmp = (*(unsigned int *)(into));	\
-		write_aux_reg(reg, tmp);		\
-	else  {						\
-		extern void bogus_undefined(void);	\
-		bogus_undefined();			\
-	}						\
-}
+extern struct cpuinfo_arc cpuinfo_arc700[];
 
 #endif /* __ASEMBLY__ */
 

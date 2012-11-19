@@ -16,9 +16,10 @@
 #include <linux/sched.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
-#include <asm/event-log.h>
-#include <asm/unaligned.h>
+#include <asm/ptrace.h>
 #include <asm/setup.h>
+#include <asm/kprobes.h>
+#include <asm/unaligned.h>
 #include <asm/kgdb.h>
 
 void __init trap_init(void)
@@ -46,7 +47,7 @@ static noinline int handle_exception(unsigned long cause, char *str,
 	if (user_mode(regs)) {
 		struct task_struct *tsk = current;
 
-		tsk->thread.fault_address = (unsigned int)info->si_addr;
+		tsk->thread.fault_address = (__force unsigned int)info->si_addr;
 		tsk->thread.cause_code = cause;
 
 		force_sig_info(info->si_signo, info, tsk);
@@ -117,11 +118,6 @@ void do_machine_check_fault(unsigned long cause, unsigned long address,
 	die("Machine Check Exception", regs, address, cause);
 }
 
-void trap_is_kprobe(unsigned long cause, unsigned long address,
-		    struct pt_regs *regs)
-{
-	notify_die(DIE_TRAP, "kprobe_trap", regs, address, cause, SIGTRAP);
-}
 
 /*
  * Entry point for traps induced by ARCompact TRAP_S <n> insn
@@ -146,12 +142,10 @@ void do_non_swi_trap(unsigned long cause, unsigned long address,
 		trap_is_kprobe(param, address, regs);
 		break;
 
-#ifdef CONFIG_KGDB
 	case 3:
 	case 4:
 		kgdb_trap(regs, param);
 		break;
-#endif
 
 	default:
 		break;

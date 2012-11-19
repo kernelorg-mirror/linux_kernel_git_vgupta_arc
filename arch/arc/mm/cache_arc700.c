@@ -200,9 +200,6 @@ void __init arc_cache_init(void)
 	default:
 		panic("Unsupported I-Cache Sz\n");
 	}
-
-	if (way_pg_ratio > 1)
-		ic->has_aliasing = 1;
 #endif
 
 	/* Enable/disable I-Cache */
@@ -225,10 +222,8 @@ void __init arc_cache_init(void)
 	}
 
 	/* check for D-Cache aliasing */
-	if ((dc->sz / ARC_DCACHE_WAYS) > PAGE_SIZE) {
+	if ((dc->sz / ARC_DCACHE_WAYS) > PAGE_SIZE)
 		panic("D$ aliasing not handled right now\n");
-		dc->has_aliasing = 1;
-	}
 #endif
 
 	/* Set the default Invalidate Mode to "simpy discard dirty lines"
@@ -823,7 +818,6 @@ static void __arc_cf_lines(uint32_t phy, uint32_t sz, uint32_t flags)
  */
 SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 {
-#ifdef CONFIG_ARC_CACHE
 	struct vm_area_struct *vma;
 	uint32_t end = start + sz;
 
@@ -887,7 +881,4 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 	}
 
 	return 0;
-#else
-	return -EINVAL;
-#endif
 }

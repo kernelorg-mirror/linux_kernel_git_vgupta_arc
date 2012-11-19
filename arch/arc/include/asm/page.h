@@ -39,15 +39,15 @@
 
 #ifndef __ASSEMBLY__
 
+#define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
+#define free_user_page(page, addr)	free_page(addr)
+
 /* TBD: for now don't worry about VIPT D$ aliasing */
 #define clear_page(paddr)		memset((paddr), 0, PAGE_SIZE)
 #define copy_page(to, from)		memcpy((to), (from), PAGE_SIZE)
 
 #define clear_user_page(addr, vaddr, pg)	clear_page(addr)
 #define copy_user_page(vto, vfrom, vaddr, pg)	copy_page(vto, vfrom)
-
-#define get_user_page(vaddr)        __get_free_page(GFP_KERNEL)
-#define free_user_page(page, addr)  free_page(addr)
 
 #undef STRICT_MM_TYPECHECKS
 
@@ -56,7 +56,7 @@
  * These are used to make use of C type-checking..
  */
 typedef struct {
-	unsigned long pte_lo;
+	unsigned long pte;
 } pte_t;
 typedef struct {
 	unsigned long pgd;
@@ -66,7 +66,7 @@ typedef struct {
 } pgprot_t;
 typedef unsigned long pgtable_t;
 
-#define pte_val(x)      ((x).pte_lo)
+#define pte_val(x)      ((x).pte)
 #define pgd_val(x)      ((x).pgd)
 #define pgprot_val(x)   ((x).pgprot)
 
@@ -90,7 +90,6 @@ typedef unsigned long pgtable_t;
 #endif
 
 #define ARCH_PFN_OFFSET     (CONFIG_LINUX_LINK_BASE >> PAGE_SHIFT)
-#include <asm-generic/memory_model.h>   /* page_to_pfn, pfn_to_page */
 
 #define pfn_valid(pfn)      (((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
 
@@ -125,46 +124,11 @@ typedef unsigned long pgtable_t;
 
 #define WANT_PAGE_VIRTUAL   1
 
+#include <asm-generic/memory_model.h>   /* page_to_pfn, pfn_to_page */
 #include <asm-generic/getorder.h>
 
 #endif /* !__ASSEMBLY__ */
 
-/* Kernels Virtual memory area.
- * Unlike other architectures(MIPS, sh, cris ) ARC 700 does not have a
- * "kernel translated" region (like KSEG2 in MIPS). So we use a upper part
- * of the translated bottom 2GB for kernel virtual memory and protect
- * these pages from user accesses by disabling Ru, Eu and Wu.
- */
-#define VMALLOC_SIZE	(0x10000000)	/* 256M */
-#define VMALLOC_START	(PAGE_OFFSET - VMALLOC_SIZE)
-#define VMALLOC_END	(PAGE_OFFSET)
-#define VMALLOC_VMADDR(x) ((unsigned long)(x))
-
-/* Most of the architectures seem to be keeping some kind of padding between
- * userspace TASK_SIZE and PAGE_OFFSET. i.e TASK_SIZE != PAGE_OFFSET.
- */
-#define USER_KERNEL_GUTTER    0x10000000
-
-/* User address space:
- * On ARC700, CPU allows the entire lower half of 32 bit address space to be
- * translated. Thus potentially 2G (0:0x7FFF_FFFF) could be User vaddr space.
- * However we steal 256M for kernel addr (0x7000_0000:0x7FFF_FFFF) and another
- * 256M (0x6000_0000:0x6FFF_FFFF) is gutter between user/kernel spaces
- * Thus total User vaddr space is (0:0x5FFF_FFFF)
- */
-#define TASK_SIZE   (PAGE_OFFSET - VMALLOC_SIZE - USER_KERNEL_GUTTER)
-
-#define STACK_TOP_MAX   TASK_SIZE
-#define STACK_TOP       TASK_SIZE
-
-/* This decides where the kernel will search for a free chunk of vm
- * space during mmap's.
- */
-#define TASK_UNMAPPED_BASE      (TASK_SIZE / 3)
-
-/* For mmap randomisation and Page coloring for share code pages */
-#define HAVE_ARCH_PICK_MMAP_LAYOUT
-
 #endif /* __KERNEL__ */
 
-#endif /* __ASM_ARC_PAGE_H */
+#endif

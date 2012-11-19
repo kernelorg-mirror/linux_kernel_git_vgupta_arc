@@ -11,8 +11,6 @@
  *  -MMU v1: moved out legacy code into a seperate file
  *  -MMU v3: PD{0,1} bits layout changed: They don't overlap anymore,
  *      helps avoid a shift when preparing PD0 from PTE
- *  -CONFIG_ARC_MMU_SASID: support for ARC MMU Shared Address spaces
- *      CONV_PTE_TO_TLB can create shared TLB entries now.
  *
  * Vineetg: July 2009
  *  -For MMU V2, we need not do heuristics at the time of commiting a D-TLB
@@ -46,6 +44,10 @@
 #include <asm/event-log-asm.h>
 #include <asm/arcregs.h>
 #include <asm/cache.h>
+#include <asm/processor.h>
+#if (CONFIG_ARC_MMU_VER == 1)
+#include <asm/tlb-mmu1.h>
+#endif
 
 ;--------------------------------------------------------------------------
 ; scratch memory to save the registers (r0-r3) used to code TLB refill Handler
@@ -136,12 +138,12 @@ ex_saved_reg1:
 
 	; Get the PTE entry: The idea is
 	; (1) x = addr >> PAGE_SHIFT 	-> masks page-off bits from @fault-addr
-	; (2) y = x & (PTRS_IN_PGD - 1) -> to get index
+	; (2) y = x & (PTRS_PER_PTE - 1) -> to get index
 	; (3) z = pgtbl[y]
 	; To avoid the multiply by in end, we do the -2, <<2 below
 
 	lsr     r0, r2, (PAGE_SHIFT - 2)
-	and     r0, r0, ( (PTRS_PER_PTE-1) << 2)
+	and     r0, r0, ( (PTRS_PER_PTE - 1) << 2)
 	ld.aw   r0, [r1, r0]            ; get PTE and PTE ptr for fault addr
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	and.f 0, r0, _PAGE_PRESENT
@@ -170,16 +172,6 @@ ex_saved_reg1:
 
 	lr  r3,[ARC_REG_TLBPD0]     ; MMU prepares PD0 with vaddr and asid
 
-#ifdef CONFIG_ARC_MMU_SASID
-	and.f 0, r0, _PAGE_SHARED_CODE
-	bz  1f
-
-	ld.as r1, [r1, PTRS_PER_PTE]       ; sasid
-	or    r2, r2, _PAGE_SHARED_CODE_H  ; S | V
-	bic   r3, r3, 0xFF                 ; vaddr | ---
-	or    r3, r3, r1                   ; vaddr | sasid
-1:
-#endif
 	or  r3, r3, r2              ; S | vaddr | {sasid|asid}
 	sr  r3,[ARC_REG_TLBPD0]     ; rewrite PD0
 .endm
@@ -364,7 +356,7 @@ ARC_ENTRY EV_TLBMissD
 
 	CONV_PTE_TO_TLB
 
-#if (METAL_FIX || (CONFIG_ARC_MMU_VER == 1))
+#if (CONFIG_ARC_MMU_VER == 1)
 	; MMU with 2 way set assoc J-TLB, needs some help in pathetic case of
 	; memcpy where 3 parties contend for 2 ways, ensuing a livelock.
 	; But only for old MMU or one with Metal Fix

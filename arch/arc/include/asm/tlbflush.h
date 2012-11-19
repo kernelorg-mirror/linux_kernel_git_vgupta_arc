@@ -6,17 +6,17 @@
  * published by the Free Software Foundation.
  */
 
-extern void local_flush_tlb_page(struct vm_area_struct *vma,
-				 unsigned long page);
+#ifndef __ASM_ARC_TLBFLUSH__
+#define __ASM_ARC_TLBFLUSH__
 
-extern void local_flush_tlb_range(struct vm_area_struct *vma,
-				  unsigned long start, unsigned long end);
+#include <linux/mm.h>
 
-extern void local_flush_tlb_kernel_range(unsigned long start,
-					 unsigned long end);
-
-extern void local_flush_tlb_all(void);
-extern void local_flush_tlb_mm(struct mm_struct *);
+void local_flush_tlb_all(void);
+void local_flush_tlb_mm(struct mm_struct *mm);
+void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page);
+void local_flush_tlb_kernel_range(unsigned long start, unsigned long end);
+void local_flush_tlb_range(struct vm_area_struct *vma,
+			   unsigned long start, unsigned long end);
 
 /* XXX: Revisit for SMP */
 #define flush_tlb_range(vma, s, e)	local_flush_tlb_range(vma, s, e)
@@ -24,3 +24,5 @@ extern void local_flush_tlb_mm(struct mm_struct *);
 #define flush_tlb_kernel_range(s, e)	local_flush_tlb_kernel_range(s, e)
 #define flush_tlb_all()			local_flush_tlb_all()
 #define flush_tlb_mm(mm)		local_flush_tlb_mm(mm)
+
+#endif

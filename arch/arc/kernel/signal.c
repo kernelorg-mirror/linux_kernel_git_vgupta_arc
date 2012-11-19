@@ -54,6 +54,7 @@
 #include <linux/syscalls.h>
 #include <linux/tracehook.h>
 #include <asm/ucontext.h>
+#include <asm/event-log.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -123,7 +124,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	if (regs->sp & 3)
 		goto badframe;
 
-	sf = (struct rt_sigframe __user *)(regs->sp);
+	sf = (struct rt_sigframe __force __user *)(regs->sp);
 
 	if (!access_ok(VERIFY_READ, sf, sizeof(*sf)))
 		goto badframe;

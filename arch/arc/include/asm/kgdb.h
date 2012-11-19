@@ -11,6 +11,8 @@
 #ifndef __ARC_KGDB_H__
 #define __ARC_KGDB_H__
 
+#ifdef CONFIG_KGDB
+
 #include <asm/user.h>
 
 /* to ensure compatibility with Linux 2.6.35, we don't implement the get/set
@@ -49,5 +51,11 @@ enum arc700_linux_regnums {
 	_ORIG_R8	= 37,
 	_STOP_PC	= 38
 };
+
+#else
+static inline void kgdb_trap(struct pt_regs *regs, int param)
+{
+}
+#endif
 
 #endif	/* __ARC_KGDB_H__ */

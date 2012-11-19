@@ -9,12 +9,21 @@
 #ifndef _ASM_ARC_UNALIGNED_H
 #define _ASM_ARC_UNALIGNED_H
 
-/* ARC700 can't handle unaligned accesses. */
+/* ARC700 can't handle unaligned Data accesses. */
 
 #include <asm-generic/unaligned.h>
 #include <asm/ptrace.h>
 
-extern int misaligned_fixup(unsigned long address, struct pt_regs *regs,
-			    unsigned long cause, struct callee_regs *cregs);
+#ifdef CONFIG_ARC_MISALIGN_ACCESS
+int misaligned_fixup(unsigned long address, struct pt_regs *regs,
+		     unsigned long cause, struct callee_regs *cregs);
+#else
+static inline int
+misaligned_fixup(unsigned long address, struct pt_regs *regs,
+		 unsigned long cause, struct callee_regs *cregs)
+{
+	return 0;
+}
+#endif
 
 #endif /* _ASM_ARC_UNALIGNED_H */

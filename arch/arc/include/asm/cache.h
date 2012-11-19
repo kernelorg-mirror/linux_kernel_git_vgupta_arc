@@ -17,6 +17,7 @@
 #endif
 
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
+
 #define ARC_ICACHE_WAYS	2
 #define ARC_DCACHE_WAYS	4
 

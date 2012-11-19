@@ -4,64 +4,35 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- *  Rajeshwarr: June 2009
- *    -Tidy up the Bootmem Allocator setup
- *    -We were skipping OVER "1" page in bootmem setup
- *
- *  Vineetg: June 2009
- *    -Tag parsing done ONLY if bootloader passes it, otherwise defaults
- *     for those params are already setup at compile time.
- *
- *  Vineetg: April 2009
- *    -NFS and IDE (hda2) root filesystem works now
- *
- *  Vineetg: Jan 30th 2008
- *    -setup_processor() is now CPU init API called by all CPUs
- *        It includes TLB init, Vect Tbl Iit, Clearing ALL IRQs etc
- *    -cpuinfo_arc700 is now an array of NR_CPUS; contains MP info as well
- *    -/proc/cpuinfo iterator fixed so that show_cpuinfo() gets
- *        correct CPU-id to display CPU specific info
  */
 
-#include <linux/serial.h>
 #include <linux/seq_file.h>
+#include <linux/fs.h>
 #include <linux/delay.h>
-#include <linux/socket.h>
 #include <linux/root_dev.h>
 #include <linux/console.h>
 #include <linux/module.h>
-#include <linux/smp.h>
-#include <linux/kernel.h>
 #include <linux/cpu.h>
 #include <asm/sections.h>
 #include <asm/arcregs.h>
 #include <asm/tlb.h>
+#include <asm/cache.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/irq.h>
+#include <asm/arcregs.h>
 #include <asm/unwind.h>
-#include <asm/serial.h>
-#include <asm/smp.h>
-#include <asm/unistd.h>
-#include <plat/memmap.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
 int running_on_hw = 1;	/* vs. on ISS */
+
 char __initdata command_line[COMMAND_LINE_SIZE];
-struct task_struct *_current_task[NR_CPUS];	/* currently active task */
+
+struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
+
 struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 
-/*
- * CPU info code now more organised. Instead of stupid if else,
- * added tables which can be run thru
- */
-struct cpuinfo_data {
-	int id;
-	const char *str;
-	int up_range;
-};
 
 void __init read_arc_build_cfg_regs(void)
 {
@@ -127,17 +98,19 @@ void __init read_arc_build_cfg_regs(void)
 }
 
 static const struct cpuinfo_data arc_cpu_tbl[] = {
-	{0x10, "ARCTangent A5", 0x1F},
-	{0x20, "ARC 600", 0x2F},
-	{0x30, "ARC 700", 0x33},
-	{0x34, "ARC 700 R4.10", 0x34},
-	{0x0, NULL}
+	{ {0x10, "ARCTangent A5"}, 0x1F},
+	{ {0x20, "ARC 600"      }, 0x2F},
+	{ {0x30, "ARC 700"      }, 0x33},
+	{ {0x34, "ARC 700 R4.10"}, 0x34},
+	{ {0x00, NULL		} }
 };
 
 char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 {
-	int i, n = 0;
+	int n = 0;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
+	struct bcr_identity *core = &cpu->core;
+	const struct cpuinfo_data *tbl;
 	int be = 0;
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	be = 1;
@@ -147,21 +120,21 @@ char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 	n += scnprintf(buf + n, len - n,
 		       "\nARC IDENTITY\t: Family [%#02x]"
 		       " Cpu-id [%#02x] Chip-id [%#4x]\n",
-		       cpu->core.family, cpu->core.cpu_id,
-		       cpu->core.chip_id);
+		       core->family, core->cpu_id,
+		       core->chip_id);
 
-	for (i = 0; arc_cpu_tbl[i].id != 0; i++) {
-		if ((cpu->core.family >= arc_cpu_tbl[i].id) &&
-		    (cpu->core.family <= arc_cpu_tbl[i].up_range)) {
+	for (tbl = &arc_cpu_tbl[0]; tbl->info.id != 0; tbl++) {
+		if ((core->family >= tbl->info.id) &&
+		    (core->family <= tbl->up_range)) {
 			n += scnprintf(buf + n, len - n,
 				       "processor\t: %s %s\n",
-				       arc_cpu_tbl[i].str,
+				       tbl->info.str,
 				       be ? "[Big Endian]" : "");
 			break;
 		}
 	}
 
-	if (arc_cpu_tbl[i].id == 0)
+	if (tbl->info.id == 0)
 		n += scnprintf(buf + n, len - n, "UNKNOWN ARC Processor\n");
 
 	n += scnprintf(buf + n, len - n, "CPU speed\t: %u.%02u Mhz\n",
@@ -324,16 +297,12 @@ void __init setup_processor(void)
 	int cpu_id = smp_processor_id();
 
 	read_arc_build_cfg_regs();
-
 	arc_init_IRQ();
 
 	printk(arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
 
-	/* Enable MMU */
 	arc_mmu_init();
-
 	arc_cache_init();
-
 	arc_chk_ccms();
 
 	printk(arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
@@ -390,8 +359,6 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 
-	paging_init();
-
 	arc_unwind_init();
 	arc_unwind_setup();
 }
@@ -400,10 +367,13 @@ void __init setup_arch(char **cmdline_p)
  *  Get CPU information for use by the procfs.
  */
 
+#define cpu_to_ptr(c)	((void *)(0xFFFF0000 | (unsigned int)(c)))
+#define ptr_to_cpu(p)	(~0xFFFF0000UL & (unsigned int)(p))
+
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	char *str;
-	int cpu_id = (0xFFFF & (int)v);
+	int cpu_id = ptr_to_cpu(v);
 
 	str = (char *)__get_free_page(GFP_TEMPORARY);
 	if (!str)
@@ -435,16 +405,12 @@ done:
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
 	/*
-	 * This 0xFF xxxx business is a simple hack.
-	 * We encode cpu-id as 0x 00FF <cpu-id> and return it as a ptr
-	 * We Can't return cpu-id directly because 1st cpu-id is 0, which has
-	 * special meaning in seq-file framework (iterator end).
-	 * Otherwise we have to kmalloc in c_start() and do a free in c_stop()
-	 * which is really not required for a such a simple case
-	 * show_cpuinfo() extracts the cpu-id from it.
+	 * Callback returns cpu-id to iterator for show routine, NULL to stop.
+	 * However since NULL is also a valid cpu-id (0), we use a round-about
+	 * way to pass it w/o having to kmalloc/free a 2 byte string.
+	 * Encode cpu-id as 0xFFcccc, which is decoded by show routine.
 	 */
-	return *pos < num_possible_cpus() ?
-		((void *)(0xFF0000 | (int)(*pos))) : NULL;
+	return *pos < num_possible_cpus() ? cpu_to_ptr(*pos) : NULL;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)

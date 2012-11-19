@@ -7,27 +7,28 @@
 #
 
 config ARC
-	bool
-	default y
-	select HAVE_OPROFILE
-	select NO_IOPORT
-	select HAVE_KPROBES
-	select HAVE_ARCH_KGDB
-	select HAVE_KRETPROBES
-	select HAVE_PERF_EVENTS
-	select PERF_USE_VMALLOC
+	def_bool y
+	select ARCH_WANT_IPC_PARSE_VERSION
+	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
+	# DEVTMPS in turn needs HOTPLUG
+	select DEVTMPFS if !INITRAMFS_SOURCE=""
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_FIND_FIRST_BIT
 	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
-	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_SMP_IDLE_THREAD
-	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
-	# DEVTMPS in turn needs HOTPLUG
-	select HOTPLUG if !INITRAMFS_SOURCE=""
-	select DEVTMPFS if !INITRAMFS_SOURCE=""
+	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_GENERIC_HARDIRQS
+	select HAVE_IRQ_WORK
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
+	select HAVE_OPROFILE
+	select HAVE_PERF_EVENTS
+	select HOTPLUG if !INITRAMFS_SOURCE=""
+	select PERF_USE_VMALLOC
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -38,6 +39,7 @@ config GENERIC_CSUM
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
+# for old_[ug]id_t - do we need this ?
 config UID16
 	def_bool y
 
@@ -51,12 +53,6 @@ config NO_IOPORT
 	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
-	def_bool y
-
-config GENERIC_FIND_FIRST_BIT
-	def_bool y
-
-config GENERIC_FIND_NEXT_BIT
 	def_bool y
 
 config GENERIC_HWEIGHT
@@ -205,11 +201,26 @@ config ARC_HAS_ICCM
 	  Single Cycle RAMS to store Fast Path Code
 	default n
 
+config ARC_ICCM_SZ
+	int "ICCM Size in KB"
+	default "64"
+	depends on ARC_HAS_ICCM
+
 config ARC_HAS_DCCM
 	bool "Use DCCM"
 	help
 	  Single Cycle RAMS to store Fast Path Data
 	default n
+
+config ARC_DCCM_SZ
+	int "DCCM Size in KB"
+	default "64"
+	depends on ARC_HAS_DCCM
+
+config ARC_DCCM_BASE
+	hex "DCCM map address"
+	default "0xA0000000"
+	depends on ARC_HAS_DCCM
 
 config ARC_HAS_HW_MPY
 	bool "Use Hardware Multiplier (Normal or Faster XMAC)"
@@ -245,18 +256,6 @@ config ARC_MMU_V3
 
 endchoice
 
-
-config ARC_MMU_SASID
-	bool "shared TLB entries for library code segments"
-	default y
-	depends on ARC_MMU_V3
-	select ARC_CMN_MMAP
-	help
-	  Enable MMU support for code TLB entries, sharable across processes.
-	  So instead of a per-process TLB entry per page of library code, a
-	  single TLB entry is used across all proceeses, mapping this lib.
-	  This is difft from glabal TLB entries as it is subscription based
-	  This will reduce pressure on TLB immensely.
 
 choice
 	prompt "MMU Page Size"
@@ -298,7 +297,7 @@ endif
 
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
-	default N
+	default n
 	help
 	  Double Precision Floating Point unit had dedictaed regs which
 	  need to be saved/restored across context-switch.
@@ -339,8 +338,8 @@ source "arch/arc/plat-arcfpga/Kconfig"
 #New platform adds here
 
 config ARC_PLAT_CLK
-	int "Clock speed"
-	default "12000000"
+	int "Clk speed in Hz"
+	default "80000000"
 
 config LINUX_LINK_BASE
 	hex "Linux Link Address"
@@ -365,21 +364,13 @@ config ARC_PLAT_SDRAM_SIZE
 
 endmenu # "Platform Board Configuration"
 
-
 config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"
-	default N
+	default y
 	help
 	  This reserved Register R25 to point to Current Task in
 	  kernel mode. This saves memory access for each such access
 
-config ARC_TLS_REG_EMUL
-	bool "Emulate a TLS register using a dedicated user vaddr"
-	default N
-	help
-	  ARC ABI lacks defining a dedicated TLS register to hold
-	  pointer to TLS Data area.
-	  So we emulate the TLS register using a TLS Virtual addr
 
 config ARC_MISALIGN_ACCESS
 	bool "Emulate unaligned memory access (userspace only)"
@@ -389,34 +380,6 @@ config ARC_MISALIGN_ACCESS
 	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide
 	  potential bugs in code
 
-config ARC_ADDR_SPACE_RND
-	bool "Address Space Randomisation (mmap/SP)"
-	default N
-	help
-	  This feature enables Address space randomisation for mmap and SP
-	  Note that it could lead to some performance degradation especially
-	  for shared libraries so use it only if needed
-
-config ARC_CMN_MMAP
-	bool "mmap shared lib code at same vaddr across processes"
-	default y
-	select GENERIC_ALLOCATOR
-	help
-	  This feature forces kernel to map a particular shared lib's code
-	  at same vaddr across processes using a dedicated
-	  common-mmap-virtual-address-space. Any lib's code page frames
-	  are already shared using page-cache; same vaddr ensures a single
-	  v:p mapping, preventing virtual aliases in ARC VIPT I-Caches.
-	  This boosts performance because each alias occupies a cache-line
-	  of own hence needs to be fetched per instance as opposed to just
-	  once.
-	  It is _must_ for enabling hardware SASID feature, where a single
-	  shared TLB entry for shared code can be used across processes.
-
-config HZ
-	int "Timer Frequency"
-	default 100
-
 config ARC_STACK_NONEXEC
 	bool "Make stack non-executable"
 	default n
@@ -424,7 +387,9 @@ config ARC_STACK_NONEXEC
 	  To disable the execute permissions of stack/heap of processes
 	  which are enabled by default.
 
-source "kernel/time/Kconfig"
+config HZ
+	int "Timer Frequency"
+	default 100
 
 config ARC_METAWARE_HLINK
 	bool "Support for Metaware debugger assisted Host access"

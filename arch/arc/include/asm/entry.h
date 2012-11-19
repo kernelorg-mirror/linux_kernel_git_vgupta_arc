@@ -35,9 +35,8 @@
 #include <asm/unistd.h>		/* For NR_syscalls defination */
 #include <asm/asm-offsets.h>
 #include <asm/arcregs.h>
-#include <asm/current.h>
 #include <asm/ptrace.h>
-#include <asm/pgtable.h>	/* For VMALLOC_START */
+#include <asm/processor.h>	/* For VMALLOC_START */
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
 /* Note on the LD/ST addr modes with addr reg wback

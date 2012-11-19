@@ -14,7 +14,9 @@
 #ifndef __ASM_ARC_PROCESSOR_H
 #define __ASM_ARC_PROCESSOR_H
 
-#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+#if defined(__KERNEL__)
+
+#if !defined(__ASSEMBLY__)
 
 #include <asm/arcregs.h>	/* for STATUS_E1_MASK et all */
 
@@ -116,6 +118,40 @@ extern unsigned int get_wchan(struct task_struct *p);
  */
 #define current_text_addr() ({ __label__ _l; _l: &&_l; })
 
-#endif /* __KERNEL__ && !__ASSEMBLY__ */
+#endif /* !__ASSEMBLY__ */
+
+/* Kernels Virtual memory area.
+ * Unlike other architectures(MIPS, sh, cris ) ARC 700 does not have a
+ * "kernel translated" region (like KSEG2 in MIPS). So we use a upper part
+ * of the translated bottom 2GB for kernel virtual memory and protect
+ * these pages from user accesses by disabling Ru, Eu and Wu.
+ */
+#define VMALLOC_SIZE	(0x10000000)	/* 256M */
+#define VMALLOC_START	(PAGE_OFFSET - VMALLOC_SIZE)
+#define VMALLOC_END	(PAGE_OFFSET)
+
+/* Most of the architectures seem to be keeping some kind of padding between
+ * userspace TASK_SIZE and PAGE_OFFSET. i.e TASK_SIZE != PAGE_OFFSET.
+ */
+#define USER_KERNEL_GUTTER    0x10000000
+
+/* User address space:
+ * On ARC700, CPU allows the entire lower half of 32 bit address space to be
+ * translated. Thus potentially 2G (0:0x7FFF_FFFF) could be User vaddr space.
+ * However we steal 256M for kernel addr (0x7000_0000:0x7FFF_FFFF) and another
+ * 256M (0x6000_0000:0x6FFF_FFFF) is gutter between user/kernel spaces
+ * Thus total User vaddr space is (0:0x5FFF_FFFF)
+ */
+#define TASK_SIZE	(PAGE_OFFSET - VMALLOC_SIZE - USER_KERNEL_GUTTER)
+
+#define STACK_TOP       TASK_SIZE
+#define STACK_TOP_MAX   STACK_TOP
+
+/* This decides where the kernel will search for a free chunk of vm
+ * space during mmap's.
+ */
+#define TASK_UNMAPPED_BASE      (TASK_SIZE / 3)
+
+#endif /* __KERNEL__ */
 
 #endif /* __ASM_ARC_PROCESSOR_H */

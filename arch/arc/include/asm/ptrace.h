@@ -42,6 +42,8 @@
 #define PT_orig_r0	96
 #define PT_orig_r8	100
 
+#ifdef __KERNEL__
+
 #ifndef __ASSEMBLY__
 
 /* THE pt_regs: Defines how regs are saved during entry into kernel */
@@ -124,8 +126,6 @@ struct user_regs_struct {
 
 #define in_brkpt_trap(regs) (((regs->orig_r8) == (NR_syscalls + 2)) ? 1 : 0)
 
-#define regs_return_value(regs) ((regs)->r0)
-
 #define user_stack_pointer(regs)\
 ({  unsigned int sp;		\
 	if (user_mode(regs))	\
@@ -135,6 +135,8 @@ struct user_regs_struct {
 	sp;			\
 })
 
-#endif /* __ASSEMBLY__ */
+#endif /* !__ASSEMBLY__ */
+
+#endif	/* __KERNEL__ */
 
 #endif /* __ASM_PTRACE_H */

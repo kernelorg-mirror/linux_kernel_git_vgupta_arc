@@ -24,12 +24,21 @@
 #define PGU_BASEADDR            0xC0FC8000
 #define VLCK_ADDR               0xC0FCF028
 
-#define DCCM_COMPILE_BASE       0xA0000000
-#define DCCM_COMPILE_SZ         (64 * 1024)
-#define ICCM_COMPILE_SZ         (64 * 1024)
-
 #define BVCI_LAT_UNIT_BASE      0xC0FED000
 
-#define PS2_BASE_ADDR		(0xC0FCC000)
+#define PS2_BASE_ADDR		0xC0FCC000
+
+#if 0
+#include <linux/init.h>
+
+#define printk_init(fmt, ...)			\
+({							\
+	static const __initconst char __fmt[] = fmt;	\
+	pr_info(__fmt, ##__VA_ARGS__);				\
+})
+
+#else
+#define printk_init(fmt, ...)   pr_info(fmt, ##__VA_ARGS__)
+#endif
 
 #endif

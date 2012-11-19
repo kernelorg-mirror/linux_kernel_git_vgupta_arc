@@ -8,42 +8,14 @@
  */
 
 #include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/types.h>
 #include <linux/ptrace.h>
-#include <linux/mman.h>
-#include <linux/mm.h>
 #include <linux/version.h>
-#include <linux/console.h>
-#include <linux/notifier.h>
-#include <linux/kprobes.h>
 #include <linux/uaccess.h>
-#include <linux/mmu_context.h>
 #include <linux/kdebug.h>
-#include <asm/hardirq.h>
 #include <asm/pgalloc.h>
-#include <asm/event-log.h>
-
-/* XXX: This is not plugged even in the orig kprobes port in 2.6.30 */
-static inline int notify_page_fault(struct pt_regs *regs, unsigned long cause)
-{
-	int ret = 0;
-
-#ifdef CONFIG_KPROBES
-	if (!user_mode(regs)) {
-		preempt_disable();
-		if (kprobe_running() && kprobe_fault_handler(regs, cause))
-			ret = 1;
-		preempt_enable();
-	}
-#endif
-
-	return ret;
-}
 
 static int handle_vmalloc_fault(struct mm_struct *mm, unsigned long address)
 {

@@ -9,7 +9,9 @@
 #ifndef _ASM_ARC_ATOMIC_H
 #define _ASM_ARC_ATOMIC_H
 
-#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+#if defined(__KERNEL__)
+
+#if !defined(__ASSEMBLY__)
 
 #include <linux/types.h>
 #include <linux/compiler.h>
@@ -100,14 +102,20 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 
 #else	/* !CONFIG_ARC_HAS_LLSC */
 
-#ifdef CONFIG_SMP
+#ifndef CONFIG_SMP
+
+ /* violating atomic_xxx API locking protocol in UP for optimization sake */
+#define atomic_set(v, i) (((v)->counter) = (i))
+
+#else
 
 static inline void atomic_set(atomic_t *v, int i)
 {
 	/*
 	 * Independent of hardware support, all of the atomic_xxx() APIs need
-	 * to follow the same locking rules to make sure 1 "hardware" atomic
-	 * insn doesn't clobber an "emulated" atomic insn sequence
+	 * to follow the same locking rules to make sure that a "hardware"
+	 * atomic insn (e.g. LD) doesn't clobber an "emulated" atomic insn
+	 * sequence
 	 *
 	 * Thus atomic_set() despite being 1 insn (and seemingly atomic)
 	 * requires the locking.
@@ -118,12 +126,12 @@ static inline void atomic_set(atomic_t *v, int i)
 	v->counter = i;
 	atomic_ops_unlock(flags);
 }
-#else
-
- /* violating atomic_xxx API locking protocol in UP for optimization sake */
-#define atomic_set(v, i) (((v)->counter) = (i))
-
 #endif
+
+/*
+ * Non hardware assisted Atomic-R-M-W
+ * Locking would change to irq-disabling only (UP) and spinlocks (SMP)
+ */
 
 static inline void atomic_add(int i, atomic_t *v)
 {
@@ -215,12 +223,10 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 
 #define ATOMIC_INIT(i)			{ (i) }
 
-#ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
-#else
-#error "implement ARC 64bit atomics"
+
 #endif
 
-#endif /* __KERNEL__ && !__ASSEMBLY__ */
+#endif
 
 #endif

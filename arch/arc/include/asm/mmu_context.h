@@ -9,11 +9,6 @@
  *  -Refactored get_new_mmu_context( ) to only handle live-mm.
  *   retiring-mm handled in other hooks
  *
- * vineetg: April 2011
- *  -CONFIG_ARC_MMU_SASID: support for ARC MMU Shared Address spaces
- *     activate_mm() and switch_mm() to setup MMU SASID reg with task's
- *     current sasid subscriptions
- *
  * Vineetg: March 25th, 2008: Bug #92690
  *  -Major rewrite of Core ASID allocation routine get_new_mmu_context
  *
@@ -26,12 +21,7 @@
 #include <asm/arcregs.h>
 #include <asm/tlb.h>
 
-#ifndef CONFIG_ARC_CMN_MMAP
 #include <asm-generic/mm_hooks.h>
-#else
-extern void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
-extern void arch_exit_mmap(struct mm_struct *mm);
-#endif
 
 /*		ARC700 ASID Management
  *
@@ -184,16 +174,6 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		write_aux_reg(ARC_REG_PID, next->context.asid | MMU_ENABLE);
 	}
 
-#ifdef CONFIG_ARC_MMU_SASID
-	{
-		unsigned int tsk_sasids;
-
-		tsk_sasids = is_any_mmapcode_task_subscribed(next);
-		if (tsk_sasids)
-			write_aux_reg(ARC_REG_SASID, tsk_sasids);
-	}
-#endif
-
 }
 
 static inline void destroy_context(struct mm_struct *mm)
@@ -226,9 +206,8 @@ static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 	/* Unconditionally get a new ASID */
 	get_new_mmu_context(next);
 
-#ifdef CONFIG_ARC_MMU_SASID
-	BUG_ON((is_any_mmapcode_task_subscribed(next)));
-#endif
 }
+
+#define enter_lazy_tlb(mm, tsk)
 
 #endif /* __ASM_ARC_MMU_CONTEXT_H */

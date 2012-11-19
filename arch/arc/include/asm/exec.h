@@ -6,10 +6,10 @@
  * published by the Free Software Foundation.
  */
 
-
 #ifndef __ASM_ARC_EXEC_H
 #define __ASM_ARC_EXEC_H
 
-extern unsigned long arch_align_stack(unsigned long sp);
+/* Align to 16b */
+#define arch_align_stack(p) ((unsigned long)(p) & ~0xf)
 
 #endif

@@ -8,7 +8,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- *
  *  vineetg: aug 2009
  *  -Implemented CONFIG_STACKTRACE APIs, primarily save_stack_trace_tsk( )
  *   for displaying task's kernel mode call stack in /proc/<pid>/stack
@@ -26,7 +25,7 @@
  */
 
 #include <linux/ptrace.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
 #include <asm/arcregs.h>

@@ -11,8 +11,6 @@
 #include <linux/sched.h>
 #include <asm/switch_to.h>
 
-#ifdef HW_BUG_101581
-
 /*
  * To save/restore FPU regs, simplest scheme would use LR/SR insns.
  * However since SR serializes the pipeline, an alternate "hack" can be used
@@ -55,25 +53,3 @@ void fpu_save_restore(struct task_struct *prev, struct task_struct *next)
 		: "r" (zero), "r" (*(readfrom + 3)), "r" (*(readfrom + 2))
 	);
 }
-
-#else /* !HW_BUG_101581 */
-
-void fpu_save(struct task_struct *tsk)
-{
-	struct arc_fpu *fpu = &tsk->thread.fpu;
-	fpu->aux_dpfp[0].l = read_aux_reg(ARC_AUX_DPFP_1L);
-	fpu->aux_dpfp[0].h = read_aux_reg(ARC_AUX_DPFP_1H);
-	fpu->aux_dpfp[1].l = read_aux_reg(ARC_AUX_DPFP_2L);
-	fpu->aux_dpfp[1].h = read_aux_reg(ARC_AUX_DPFP_2H);
-}
-
-void fpu_restore(struct task_struct *tsk)
-{
-	struct arc_fpu *fpu = &tsk->thread.fpu;
-	write_aux_reg(ARC_AUX_DPFP_1L, fpu->aux_dpfp[0].l);
-	write_aux_reg(ARC_AUX_DPFP_1H, fpu->aux_dpfp[0].h);
-	write_aux_reg(ARC_AUX_DPFP_2L, fpu->aux_dpfp[1].l);
-	write_aux_reg(ARC_AUX_DPFP_2H, fpu->aux_dpfp[1].h);
-}
-
-#endif /* !HW_BUG_101581 */

@@ -5,10 +5,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * vineetg: March 2009
- *  -Cleaned up copy_thread( ), made it use task_pt_regs( )
- *  -It used to leave a margin of 8 bytes which was confusing
- *
  * Amit Bhor, Kanika Nema: Codito Technologies 2004
  */
 
@@ -16,9 +12,11 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
+#include <linux/syscalls.h>
 #include <linux/elf.h>
 #include <linux/tick.h>
 
@@ -50,6 +48,7 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 {
 	if (!newsp)
 		newsp = regs->sp;
+
 	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr,
 		       child_tidptr);
 }
@@ -64,6 +63,7 @@ int sys_execve(const char __user *filenamei, const char __user *__user *argv,
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
+
 	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
 out:
@@ -97,12 +97,27 @@ int kernel_execve(const char *filename, const char *const argv[],
 }
 EXPORT_SYMBOL(kernel_execve);
 
+SYSCALL_DEFINE1(arc_settls, void *, user_tls_data_ptr)
+{
+	task_thread_info(current)->thr_ptr = (unsigned int)user_tls_data_ptr;
+	return 0;
+}
+
 /*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
+ * We return the user space TLS data ptr as sys-call return code
+ * Ideally it should be copy to user.
+ * However we can cheat by the fact that some sys-calls do return
+ * absurdly high values
+ * Since the tls dat aptr is not going to be in range of 0xFFFF_xxxx
+ * it won't be considered a sys-call error
+ * and it will be loads better than copy-to-user, which is a definite
+ * D-TLB Miss
  */
+SYSCALL_DEFINE0(arc_gettls)
+{
+	return task_thread_info(current)->thr_ptr;
+}
+
 static inline void arch_idle(void)
 {
 	__asm__("sleep");
@@ -203,7 +218,7 @@ int copy_thread(unsigned long clone_flags,
 	*c_regs = *regs;
 
 	/* __switch_to expects FP(0), BLINK(return addr) at top of stack */
-	childksp[0] = 0;        			/* for POP fp */
+	childksp[0] = 0;				/* for POP fp */
 	childksp[1] = (unsigned long)ret_from_fork;	/* for POP blink */
 
 	if (user_mode(regs)) {
@@ -227,12 +242,6 @@ int copy_thread(unsigned long clone_flags,
 	 */
 	p->thread.ksp = (unsigned long)c_callee;	/* THREAD_KSP */
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-	/* Replicate parent's user mode r25 for child */
-	p->thread.user_r25 = current->thread.user_r25;
-#endif
-
-#ifdef CONFIG_ARC_TLS_REG_EMUL
 	if (user_mode(regs)) {
 		if (unlikely(clone_flags & CLONE_SETTLS)) {
 			/*
@@ -246,7 +255,6 @@ int copy_thread(unsigned long clone_flags,
 			task_thread_info(current)->thr_ptr;
 		}
 	}
-#endif
 
 	return 0;
 }
@@ -288,60 +296,9 @@ unsigned long thread_saved_pc(struct task_struct *t)
 	 * the picture above (right above pt_regs).
 	 */
 	if (t != current && t->state != TASK_RUNNING)
-		blink = *((unsigned int *)((unsigned long)regs - 4));
+		blink = *((unsigned int *)regs - 1);
 
 	return blink;
-}
-
-int sys_arc_settls(void *user_tls_data_ptr)
-{
-#ifdef CONFIG_ARC_TLS_REG_EMUL
-	task_thread_info(current)->thr_ptr = (unsigned int)user_tls_data_ptr;
-	return 0;
-#else
-	return -EFAULT;
-#endif
-}
-
-/*
- * We return the user space TLS data ptr as sys-call return code
- * Ideally it should be copy to user.
- * However we can cheat by the fact that some sys-calls do return
- * absurdly high values
- * Since the tls dat aptr is not going to be in range of 0xFFFF_xxxx
- * it won't be considered a sys-call error
- * and it will be loads better than copy-to-user, which is a definite
- * D-TLB Miss
- */
-int sys_arc_gettls(void)
-{
-#ifdef CONFIG_ARC_TLS_REG_EMUL
-	return task_thread_info(current)->thr_ptr;
-#else
-	return -EFAULT;
-#endif
-}
-
-unsigned long arch_align_stack(unsigned long sp)
-{
-#ifdef CONFIG_ARC_ADDR_SPACE_RND
-	/*
-	 * ELF loader sets this flag way early.
-	 * So no need to check for multiple things like
-	 *   !(current->personality & ADDR_NO_RANDOMIZE)
-	 *   randomize_va_space
-	 */
-	if (current->flags & PF_RANDOMIZE) {
-
-		/* Stack grows down for ARC */
-		sp -= get_random_int() & ~PAGE_MASK;
-	}
-#endif
-
-	/* always align stack to 16 bytes */
-	sp &= ~0xF;
-
-	return sp;
 }
 
 int elf_check_arch(const struct elf32_hdr *x)

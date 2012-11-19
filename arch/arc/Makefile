@@ -18,12 +18,18 @@ PLATFORM := $(platform-y)
 export PLATFORM
 
 cflags-y	+= -Iarch/arc/plat-$(PLATFORM)/include
+cflags-y	+= -mA7 -fno-common -pipe -fno-builtin -D__linux__
 
-LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/defines.h \
-		    -include ${src}/arch/arc/include/asm/current.h
+LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/defines.h
 
-cflags-y	+= -mA7 -fno-common -pipe -fno-builtin \
-						-D__linux__
+ifdef CONFIG_ARC_CURR_IN_REG
+# For a global register defintion, make sure it gets passed to every file
+# We had a customer reported bug where some code built in kernel was NOT using
+# any kernel headers, and missing the r25 global register
+# Can't do unconditionally (like above) because of recursive include issues
+# due to <linux/thread_info.h>
+LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/current.h
+endif
 
 atleast_gcc44 :=  $(call cc-ifversion, -gt, 0402, y)
 cflags-$(atleast_gcc44)			+= -fsection-anchors
@@ -32,9 +38,6 @@ cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
 cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
 cflags-$(CONFIG_ARC_HAS_RTSC)		+= -mrtsc
 cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables
-
-# Generic build system already passes -Os, additonally uninline some code
-cflags-$(CONFIG_CC_OPTIMIZE_FOR_SIZE)	+= -DNONINLINE_MEMSET
 
 ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
 # Generic build system uses -O2, we want -O3
@@ -52,7 +55,10 @@ cflags-$(CONFIG_ARC_DBG_EVENT_TIMELINE) += -g
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mbig-endian
 ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB
 
-# GNU ld doesn't accept --build-id w/o this workaround
+# STAR 9000518362:
+# arc-linux-uclibc-ld (buildroot) or arceb-elf32-ld (EZChip) don't accept
+# --build-id w/o "-marclinux".
+# Default arc-elf32-ld is OK
 ldflags-y				+= -marclinux
 
 ARC_LIBGCC				:= -mA7
@@ -89,15 +95,16 @@ KBUILD_CPPFLAGS	+= -Iarch/arc/plat-$(PLATFORM)/include
 head-y		:= arch/arc/kernel/head.o
 
 # See arch/arc/Kbuild for content of core part of the kernel
-core-y				+= arch/arc/
+core-y		+= arch/arc/
 
 # w/o this ifneq, make ARCH=arc clean was crapping out
 ifneq ($(platform-y),)
-core-y				+= arch/arc/plat-$(PLATFORM)/
+core-y		+= arch/arc/plat-$(PLATFORM)/
 endif
 
 drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
-libs-y				+= arch/arc/lib/ $(LIBGCC)
+
+libs-y		+= arch/arc/lib/ $(LIBGCC)
 
 #default target for make without any arguements.
 KBUILD_IMAGE := bootpImage
@@ -120,9 +127,8 @@ archclean:
 # However lib/decompress_inflate.o (.init.text) calls
 # zlib_inflate_workspacesize (.text) causing relocation errors.
 # Thus forcing all exten calls in this file to be long calls
-export CFLAGS_decompress_inflate.o = -mlong-calls
-
-# some debug printk getting out of range from sched code
+export CFLAGS_decompress_inflate.o = -mmedium-calls
+export CFLAGS_initramfs.o = -mmedium-calls
 ifdef CONFIG_SMP
 export CFLAGS_core.o = -mmedium-calls
 endif

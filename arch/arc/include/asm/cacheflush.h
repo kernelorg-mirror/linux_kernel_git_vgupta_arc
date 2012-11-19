@@ -62,11 +62,6 @@ do {									\
 } while (0)
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)		\
-do {									\
 	memcpy(dst, src, len);						\
-} while (0)
-
-#include <asm/arcregs.h>
-extern struct cpuinfo_arc cpuinfo_arc700[];
 
 #endif

@@ -6,7 +6,17 @@
  * published by the Free Software Foundation.
  *
  * vineetg: May 2011
- *  -set_pte_at() enables creating a PTE entry with enough SASID info
+ *  -Folded PAGE_PRESENT (used by VM) and PAGE_VALID (used by MMU) into 1.
+ *     They are semantically the same although in different contexts
+ *     VALID marks a TLB entry exists and it will only happen if PRESENT
+ *  - Utilise some unused free bits to confine PTE flags to 12 bits
+ *     This is a must for 4k pg-sz
+ *
+ * vineetg: Mar 2011 - changes to accomodate MMU TLB Page Descriptor mods
+ *  -TLB Locking never really existed, except for initial specs
+ *  -SILENT_xxx not needed for our port
+ *  -Per my request, MMU V3 changes the layout of some of the bits
+ *     to avoid a few shifts in TLB Miss handlers.
  *
  * vineetg: April 2010
  *  -PGD entry no longer contains any flags. If empty it is 0, otherwise has
@@ -28,43 +38,194 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm-generic/pgtable-nopmd.h>
-#include <asm/mmapcode.h>
 
-/* Page Table Lookup split */
-#define BITS_IN_PAGE  PAGE_SHIFT
+/**************************************************************************
+ * Page Table Flags
+ *
+ * ARC700 MMU only deals with softare managed TLB entries.
+ * Page Tables are purely for Linux VM's consumption and the bits below are
+ * suited to that (uniqueness). Hence some are not implemented in the TLB and
+ * some have different value in TLB.
+ * e.g. MMU v2: K_READ bit is 8 and so is GLOBAL (possible becoz they live in
+ *      seperate PD0 and PD1, which combined forms a translation entry)
+ *      while for PTE perspective, they are 8 and 9 respectively
+ * with MMU v3: Most bits (except SHARED) represent the exact hardware pos
+ *      (saves some bit shift ops in TLB Miss hdlrs)
+ */
 
-/* Optimal Sizing of Pg Tbl - based on page size */
-#if defined(CONFIG_ARC_PAGE_SIZE_8K)
-#define BITS_FOR_PTE  8
-#elif defined(CONFIG_ARC_PAGE_SIZE_16K)
-#define BITS_FOR_PTE  8
-#elif defined(CONFIG_ARC_PAGE_SIZE_4K)
-#define BITS_FOR_PTE  9
+#if (CONFIG_ARC_MMU_VER <= 2)
+
+#define _PAGE_ACCESSED      (1<<1)	/* Page is accessed (S) */
+#define _PAGE_CACHEABLE     (1<<2)	/* Page is cached (H) */
+#define _PAGE_EXECUTE       (1<<3)	/* Page has user execute perm (H) */
+#define _PAGE_WRITE         (1<<4)	/* Page has user write perm (H) */
+#define _PAGE_READ          (1<<5)	/* Page has user read perm (H) */
+#define _PAGE_K_EXECUTE     (1<<6)	/* Page has kernel execute perm (H) */
+#define _PAGE_K_WRITE       (1<<7)	/* Page has kernel write perm (H) */
+#define _PAGE_K_READ        (1<<8)	/* Page has kernel perm (H) */
+#define _PAGE_GLOBAL        (1<<9)	/* Page is global (H) */
+#define _PAGE_MODIFIED      (1<<10)	/* Page modified (dirty) (S) */
+#define _PAGE_FILE          (1<<10)	/* page cache/ swap (S) */
+#define _PAGE_PRESENT       (1<<11)	/* TLB entry is valid (H) */
+
+#else
+
+/* PD1 */
+#define _PAGE_CACHEABLE     (1<<0)	/* Page is cached (H) */
+#define _PAGE_EXECUTE       (1<<1)	/* Page has user execute perm (H) */
+#define _PAGE_WRITE         (1<<2)	/* Page has user write perm (H) */
+#define _PAGE_READ          (1<<3)	/* Page has user read perm (H) */
+#define _PAGE_K_EXECUTE     (1<<4)	/* Page has kernel execute perm (H) */
+#define _PAGE_K_WRITE       (1<<5)	/* Page has kernel write perm (H) */
+#define _PAGE_K_READ        (1<<6)	/* Page has kernel perm (H) */
+#define _PAGE_ACCESSED      (1<<7)	/* Page is accessed (S) */
+
+/* PD0 */
+#define _PAGE_GLOBAL        (1<<8)	/* Page is global (H) */
+#define _PAGE_PRESENT       (1<<9)	/* TLB entry is valid (H) */
+#define _PAGE_SHARED_CODE   (1<<10)	/* Shared Code page with cmn vaddr
+					   usable for shared TLB entries (H) */
+
+#define _PAGE_MODIFIED      (1<<11)	/* Page modified (dirty) (S) */
+#define _PAGE_FILE          (1<<12)	/* page cache/ swap (S) */
+
+#define _PAGE_SHARED_CODE_H (1<<31)	/* Hardware counterpart of above */
 #endif
 
-#define BITS_FOR_PGD  (32 - BITS_FOR_PTE - BITS_IN_PAGE)
+/* Kernel allowed all permissions for all pages */
+#define _K_PAGE_PERMS  (_PAGE_K_EXECUTE | _PAGE_K_WRITE | _PAGE_K_READ)
+
+#ifdef CONFIG_ARC_CACHE_PAGES
+#define _PAGE_DEF_CACHEABLE _PAGE_CACHEABLE
+#else
+#define _PAGE_DEF_CACHEABLE (0)
+#endif
+
+/* Helper for every "user" page
+ * -kernel can R/W/X
+ * -by default cached, unless config otherwise
+ * -present in memory
+ */
+#define ___DEF (_PAGE_PRESENT | _K_PAGE_PERMS | _PAGE_DEF_CACHEABLE)
+
+/* Set of bits not changed in pte_modify */
+#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_MODIFIED)
+
+/* More Abbrevaited helpers */
+#define PAGE_U_NONE     __pgprot(___DEF)
+#define PAGE_U_R        __pgprot(___DEF | _PAGE_READ)
+#define PAGE_U_W_R      __pgprot(___DEF | _PAGE_READ | _PAGE_WRITE)
+#define PAGE_U_X_R      __pgprot(___DEF | _PAGE_READ | _PAGE_EXECUTE)
+#define PAGE_U_X_W_R    __pgprot(___DEF | _PAGE_READ | _PAGE_WRITE | \
+						       _PAGE_EXECUTE)
+
+#define PAGE_SHARED	PAGE_U_W_R
+
+/* While kernel runs out of unstrslated space, vmalloc/modules use a chunk of
+ * kernel vaddr space - visible in all addr spaces, but kernel mode only
+ * Thus Global, all-kernel-access, no-user-access, cached
+ */
+#define PAGE_KERNEL          __pgprot(___DEF | _PAGE_GLOBAL)
+
+/* ioremap */
+#define PAGE_KERNEL_NO_CACHE __pgprot(_PAGE_PRESENT | _K_PAGE_PERMS | \
+						     _PAGE_GLOBAL)
+
+/**************************************************************************
+ * Mapping of vm_flags (Generic VM) to PTE flags (arch specific)
+ *
+ * Certain cases have 1:1 mapping
+ *  e.g. __P101 means VM_READ, VM_EXEC and !VM_SHARED
+ *       which directly corresponds to  PAGE_U_X_R
+ *
+ * Other rules which cause the divergence from 1:1 mapping
+ *
+ *  1. Although ARC700 can do exclusive execute/write protection (meaning R
+ *     can be tracked independet of X/W unlike some other CPUs), still to
+ *     keep things consistent with other archs:
+ *      -Write implies Read:   W => R
+ *      -Execute implies Read: X => R
+ *
+ *  2. Pvt Writable doesn't have Write Enabled initially: Pvt-W => !W
+ *     This is to enable COW mechanism
+ */
+	/* xwr */
+#define __P000  PAGE_U_NONE
+#define __P001  PAGE_U_R
+#define __P010  PAGE_U_R	/* Pvt-W => !W */
+#define __P011  PAGE_U_R	/* Pvt-W => !W */
+#define __P100  PAGE_U_X_R	/* X => R */
+#define __P101  PAGE_U_X_R
+#define __P110  PAGE_U_X_R	/* Pvt-W => !W and X => R */
+#define __P111  PAGE_U_X_R	/* Pvt-W => !W */
+
+#define __S000  PAGE_U_NONE
+#define __S001  PAGE_U_R
+#define __S010  PAGE_U_W_R	/* W => R */
+#define __S011  PAGE_U_W_R
+#define __S100  PAGE_U_X_R	/* X => R */
+#define __S101  PAGE_U_X_R
+#define __S110  PAGE_U_X_W_R	/* X => R */
+#define __S111  PAGE_U_X_W_R
+
+/****************************************************************
+ * Page Table Lookup split
+ *
+ * We implement 2 tier paging and since this is all software, we are free
+ * to customize the span of a PGD / PTE entry to suit us
+ *
+ *			32 bit virtual address
+ * -------------------------------------------------------
+ * | BITS_FOR_PGD    |  BITS_FOR_PTE    |  BITS_IN_PAGE  |
+ * -------------------------------------------------------
+ *       |                  |                |
+ *       |                  |                --> off in page frame
+ *       |		    |
+ *       |                  ---> index into Page Table
+ *       |
+ *       ----> index into Page Directory
+ */
+
+#define BITS_IN_PAGE	PAGE_SHIFT
+
+/* Optimal Sizing of Pg Tbl - based on MMU page size */
+#if defined(CONFIG_ARC_PAGE_SIZE_8K)
+#define BITS_FOR_PTE	8
+#elif defined(CONFIG_ARC_PAGE_SIZE_16K)
+#define BITS_FOR_PTE	8
+#elif defined(CONFIG_ARC_PAGE_SIZE_4K)
+#define BITS_FOR_PTE	9
+#endif
+
+#define BITS_FOR_PGD	(32 - BITS_FOR_PTE - BITS_IN_PAGE)
 
 #define PGDIR_SHIFT	(BITS_FOR_PTE + BITS_IN_PAGE)
-/* This is the extent of vaddr space mapped by PGDIR, not container sz */
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)	/* vaddr span, not PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-/* These come automatically from the split above */
+#ifdef __ASSEMBLY__
 #define	PTRS_PER_PTE	(1 << BITS_FOR_PTE)
 #define	PTRS_PER_PGD	(1 << BITS_FOR_PGD)
-
+#else
+#define	PTRS_PER_PTE	(1UL << BITS_FOR_PTE)
+#define	PTRS_PER_PGD	(1UL << BITS_FOR_PGD)
+#endif
 /*
  * Number of entries a user land program use.
  * TASK_SIZE is the maximum vaddr that can be used by a userland program.
  */
 #define	USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
-#define FIRST_USER_PGD_NR	0
 
 /*
  * No special requirements for lowest virtual address we permit any user space
  * mapping to be mapped at.
  */
 #define FIRST_USER_ADDRESS      0
+
+
+/****************************************************************
+ * Bucket load of VM Helpers
+ */
 
 #ifndef __ASSEMBLY__
 
@@ -79,12 +240,6 @@ extern char empty_zero_page[PAGE_SIZE];
 
 #define pte_unmap(pte)		do { } while (0)
 #define pte_unmap_nested(pte)		do { } while (0)
-
-static inline void flush_tlb_pgtables(struct mm_struct *mm,
-				      unsigned long start, unsigned long end)
-{
-	/* ARC doesn't keep page table caches in TLB */
-}
 
 #define set_pte(pteptr, pteval)	((*(pteptr)) = (pteval))
 #define set_pmd(pmdptr, pmdval)	(*(pmdptr) = pmdval)
@@ -104,6 +259,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 #define pte_none(x)			(!pte_val(x))
 #define pte_present(x)			(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, ptep)	set_pte_at(mm, addr, ptep, __pte(0))
+
 #define pmd_none(x)			(!pmd_val(x))
 #define	pmd_bad(x)			((pmd_val(x) & ~PAGE_MASK))
 #define pmd_present(x)			(pmd_val(x))
@@ -175,52 +331,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pteval)
 {
-#ifdef CONFIG_ARC_MMU_SASID
-	int sasid;
-
-	/* For now, we are only interested in PTEs for code */
-	if ((pte_val(pteval) & (_PAGE_READ | _PAGE_WRITE | _PAGE_EXECUTE)) ==
-	    (_PAGE_READ | _PAGE_EXECUTE)) {
-
-		/*
-		 * Does this code page belong to a mapped shared library, which
-		 * has been mapped such that vaddr is cmn across processes.
-		 * If yes, make a note in PTE that
-		 *  -it is shared
-		 *  -it's SASID - (S)hared (A)ddr (S)pace ID - a "handle" to
-		 *   this cmn-vadd-space instance)
-		 * That way TLB Miss handlers, which look at the PTE, will have
-		 * all the info to actually program a shared TLB entry into MMU
-		 */
-		sasid = mmapcode_find_mm_vaddr(mm, addr);
-
-		if (sasid >= 0) {
-			/*
-			 * PTE now needs to save extra 5 bits SASID which won't
-			 * fit in orig 1 word-wide PTE (PFN and flags)
-			 * Using a long-long or pte[2] generates horrible code.
-			 * So we split the info into 2 parts, each part in a
-			 * seperate page-table.
-			 *
-			 * When allocating page-frame for page table, we
-			 * allocate double the size, to fit 2 logical tables.
-			 * First one is the normal, containing normal PTE info,
-			 * and is the one hooked-up to upper level PGD.
-			 * The 2nd one, adjecent to first one in memory (by way
-			 * of alloc), is more-or-less hidden, containing only
-			 * SASIDs (if at all).
-			 *
-			 * A full PTE entry correponds to one word each, in
-			 * both, at same relative indexes. Given ptr to pte in
-			 * main table, getting the corresp sibling in other
-			 * table is simply (ptep + PTRS_IN_PTE*4)
-			 */
-
-			pte_val(pteval) |= _PAGE_SHARED_CODE;
-			set_pte((ptep + PTRS_PER_PTE), sasid);
-		}
-	}
-#endif
 	set_pte(ptep, pteval);
 }
 
@@ -274,11 +384,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
-#define PageSkip(page)		(0)
 #define kern_addr_valid(addr)	(1)
-
-#include <asm-generic/pgtable.h>
 
 /*
  * remap a physical page `pfn' of size `size' with page protection `prot'
@@ -287,10 +393,13 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 #define io_remap_pfn_range(vma, from, pfn, size, prot) \
 			remap_pfn_range(vma, from, pfn, size, prot)
 
+#include <asm-generic/pgtable.h>
+
 /*
  * No page table caches to initialise
  */
 #define pgtable_cache_init()   do { } while (0)
 
 #endif /* __ASSEMBLY__ */
-#endif /* _ARM_ARC_PGTABLE_H */
+
+#endif

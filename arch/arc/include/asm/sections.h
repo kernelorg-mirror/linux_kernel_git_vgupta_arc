@@ -12,7 +12,6 @@
 #include <asm-generic/sections.h>
 
 extern char _int_vec_base_lds[];
-extern unsigned long end_kernel;
 extern char __arc_dccm_base[];
 
 #endif

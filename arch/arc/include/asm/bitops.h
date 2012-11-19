@@ -4,26 +4,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * vineetg: March 2010
- *  -Rewrote atomic/non-atomic test_and_(set|clear|change)_bit and
- *           (set|clear|change)_bit APIs
- *  -Removed the redundant loads due to multiple ops on volatile args
- *  -Convert non-atomic APIs to "C" for better insn scheduling
- *  -take adv of fact that ARC bit fidding insn (bset/bclr/asl) etc only
- *   use bottom 5 bits of bit pos, avoiding the need to mask them off
- *
- * vineetg: March 2010
- *  -optimised ARC versions of ffz, ffs, fls
- *  -fls in particular is now loopless based on ARC norm insn
- *  - Also all such functions made "const" for gcc to enable CSE/LICM
- *  -find_first(|_zero)_bit no longer based on find_next(|_zero)_bit
- *
- * Vineetg: July 2009 (EXT2 bitops API optimisation)
- *	-Atomic API no longer call spin_lock as we are Uni-processor
- *	-Non Atomix API no longer disables interrupts
- *
- * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
  */
 
 #ifndef _ASM_BITOPS_H
@@ -33,11 +13,18 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
-#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+#if defined(__KERNEL__)
+
+#if !defined(__ASSEMBLY__)
 
 #include <linux/types.h>
 #include <linux/compiler.h>
 
+/*
+ * Hardware assisted read-modify-write using ARC700 LLOCK/SCOND insns.
+ * The Kconfig glue ensures that in SMP, this is only set if the container
+ * SoC/platform has cross-core coherent LLOCK/SCOND
+ */
 #if defined(CONFIG_ARC_HAS_LLSC)
 
 static inline void set_bit(unsigned long nr, volatile unsigned long *m)
@@ -164,13 +151,17 @@ test_and_change_bit(unsigned long nr, volatile unsigned long *m)
 	return (old & (1 << nr)) != 0;
 }
 
-#else
+#else	/* !CONFIG_ARC_HAS_LLSC */
 
 #include <asm/smp.h>
 
 /*
+ * Non hardware assisted Atomic-R-M-W
+ * Locking would change to irq-disabling only (UP) and spinlocks (SMP)
+ *
  * There's "significant" micro-optimization in writing our own variants of
- * bitops.
+ * bitops (over generic variants)
+ *
  * (1) The generic APIs have "signed" @nr while we have it "unsigned"
  *     This avoids extra code to be generated for pointer arithmatic, since
  *     is "not sure" that index is NOT -ve
@@ -230,7 +221,7 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *m)
 
 static inline int test_and_set_bit(unsigned long nr, volatile unsigned long *m)
 {
-	unsigned long old, temp, flags;
+	unsigned long old, flags;
 	m += nr >> 5;
 
 	if (__builtin_constant_p(nr))
@@ -249,7 +240,7 @@ static inline int test_and_set_bit(unsigned long nr, volatile unsigned long *m)
 static inline int
 test_and_clear_bit(unsigned long nr, volatile unsigned long *m)
 {
-	unsigned long temp, old, flags;
+	unsigned long old, flags;
 	m += nr >> 5;
 
 	if (__builtin_constant_p(nr))
@@ -268,7 +259,7 @@ test_and_clear_bit(unsigned long nr, volatile unsigned long *m)
 static inline int
 test_and_change_bit(unsigned long nr, volatile unsigned long *m)
 {
-	unsigned long temp, old, flags;
+	unsigned long old, flags;
 	m += nr >> 5;
 
 	if (__builtin_constant_p(nr))
@@ -509,6 +500,8 @@ static inline __attribute__ ((const)) int __ffs(unsigned long word)
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
 
-#endif /* __KERNEL__ && !__ASSEMBLY__ */
+#endif /* !__ASSEMBLY__ */
+
+#endif /* __KERNEL__ */
 
 #endif

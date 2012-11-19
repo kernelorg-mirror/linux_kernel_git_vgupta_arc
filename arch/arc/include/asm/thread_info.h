@@ -62,11 +62,11 @@ struct thread_info {
 	.exec_domain    = &default_exec_domain,	\
 	.flags      = 0,			\
 	.cpu        = 0,			\
-	.preempt_count  = INIT_PREEMPT_COUNT,			\
+	.preempt_count  = INIT_PREEMPT_COUNT,	\
 	.addr_limit = KERNEL_DS,		\
 	.restart_block  = {			\
 		.fn = do_no_restart_syscall,	\
-		},					\
+	},					\
 }
 
 #define init_thread_info    (init_thread_union.thread_info)
@@ -110,7 +110,7 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
 #define _TIF_MEMDIE		(1<<TIF_MEMDIE)
 
 /* work to do on interrupt/exception return */
-#define _TIF_WORK_MASK      	(0x0000FFFF & ~_TIF_SYSCALL_TRACE)
+#define _TIF_WORK_MASK		(0x0000FFFF & ~_TIF_SYSCALL_TRACE)
 
 /*
  * _TIF_ALLWORK_MASK includes SYSCALL_TRACE, but we don't need it.

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+# Copyright (C) 2011-2012 Synopsys, Inc. (www.synopsys.com)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
@@ -8,5 +8,5 @@
 
 obj-y := platform.o irq.o
 obj-$(CONFIG_ISS_SMP_EXTN)		+= smp.o
-obj-$(CONFIG_ARCTANGENT_EMAC) += arctangent_emac.o
-obj-$(CONFIG_ARC_IDE) += arc_ide.o
+obj-$(CONFIG_ARCTANGENT_EMAC)	+= arctangent_emac.o
+obj-$(CONFIG_ARC_IDE)		+= arc_ide.o

@@ -8,6 +8,8 @@
 
 #include <linux/kernel.h>
 #include <linux/printk.h>
+#include <linux/reboot.h>
+#include <linux/pm.h>
 
 void machine_halt(void)
 {
