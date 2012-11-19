@@ -15,7 +15,6 @@
 #include <linux/linkage.h>
 #include <linux/types.h>
 
-int sys_execve_wrapper(int, int, int);
 int sys_clone_wrapper(int, int, int, int, int);
 int sys_fork_wrapper(void);
 int sys_vfork_wrapper(void);
