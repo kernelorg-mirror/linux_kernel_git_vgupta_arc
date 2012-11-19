@@ -157,10 +157,6 @@ int copy_thread(unsigned long clone_flags,
 		memset(c_regs, 0, sizeof(struct pt_regs));
 		c_regs->r0 = arg; /* argument to kernel thread */
 		c_regs->r1 = usp;  /* function */
-		c_regs->status32 = read_aux_reg(0xa);
-
-		c_regs->sp =
-		    (unsigned long)task_thread_info(p) + (THREAD_SIZE - 4);
 
 		/* __switch_to expects FP(0), BLINK(return addr) at top */
 		childksp[0] = 0;			/* fp */

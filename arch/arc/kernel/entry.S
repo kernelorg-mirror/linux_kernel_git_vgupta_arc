@@ -819,7 +819,7 @@ ARC_EXIT ret_from_fork
 ARC_ENTRY ret_from_kernel_thread
 	bl  @schedule_tail
 	ld  r1, [sp, PT_r1]
-	j.d [r1]
+	jl.d [r1]
 	ld  r0, [sp, PT_r0]
 	j   @sys_exit
 ARC_EXIT ret_from_kernel_thread
