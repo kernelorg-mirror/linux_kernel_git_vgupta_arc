@@ -175,8 +175,20 @@ static inline void __user *get_sigframe(struct k_sigaction *ka,
 	return frame;
 }
 
+/*
+ * translate the signal
+ */
+static inline int map_sig(int sig)
+{
+	struct thread_info *thread = current_thread_info();
+	if (thread->exec_domain && thread->exec_domain->signal_invmap
+	    && sig < 32)
+		sig = thread->exec_domain->signal_invmap[sig];
+	return sig;
+}
+
 static int
-setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+setup_rt_frame(int signo, struct k_sigaction *ka, siginfo_t *info,
 	       sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *sf;
@@ -227,7 +239,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		return err;
 
 	/* #1 arg to the user Signal handler */
-	regs->r0 = sig;
+	regs->r0 = map_sig(signo);
 
 	/* setup PC of user space signal handler */
 	regs->ret = (unsigned long)ka->sa.sa_handler;
@@ -301,17 +313,11 @@ static void
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	      struct pt_regs *regs)
 {
-	struct thread_info *thread = current_thread_info();
 	sigset_t *oldset = sigmask_to_save();
-	unsigned long usig = sig;
 	int ret;
 
-	if (thread->exec_domain && thread->exec_domain->signal_invmap
-	    && usig < 32)
-		usig = thread->exec_domain->signal_invmap[usig];
-
 	/* Set up the stack frame */
-	ret = setup_rt_frame(usig, ka, info, oldset, regs);
+	ret = setup_rt_frame(sig, ka, info, oldset, regs);
 
 	if (ret)
 		force_sigsegv(sig, current);
