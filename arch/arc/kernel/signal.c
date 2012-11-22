@@ -251,60 +251,60 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	return err;
 }
 
+static void arc_restart_syscall(struct k_sigaction *ka, struct pt_regs *regs)
+{
+	switch (regs->r0) {
+	case -ERESTART_RESTARTBLOCK:
+	case -ERESTARTNOHAND:
+		/*
+		 * ERESTARTNOHAND means that the syscall should
+		 * only be restarted if there was no handler for
+		 * the signal, and since we only get here if there
+		 * is a handler, we don't restart
+		 */
+		regs->r0 = -EINTR;   /* ERESTART_xxx is internal */
+		break;
+
+	case -ERESTARTSYS:
+		/*
+		 * ERESTARTSYS means to restart the syscall if
+		 * there is no handler or the handler was
+		 * registered with SA_RESTART
+		 */
+		if (!(ka->sa.sa_flags & SA_RESTART)) {
+			regs->r0 = -EINTR;
+			break;
+		}
+		/* fallthrough */
+
+	case -ERESTARTNOINTR:
+		/*
+		 * ERESTARTNOINTR means that the syscall should
+		 * be called again after the signal handler returns.
+		 * Setup reg state just as it was before doing the trap
+		 * r0 has been clobbered with sys call ret code thus it
+		 * needs to be reloaded with orig first arg to syscall
+		 * in orig_r0. Rest of relevant reg-file:
+		 * r8 (syscall num) and (r1 - r7) will be reset to
+		 * their orig user space value when we ret from kernel
+		 */
+		regs->r0 = regs->orig_r0;
+		regs->ret -= 4;
+		break;
+	}
+}
+
 /*
  * OK, we're invoking a handler
  */
 static void
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
-	      struct pt_regs *regs, int in_syscall)
+	      struct pt_regs *regs)
 {
 	struct thread_info *thread = current_thread_info();
 	sigset_t *oldset = sigmask_to_save();
 	unsigned long usig = sig;
 	int ret;
-
-	/* Syscall restarting based on the ret code and other criteria */
-	if (in_syscall) {
-		switch (regs->r0) {
-		case -ERESTART_RESTARTBLOCK:
-		case -ERESTARTNOHAND:
-			/*
-			 * ERESTARTNOHAND means that the syscall should
-			 * only be restarted if there was no handler for
-			 * the signal, and since we only get here if there
-			 * is a handler, we don't restart
-			 */
-			regs->r0 = -EINTR;   /* ERESTART_xxx is internal */
-			break;
-
-		case -ERESTARTSYS:
-			/*
-			 * ERESTARTSYS means to restart the syscall if
-			 * there is no handler or the handler was
-			 * registered with SA_RESTART
-			 */
-			if (!(ka->sa.sa_flags & SA_RESTART)) {
-				regs->r0 = -EINTR;
-				break;
-			}
-			/* fallthrough */
-
-		case -ERESTARTNOINTR:
-			/*
-			 * ERESTARTNOINTR means that the syscall should
-			 * be called again after the signal handler returns.
-			 * Setup reg state just as it was before doing the trap
-			 * r0 has been clobbered with sys call ret code thus it
-			 * needs to be reloaded with orig first arg to syscall
-			 * in orig_r0. Rest of relevant reg-file:
-			 * r8 (syscall num) and (r1 - r7) will be reset to
-			 * their orig user space value when we ret from kernel
-			 */
-			regs->r0 = regs->orig_r0;
-			regs->ret -= 4;
-			break;
-		}
-	}
 
 	if (thread->exec_domain && thread->exec_domain->signal_invmap
 	    && usig < 32)
@@ -324,19 +324,22 @@ void do_signal(struct pt_regs *regs)
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
-	int insyscall;
+	int restart_scall;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
 	/* Are we from a system call? */
-	insyscall = in_syscall(regs);
+	restart_scall = in_syscall(regs);
 
 	if (signr > 0) {
-		handle_signal(signr, &ka, &info, regs, insyscall);
+		if (restart_scall)
+			arc_restart_syscall(&ka, regs);
+
+		handle_signal(signr, &ka, &info, regs);
 		return;
 	}
 
-	if (insyscall) {
+	if (restart_scall) {
 		/* No handler for syscall: restart it */
 		if (regs->r0 == -ERESTARTNOHAND ||
 		    regs->r0 == -ERESTARTSYS || regs->r0 == -ERESTARTNOINTR) {
