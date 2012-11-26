@@ -249,7 +249,7 @@ test_and_clear_bit(unsigned long nr, volatile unsigned long *m)
 	bitops_lock(flags);
 
 	old = *m;
-	*m = old | (1 << nr);
+	*m = old & ~(1 << nr);
 
 	bitops_unlock(flags);
 
