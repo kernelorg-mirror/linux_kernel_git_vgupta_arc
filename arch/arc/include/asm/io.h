@@ -13,6 +13,8 @@
 #include <asm/page.h>
 
 extern void __iomem *ioremap(unsigned long physaddr, unsigned long size);
+extern void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
+				  unsigned long flags);
 extern void iounmap(const void __iomem *addr);
 
 #define ioremap_nocache(phy, sz)	ioremap(phy, sz)
