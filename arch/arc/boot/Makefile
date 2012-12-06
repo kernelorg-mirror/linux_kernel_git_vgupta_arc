@@ -10,10 +10,9 @@ OBJCOPYFLAGS= -O binary -R .note -R .note.gnu.build-id -R .comment -S
 LINUX_START_TEXT = $$(readelf -h vmlinux | \
 			grep "Entry point address" | grep -o 0x.*)
 
-quiet_cmd_uimage = UIMAGE $@
-	cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A arc -O linux -T kernel \
-			-C gzip -a $(CONFIG_LINUX_LINK_BASE) \
-			-e $(LINUX_START_TEXT) -d $< $@
+UIMAGE_LOADADDR    = $(CONFIG_LINUX_LINK_BASE)
+UIMAGE_ENTRYADDR   = $(LINUX_START_TEXT)
+UIMAGE_COMPRESSION = gzip
 
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
