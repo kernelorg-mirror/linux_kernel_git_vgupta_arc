@@ -346,6 +346,34 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	unsigned int idx, asid_or_sasid;
 	unsigned long pd0_flags;
 
+	/*
+	 * create_tlb() assumes that current->mm == vma->mm, since
+	 * -it ASID for TLB entry is fetched from MMU ASID reg (valid for curr)
+	 * -completes the lazy write to SASID reg (again valid for curr tsk)
+	 *
+	 * Removing the assumption involves
+	 * -Using vma->mm->context{ASID,SASID}, as opposed to MMU reg.
+	 * -Fix the TLB paranoid debug code to not trigger false negatives.
+	 * -More importantly it makes this handler inconsistent with fast-path
+	 *  TLB Refill handler which always deals with "current"
+	 *
+	 * Lets see the use cases when current->mm != vma->mm and we land here
+	 *  1. execve->copy_strings()->__get_user_pages->handle_mm_fault
+	 *     Here VM wants to pre-install a TLB entry for user stack while
+	 *     current->mm still points to pre-execve mm (hence the condition).
+	 *     However the stack vaddr is soon relocated (randomization) and
+	 *     move_page_tables() tries to undo that TLB entry.
+	 *     Thus not creating TLB entry is not any worse.
+	 *
+	 *  2. ptrace(POKETEXT) causes a CoW - debugger(current) inserting a
+	 *     breakpoint in debugged task. Not creating a TLB now is not
+	 *     performance critical.
+	 *
+	 * Both the cases above are not good enough for code churn.
+	 */
+	if (current->active_mm != vma->vm_mm)
+		return;
+
 	local_irq_save(flags);
 
 	tlb_paranoid_check(vma->vm_mm->context.asid, address);
@@ -401,19 +429,6 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddress,
 		      pte_t *ptep)
 {
-	/* XXX: This definitely seems useless */
-#if 0
-	BUG_ON(!pfn_valid(pte_pfn(*ptep)));
-#endif
-
-	/* XXX: This is useful - but only once during execve - check why?
-	 *  handle_mm_fault()
-	 *      __get_user_pages
-	 *          copy_strings()
-	 *              do_execve()
-	 */
-	if (current->active_mm != vma->vm_mm)
-		return;
 
 	create_tlb(vma, vaddress, ptep);
 }
