@@ -97,9 +97,10 @@ void __init setup_arch_memory(void)
 	zones_size[ZONE_NORMAL] = num_physpages;
 
 	/*
-	 * Must not use free_area_init() as that uses PAGE_OFFSET, which
-	 * need not be the case when our kernel linked at non-default addr
-	 * i.e. when CONFIG_LINUX_LINK_BASE != PAGE_OFFSET
+	 * We can't use the helper free_area_init(zones[]) because it uses
+	 * PAGE_OFFSET to compute the @min_low_pfn which would be wrong
+	 * when our kernel doesn't start at PAGE_OFFSET, i.e.
+	 * PAGE_OFFSET != CONFIG_LINUX_LINK_BASE
 	 */
 	free_area_init_node(0,			/* node-id */
 			    zones_size,		/* num pages per zone */
