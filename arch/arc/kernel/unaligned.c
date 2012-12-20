@@ -116,6 +116,10 @@
 			goto fault;			\
 	} while (0)
 
+/* sysctl hooks */
+int unaligned_enabled __read_mostly = 1;	/* Enabled by default */
+int no_unaligned_warning __read_mostly = 1;	/* Only 1 warning by default */
+
 static void fixup_load(struct disasm_state *state, struct pt_regs *regs,
 			struct callee_regs *cregs)
 {
@@ -123,8 +127,7 @@ static void fixup_load(struct disasm_state *state, struct pt_regs *regs,
 
 	/* register write back */
 	if ((state->aa == 1) || (state->aa == 2)) {
-		set_reg(state->wb_reg, state->src1 + state->src2, regs,
-				cregs);
+		set_reg(state->wb_reg, state->src1 + state->src2, regs, cregs);
 
 		if (state->aa == 2)
 			state->src2 = 0;
@@ -158,38 +161,55 @@ static void fixup_store(struct disasm_state *state, struct pt_regs *regs,
 			state->src3 = 0;
 	} else if (state->aa == 3) {
 		if (state->zz == 2) {
-			set_reg(state->wb_reg, state->src2 +
-				(state->src3 << 1), regs, cregs);
+			set_reg(state->wb_reg, state->src2 + (state->src3 << 1),
+				regs, cregs);
 		} else if (!state->zz) {
-			set_reg(state->wb_reg, state->src2 +
-				(state->src3 << 2), regs, cregs);
+			set_reg(state->wb_reg, state->src2 + (state->src3 << 2),
+				regs, cregs);
 		} else {
 			goto fault;
 		}
 	}
 
 	/* write fix-up */
-	if (!state->zz) {
-		put32_unaligned_check(state->src1, state->src2 +
-					state->src3);
-	} else {
-		put16_unaligned_check(state->src1, state->src2 +
-					state->src3);
-	}
+	if (!state->zz)
+		put32_unaligned_check(state->src1, state->src2 + state->src3);
+	else
+		put16_unaligned_check(state->src1, state->src2 + state->src3);
 
 	return;
 
 fault:	state->fault = 1;
 }
 
+/*
+ * Handle an unaligned access
+ * Returns 0 if successfully handled, 1 if some error happened
+ */
 int misaligned_fixup(unsigned long address, struct pt_regs *regs,
-		     unsigned long cause,  struct callee_regs *cregs)
+		     unsigned long cause, struct callee_regs *cregs)
 {
 	struct disasm_state state;
+	char buf[TASK_COMM_LEN];
 
-	/* handle user mode only */
-	if (!user_mode(regs))
+	/* handle user mode only and only if enabled by sysadmin */
+	if (!user_mode(regs) || !unaligned_enabled)
 		return 1;
+
+	if (no_unaligned_warning) {
+		pr_warn_once("%s(%d) made unaligned access which was emulated"
+			     " by kernel assist\n. This can degrade application"
+			     " performance significantly\n. To enable further"
+			     " logging of such instances, please \n"
+			     " echo 0 > /proc/sys/kernel/ignore-unaligned-usertrap\n",
+			     get_task_comm(buf, current), task_pid_nr(current));
+	} else {
+		/* Add rate limiting if it gets down to it */
+		pr_warn("%s(%d): unaligned access to/from 0x%lx by PC: 0x%lx\n",
+			get_task_comm(buf, current), task_pid_nr(current),
+			address, regs->ret);
+
+	}
 
 	disasm_instr(regs->ret, &state, 1, regs, cregs);
 

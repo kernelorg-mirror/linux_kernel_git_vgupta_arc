@@ -377,6 +377,8 @@ config ARC_CURR_IN_REG
 config ARC_MISALIGN_ACCESS
 	bool "Emulate unaligned memory access (userspace only)"
 	default N
+	select SYSCTL_ARCH_UNALIGN_NO_WARN
+	select SYSCTL_ARCH_UNALIGN_ALLOW
 	help
 	  This enables misaligned 16 & 32 bit memory access from user space.
 	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide
