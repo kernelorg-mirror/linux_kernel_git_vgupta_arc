@@ -49,15 +49,14 @@ static void show_callee_regs(struct callee_regs *cregs)
 	print_reg_file(&(cregs->r13), 13);
 }
 
-void print_task_path_n_nm(struct task_struct *task, char *buf)
+void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 {
 	struct path path;
-	char *nm = NULL;
+	char *path_nm = NULL;
 	struct mm_struct *mm;
 	struct file *exe_file;
-	char comm_buf[TASK_COMM_LEN];
 
-	mm = get_task_mm(task);
+	mm = get_task_mm(tsk);
 	if (!mm)
 		goto done;
 
@@ -68,13 +67,12 @@ void print_task_path_n_nm(struct task_struct *task, char *buf)
 		path = exe_file->f_path;
 		path_get(&exe_file->f_path);
 		fput(exe_file);
-		nm = d_path(&path, buf, 255);
+		path_nm = d_path(&path, buf, 255);
 		path_put(&path);
 	}
 
 done:
-	pr_info("task = %s '%s', TGID %u PID = %u\n", nm,
-		get_task_comm(comm_buf, task), task->tgid, task->pid);
+	pr_info("%s, TGID %u\n", path_nm, tsk->tgid);
 }
 EXPORT_SYMBOL(print_task_path_n_nm);
 
