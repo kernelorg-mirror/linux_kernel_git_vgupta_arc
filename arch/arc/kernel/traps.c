@@ -94,9 +94,9 @@ int do_misaligned_access(unsigned long cause, unsigned long address,
 	if (misaligned_fixup(address, regs, cause, cregs) != 0) {
 		siginfo_t info;
 
-		info.si_signo = SIGSEGV;
+		info.si_signo = SIGBUS;
 		info.si_errno = 0;
-		info.si_code = SEGV_ACCERR;
+		info.si_code = BUS_ADRALN;
 		info.si_addr = (void __user *)address;
 		return handle_exception(cause, "Misaligned Access", regs,
 					  &info);
