@@ -621,11 +621,6 @@ resume_user_mode_begin:
 	; Disable IRQs to ensures that chk for pending work itself is atomic
 	; (and we don't end up missing a NEED_RESCHED/SIGPENDING due to an
 	; interim IRQ).
-	;
-	; IRQs would be re-enabled by one of the ensuing functions such as
-	; schedule()or worst case RTIE will automatically re-enable them,
-	; based on cpu state prior to this event.
-
 	IRQ_DISABLE	r10
 
 	; Fast Path return to user mode if no pending work
@@ -639,6 +634,8 @@ resume_user_mode_begin:
 	b      @schedule 	; BTST+Bnz causes relo error in link
 
 .Lchk_pend_signals:
+	IRQ_ENABLE      r10
+
 	; --- (Slow Path #2) pending signal  ---
 	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
 
