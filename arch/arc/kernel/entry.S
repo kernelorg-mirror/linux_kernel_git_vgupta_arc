@@ -663,11 +663,10 @@ resume_user_mode_begin:
 	; --- (Slow Path #3) notify_resume ---
 .Lchk_notify_resume:
 	btst   r9, TIF_NOTIFY_RESUME
+	bz     restore_regs
+
 	blnz   @do_notify_resume
-
-	;--------- All things done, go back to Userland ------
-
-	b restore_regs
+	b      resume_user_mode_begin	; loop back to start of U mode ret
 
 #ifdef CONFIG_PREEMPT
 
