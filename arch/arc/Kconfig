@@ -8,6 +8,7 @@
 
 config ARC
 	def_bool y
+	select ARCH_NO_VIRT_TO_BUS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
 	# DEVTMPS in turn needs HOTPLUG
@@ -41,10 +42,6 @@ config GENERIC_CSUM
 	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
-# for old_[ug]id_t - do we need this ?
-config UID16
 	def_bool y
 
 config ARCH_FLATMEM_ENABLE
