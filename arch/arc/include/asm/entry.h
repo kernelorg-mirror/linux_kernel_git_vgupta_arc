@@ -100,7 +100,7 @@
  * Special case handling is required for r25 in case it is used by kernel
  *  for caching task ptr. Low level exception/ISR save user mode r25
  *  into task->thread.user_r25. So it needs to be retrieved from there and
- *  saved into kernel stack wit rest of callee reg-file
+ *  saved into kernel stack with rest of callee reg-file
  *-------------------------------------------------------------*/
 .macro SAVE_CALLEE_SAVED_USER
 	st.a    r13, [sp, -4]
@@ -156,7 +156,7 @@
 .endm
 
 /*--------------------------------------------------------------
- * RESTORE_CALLEE_SAVED:
+ * RESTORE_CALLEE_SAVED_KERNEL:
  * Loads callee (non scratch) Reg File by popping from Kernel mode stack.
  *  This is reverse of SAVE_CALLEE_SAVED,
  *
@@ -189,6 +189,41 @@
 	ld.ab   r14, [sp, 4]
 	ld.ab   r13, [sp, 4]
 
+.endm
+
+/*--------------------------------------------------------------
+ * RESTORE_CALLEE_SAVED_USER:
+ * This is called after do_signal where tracer might have changed callee regs
+ * thus we need to restore the reg file.
+ * Special case handling is required for r25 in case it is used by kernel
+ *  for caching task ptr. Ptrace would have modified on-kernel-stack value of
+ *  r25, which needs to be shoved back into task->thread.user_r25 where from
+ *  Low level exception/ISR return code will retrieve to populate with rest of
+ *  callee reg-file.
+ *-------------------------------------------------------------*/
+.macro RESTORE_CALLEE_SAVED_USER
+
+	add     sp, sp, 4   /* skip "callee_regs->stack_place_holder" */
+
+#ifdef CONFIG_ARC_CURR_IN_REG
+	ld.ab   r12, [sp, 4]
+	st      r12, [r25, TASK_THREAD + THREAD_USER_R25]
+#else
+	ld.ab   r25, [sp, 4]
+#endif
+
+	ld.ab   r24, [sp, 4]
+	ld.ab   r23, [sp, 4]
+	ld.ab   r22, [sp, 4]
+	ld.ab   r21, [sp, 4]
+	ld.ab   r20, [sp, 4]
+	ld.ab   r19, [sp, 4]
+	ld.ab   r18, [sp, 4]
+	ld.ab   r17, [sp, 4]
+	ld.ab   r16, [sp, 4]
+	ld.ab   r15, [sp, 4]
+	ld.ab   r14, [sp, 4]
+	ld.ab   r13, [sp, 4]
 .endm
 
 /*--------------------------------------------------------------
