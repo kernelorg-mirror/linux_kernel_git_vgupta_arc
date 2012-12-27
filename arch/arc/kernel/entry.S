@@ -614,10 +614,10 @@ ARC_ENTRY ret_from_exception
 	bbit0  r8, STATUS_U_BIT, restore_regs
 #endif
 
-resume_user_mode_begin:
-
 	; Before returning to User mode check-for-and-complete any pending work
 	; such as rescheduling/signal-delivery etc.
+resume_user_mode_begin:
+
 	; Disable IRQs to ensures that chk for pending work itself is atomic
 	; (and we don't end up missing a NEED_RESCHED/SIGPENDING due to an
 	; interim IRQ).
@@ -633,17 +633,16 @@ resume_user_mode_begin:
 	and.f  0,  r9, _TIF_WORK_MASK
 	bz     restore_regs
 
-	; --- task preemption ---
-	bbit0  r9, TIF_NEED_RESCHED, 1f
-	bl     @schedule		; blnz yields relocation errors
-	b      resume_user_mode_begin	; loop back to start of U mode ret
+	; --- (Slow Path #1) task preemption ---
+	bbit0  r9, TIF_NEED_RESCHED, .Lchk_pend_signals
+	mov    blink, resume_user_mode_begin  ; tail-call to U mode ret chks
+	b      @schedule 	; BTST+Bnz causes relo error in link
 
-1:
-	; --- signal handling  ---
+.Lchk_pend_signals:
+	; --- (Slow Path #2) pending signal  ---
 	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
 
-	; --------- check for signals/restore-sigmask ------------
-	bbit0  r9, TIF_SIGPENDING, chk_next_work
+	bbit0  r9, TIF_SIGPENDING, .Lchk_notify_resume
 
 	; save CALLEE Regs.
 	; (i)  If this signal causes coredump - full regfile needed
@@ -664,8 +663,8 @@ resume_user_mode_begin:
 
 	b      resume_user_mode_begin	; loop back to start of U mode ret
 
-	; --- notify_resume ---
-chk_next_work:
+	; --- (Slow Path #3) notify_resume ---
+.Lchk_notify_resume:
 	btst   r9, TIF_NOTIFY_RESUME
 	blnz   @do_notify_resume
 
