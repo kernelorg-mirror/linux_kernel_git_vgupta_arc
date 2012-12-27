@@ -22,20 +22,6 @@ static inline void arc_write_me(unsigned short *addr, unsigned long value)
 	*(addr + 1) = (value & 0xffff);
 }
 
-void *module_alloc(unsigned long size)
-{
-	if (size == 0)
-		return NULL;
-
-	return vmalloc(size);
-
-}
-
-void module_free(struct module *module, void *region)
-{
-	vfree(region);
-}
-
 /* ARC specific section quirks - before relocation loop in generic loader
  *
  * For dwarf unwinding out of modules, this needs to
