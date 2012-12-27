@@ -14,9 +14,9 @@
 #ifndef __ASM_ARC_PROCESSOR_H
 #define __ASM_ARC_PROCESSOR_H
 
-#if defined(__KERNEL__)
+#ifdef __KERNEL__
 
-#if !defined(__ASSEMBLY__)
+#ifndef __ASSEMBLY__
 
 #include <asm/arcregs.h>	/* for STATUS_E1_MASK et all */
 

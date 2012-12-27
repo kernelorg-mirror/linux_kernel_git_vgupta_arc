@@ -92,7 +92,6 @@
 #endif /* CONFIG_ARC_HAS_SWAPE */
 
 #if !defined(__STRICT_ANSI__) || defined(__KERNEL__)
-#define __BYTEORDER_HAS_U64__
 #define __SWAB_64_THRU_32__
 #endif
 

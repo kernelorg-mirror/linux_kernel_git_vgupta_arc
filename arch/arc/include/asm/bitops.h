@@ -13,9 +13,9 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
-#if defined(__KERNEL__)
+#ifdef __KERNEL__
 
-#if !defined(__ASSEMBLY__)
+#ifndef __ASSEMBLY__
 
 #include <linux/types.h>
 #include <linux/compiler.h>
