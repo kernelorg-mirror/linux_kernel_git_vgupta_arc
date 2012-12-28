@@ -415,18 +415,12 @@
  *-------------------------------------------------------------*/
 .macro SAVE_ALL_EXCEPTION   marker
 
+	st      \marker, [sp, 8]
+	st      r0, [sp, 4]    /* orig_r0, needed only for sys calls */
+
 	/* Restore r9 used to code the early prologue */
 	EXCPN_PROLOG_RESTORE_REG  r9
 
-	/* Save the complete regfile now */
-
-	/* orig_r8 marker:
-	 * syscalls   -> 1 to NR_SYSCALLS
-	 * Exceptions -> NR_SYSCALLS + 1
-	 * Break-point-> NR_SYSCALLS + 2
-	 */
-	st      \marker, [sp, 8]
-	st      r0, [sp, 4]    /* orig_r0, needed only for sys calls */
 	SAVE_CALLER_SAVED
 	st.a    r26, [sp, -4]   /* gp */
 	st.a    fp, [sp, -4]
@@ -456,14 +450,25 @@
  * Save scratch regs for exceptions
  *-------------------------------------------------------------*/
 .macro SAVE_ALL_SYS
-	SAVE_ALL_EXCEPTION  (NR_syscalls + 1)
+	SAVE_ALL_EXCEPTION  orig_r8_IS_EXCPN
 .endm
 
 /*--------------------------------------------------------------
  * Save scratch regs for sys calls
  *-------------------------------------------------------------*/
 .macro SAVE_ALL_TRAP
-	SAVE_ALL_EXCEPTION  r8
+	/*
+	 * Encode syscall number (r8) in upper short word of event type (r9)
+	 * (r9 is already clobbered when we land here)
+	 */
+#ifndef CONFIG_CPU_BIG_ENDIAN
+	lsl  r9, r8, 16
+	or   r9, r9, orig_r8_IS_SCALL
+#else
+	lsl  r9, orig_r8_IS_SCALL, 16
+	or   r9, r9, r8
+#endif
+	SAVE_ALL_EXCEPTION  r9
 .endm
 
 /*--------------------------------------------------------------
@@ -518,7 +523,7 @@
 #endif
 
 	/* now we are ready to save the remaining context :) */
-	st     -1, [sp, 8]    /* orig_r8, -1 for interuppt level one */
+	st      orig_r8_IS_IRQ1, [sp, 8]    /* Event Type */
 	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
 	SAVE_CALLER_SAVED
 	st.a    r26, [sp, -4]   /* gp */
@@ -553,7 +558,7 @@
 	ld  r9, [@int2_saved_reg]
 
 	/* now we are ready to save the remaining context :) */
-	st     -2, [sp, 8]    /* orig_r8, -2 for interrupt level 2 */
+	st      orig_r8_IS_IRQ2, [sp, 8]    /* Event Type */
 	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
 	SAVE_CALLER_SAVED
 	st.a    r26, [sp, -4]   /* gp */

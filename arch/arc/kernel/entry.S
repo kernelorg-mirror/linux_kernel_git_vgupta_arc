@@ -514,8 +514,8 @@ tracesys_exit:
 
 trap_with_param:
 
-	;make sure orig_r8 is a positive value
-	st  NR_syscalls + 2, [sp, PT_orig_r8]
+	; stop_pc info by gdb needs this info
+	st  orig_r8_IS_BRKPT, [sp, PT_orig_r8]
 
 	mov r0, r12
 	lr  r1, [efa]
@@ -744,10 +744,10 @@ not_exception:
 	;----------------------------------------------------------------
 
 	ld r9, [sp, PT_orig_r8]        ; get orig_r8 to make sure it is
-	brne r9, -2, 149f              ; infact a L2 ISR ret path
+	brne r9, orig_r8_IS_IRQ2, 149f ; infact a L2 ISR ret path
 
-	ld r9, [sp, PT_status32]        ; get statu32_l2 (saved in pt_regs)
-	bbit0 r9, STATUS_A1_BIT, 149f     ; L1 not active when L2 IRQ, so normal
+	ld r9, [sp, PT_status32]       ; get statu32_l2 (saved in pt_regs)
+	bbit0 r9, STATUS_A1_BIT, 149f  ; L1 not active when L2 IRQ, so normal
 
 	; A1 is set in status32_l2
 	; decrement thread_info->preempt_count (re-enable preemption)
