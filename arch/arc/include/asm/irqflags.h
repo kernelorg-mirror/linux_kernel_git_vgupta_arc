@@ -57,7 +57,7 @@ static inline void arch_local_irq_restore(unsigned long flags)
 }
 
 /*
- * Conditionally Enable IRQs
+ * Unconditionally Enable IRQs
  */
 extern void arch_local_irq_enable(void);
 

@@ -197,19 +197,19 @@ void arch_local_irq_enable(void)
  */
 void arch_local_irq_enable(void)
 {
-
 	unsigned long flags;
-	flags = arch_local_save_flags();
-	flags |= (STATUS_E1_MASK | STATUS_E2_MASK);
 
 	/*
-	 * If called from hard ISR (between irq_enter and irq_exit)
-	 * don't allow Level 1. In Soft ISR we allow further Level 1s
+	 * ARC IDE Drivers tries to re-enable interrupts from hard-isr
+	 * context which is simply wrong
 	 */
+	if (in_irq()) {
+		WARN_ONCE(1, "IRQ enabled from hard-isr");
+		return;
+	}
 
-	if (in_irq())
-		flags &= ~(STATUS_E1_MASK | STATUS_E2_MASK);
-
+	flags = arch_local_save_flags();
+	flags |= (STATUS_E1_MASK | STATUS_E2_MASK);
 	arch_local_irq_restore(flags);
 }
 #endif
