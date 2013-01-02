@@ -47,6 +47,39 @@
 
 /********** Clock Source Device *********/
 
+#ifdef CONFIG_ARC_HAS_RTSC
+
+void __cpuinit arc_counter_setup(void)
+{
+	/* RTSC insn taps into cpu clk, needs no setup */
+}
+
+static cycle_t arc_counter_read(struct clocksource *cs)
+{
+	union {
+		struct { u32 low, high; };
+		cycle_t  full;
+	} stamp;
+
+	__asm__ __volatile(
+	"	.extCoreRegister tsch, 58,  r, cannot_shortcut	\n"
+	"	rtsc %0, 0	\n"
+	"	mov  %1, tsch	\n"	/* TSCH is extn core reg 58 */
+	: "=r" (stamp.low), "=r" (stamp.high));
+
+	return stamp.full;
+}
+
+static struct clocksource arc_counter = {
+	.name   = "ARC RTSC",
+	.rating = 300,
+	.read   = arc_counter_read,
+	.mask   = CLOCKSOURCE_MASK(64),
+	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+#else /* !CONFIG_ARC_HAS_RTSC */
+
 /*
  * set 32bit TIMER1 to keep counting monotonically and wraparound
  */
@@ -69,6 +102,8 @@ static struct clocksource arc_counter = {
 	.mask   = CLOCKSOURCE_MASK(32),
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+#endif
 
 /********** Clock Event Device *********/
 
