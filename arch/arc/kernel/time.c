@@ -178,6 +178,12 @@ irqreturn_t timer_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static struct irqaction arc_timer_irq = {
+	.name    = "Timer0 (clock-evt-dev)",
+	.flags   = IRQF_TIMER | IRQF_PERCPU,
+	.handler = timer_irq_handler,
+};
+
 void __cpuinit arc_local_timer_setup(unsigned int cpu)
 {
 	struct clock_event_device *clk = &per_cpu(arc_clockevent_device, cpu);
@@ -190,20 +196,14 @@ void __cpuinit arc_local_timer_setup(unsigned int cpu)
 	clockevents_register_device(clk);
 
 	/*
-	 * Done only on Boot CPU as it would fail on others.
-	 * (Treated a re-registration for a !IRQF_SHARED irq)
+	 * setup the per-cpu timer IRQ handler - for all cpus
+	 * For non boot CPU explicitly unmask at intc
+	 * setup_irq() -> .. -> irq_startup() already does this on boot-cpu
 	 */
-	if (cpu == 0) {
-		int rc;
-		rc = request_percpu_irq(TIMER0_IRQ, timer_irq_handler,
-					"Timer0 (clk-dev)", clk);
-
-		if (rc)
-			panic("TIMER0 IRQ reg failed on BOOT cpu\n");
-	}
-
-	/* This is done on each CPU */
-	enable_percpu_irq(TIMER0_IRQ, 0);
+	if (!cpu)
+		setup_irq(TIMER0_IRQ, &arc_timer_irq);
+	else
+		arch_unmask_irq(TIMER0_IRQ);
 }
 
 /*

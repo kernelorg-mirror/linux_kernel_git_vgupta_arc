@@ -97,24 +97,6 @@ void __init init_onchip_IRQ(void)
  */
 void __init init_IRQ(void)
 {
-	/* kludge to get per-cpu TIMER0 "unmasked" */
-
-	const int irq = TIMER0_IRQ;
-
-	/*
-	 * Each CPU needs to register irq of it's private TIMER0.
-	 * The APIs request_percpu_irq()/enable_percpu_irq() need a explicit
-	 * percpu devid.
-	 */
-	irq_set_percpu_devid(irq);
-
-	/*
-	 * Above has a weird side-effect that NOAUTOEN is set as well, which
-	 * needs to be explicitly cleared here (otherwise device handler NEVER
-	 * gets called)
-	 */
-	irq_clear_status_flags(irq, IRQ_NOAUTOEN);
-
 	init_onchip_IRQ();
 	plat_init_IRQ();
 
