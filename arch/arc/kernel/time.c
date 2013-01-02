@@ -195,37 +195,3 @@ void __init time_init(void)
 	/* sets up the periodic event timer */
 	arc_local_timer_setup(smp_processor_id());
 }
-
-static int arc_finished_booting;
-
-/*
- * Scheduler clock - returns current time in nanosec units.
- * It's return value must NOT wrap around.
- *
- * Although the return value is nanosec units based, what's more important
- * is whats the "source" of this value. The orig jiffies based computation
- * was only as granular as jiffies itself (10ms on ARC).
- * We need something that is more granular, so use the same mechanism as
- * gettimeofday(), which uses ARC Timer T1 wrapped as a clocksource.
- * Unfortunately the first call to sched_clock( ) is way before that subsys
- * is initialiased, thus use the jiffies based value in the interim.
- */
-unsigned long long sched_clock(void)
-{
-	if (!arc_finished_booting) {
-		return (unsigned long long)(jiffies - INITIAL_JIFFIES)
-		    * (NSEC_PER_SEC / HZ);
-	} else {
-		struct timespec ts;
-		getrawmonotonic(&ts);
-		return (unsigned long long)timespec_to_ns(&ts);
-	}
-}
-
-static int __init arc_clocksource_done_booting(void)
-{
-	arc_finished_booting = 1;
-	return 0;
-}
-
-fs_initcall(arc_clocksource_done_booting);
