@@ -96,16 +96,10 @@ void __cpuinit start_kernel_secondary(void)
 
 	arc_platform_smp_init_cpu();
 
-	/*
-	 * XXX: Note that TIMER1 based cpu-local counters will not be
-	 * synchronized given the time lag between time_init (boot-cpu only)
-	 * vs. the time we reach here. However assuming that any SMP Linux
-	 * deployments will use a recent enough ARC700 with a perfectly
-	 * synchronized 64-bit CPU cycle counter backing the RTSC insn.
-	 */
-	arc_clock_counter_setup();
+	/* the counter has to be cross-core coherent */
+	arc_counter_setup();
 
-	arc_clockevent_init();
+	arc_local_timer_setup(cpu);
 
 	local_irq_enable();
 	preempt_disable();
