@@ -230,3 +230,37 @@ void __init time_init(void)
 	/* sets up the periodic event timer */
 	arc_local_timer_setup(smp_processor_id());
 }
+
+#ifdef CONFIG_ARC_HAS_RTSC
+/*
+ * sched_clock math assist
+ * ns = cycles * (ns_per_sec / cpu_freq_hz)
+ * ns = cycles * (10^6 / cpu_freq_khz)
+ * ns = cycles * (10^6 * 2^SF / cpu_freq_khz) / 2^SF
+ * ns = cycles * cyc2ns_scale >> SF
+ */
+#define CYC2NS_SF	10  /* 2^10, carefully chosen */
+#define CYC2NS_SCALE	((1000000 << CYC2NS_SF) / (CONFIG_ARC_PLAT_CLK / 1000))
+
+static unsigned long long cycles2ns(unsigned long long cyc)
+{
+	return (cyc * CYC2NS_SCALE ) >> CYC2NS_SF;
+}
+
+/*
+ * Scheduler clock - a monotonically increasing clock in nanosec units.
+ * It's return value must NOT wrap around.
+ *
+ * - Since 32bit TIMER1 will overflow almost immediately (53sec @ 80MHz), it
+ *   can't be used directly.
+ * - Using getrawmonotonic (TIMER1 based, but with state for last + current
+ *   snapshots), is no-good either because of seqlock deadlock possibilities
+ * - So only with native 64bit timer we do this, otherwise fallback to generic
+ *   jiffies based version - which despite not being fine grained gaurantees
+ *   the monotonically increasing semantics.
+ */
+unsigned long long sched_clock(void)
+{
+	return cycles2ns(arc_counter_read(NULL));
+}
+#endif
