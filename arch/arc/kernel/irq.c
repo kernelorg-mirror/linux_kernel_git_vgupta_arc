@@ -25,7 +25,7 @@
  */
 void __init arc_init_IRQ(void)
 {
-	int level_mask = level_mask;
+	int level_mask = 0;
 
 	write_aux_reg(AUX_INTR_VEC_BASE, _int_vec_base_lds);
 
@@ -33,7 +33,6 @@ void __init arc_init_IRQ(void)
 	write_aux_reg(AUX_IENABLE, 0);
 
        /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
-#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 #ifdef CONFIG_ARC_IRQ3_LV2
 	level_mask |= (1 << 3);
 #endif
@@ -48,7 +47,6 @@ void __init arc_init_IRQ(void)
 		pr_info("Level-2 interrupts bitset %x\n", level_mask);
 		write_aux_reg(AUX_IRQ_LEV, level_mask);
 	}
-#endif
 }
 
 /*

@@ -281,6 +281,8 @@ endchoice
 config ARC_COMPACT_IRQ_LEVELS
 	bool "ARCompact IRQ Priorities: High(2)/Low(1)"
 	default n
+	# Timer HAS to be high priority, for any other high priority config
+	select ARC_IRQ3_LV2
 	# if SMP, LV2 enabled ONLY if ARC implementation has LV2 re-entrancy
 	depends on !SMP || ARC_HAS_REENTRANT_IRQ_LV2
 
