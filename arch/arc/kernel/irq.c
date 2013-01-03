@@ -49,6 +49,46 @@ void __init arc_init_IRQ(void)
 	}
 }
 
+ /*
+ * ARC700 core includes a simple on-chip intc supporting
+ * -per IRQ enable/disable
+ * -2 levels of interrupts (high/low)
+ * -all interrupts being level triggered
+ *
+ * To reduce platform code, we assume all IRQs directly hooked-up into intc.
+ * Platforms with external intc, hence cascaded IRQs, are free to over-ride
+ * below, per IRQ.
+ */
+
+static void arc_mask_irq(struct irq_data *data)
+{
+	arch_mask_irq(data->irq);
+}
+
+static void arc_unmask_irq(struct irq_data *data)
+{
+	arch_unmask_irq(data->irq);
+}
+
+static struct irq_chip onchip_intc = {
+	.name           = "ARC In-core Intc",
+	.irq_mask	= arc_mask_irq,
+	.irq_unmask	= arc_unmask_irq,
+};
+
+void __init init_onchip_IRQ(void)
+{
+	int i;
+
+	for (i = 0; i < NR_IRQS; i++)
+		irq_set_chip_and_handler(i, &onchip_intc, handle_level_irq);
+
+#ifdef CONFIG_SMP
+	irq_set_chip_and_handler(TIMER0_IRQ, &onchip_intc, handle_percpu_irq);
+#endif
+}
+
+
 /*
  * Late Interrupt system init called from start_kernel for Boot CPU only
  *
@@ -75,6 +115,7 @@ void __init init_IRQ(void)
 	 */
 	irq_clear_status_flags(irq, IRQ_NOAUTOEN);
 
+	init_onchip_IRQ();
 	plat_init_IRQ();
 
 #ifdef CONFIG_SMP
