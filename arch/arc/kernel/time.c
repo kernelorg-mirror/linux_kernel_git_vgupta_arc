@@ -42,6 +42,7 @@
 #include <linux/clockchips.h>
 #include <asm/irq.h>
 #include <asm/arcregs.h>
+#include <asm/clk.h>
 
 #define ARC_TIMER_MAX	0xFFFFFFFF
 
@@ -148,7 +149,7 @@ static void arc_clkevent_set_mode(enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		arc_timer_event_setup(CONFIG_ARC_PLAT_CLK / HZ);
+		arc_timer_event_setup(arc_get_core_freq() / HZ);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		break;
@@ -188,7 +189,7 @@ void __cpuinit arc_local_timer_setup(unsigned int cpu)
 {
 	struct clock_event_device *clk = &per_cpu(arc_clockevent_device, cpu);
 
-	clockevents_calc_mult_shift(clk, CONFIG_ARC_PLAT_CLK, 5);
+	clockevents_calc_mult_shift(clk, arc_get_core_freq(), 5);
 
 	clk->max_delta_ns = clockevent_delta2ns(ARC_TIMER_MAX, clk);
 	clk->cpumask = cpumask_of(cpu);
@@ -225,7 +226,7 @@ void __init time_init(void)
 	 * CLK upto 4.29 GHz can be safely represented in 32 bits because
 	 * Max 32 bit number is 4,294,967,295
 	 */
-	clocksource_register_hz(&arc_counter, CONFIG_ARC_PLAT_CLK);
+	clocksource_register_hz(&arc_counter, arc_get_core_freq());
 
 	/* sets up the periodic event timer */
 	arc_local_timer_setup(smp_processor_id());

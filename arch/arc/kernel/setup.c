@@ -22,6 +22,7 @@
 #include <asm/irq.h>
 #include <asm/arcregs.h>
 #include <asm/unwind.h>
+#include <asm/clk.h>
 #include <asm/prom.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
@@ -139,8 +140,8 @@ char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		n += scnprintf(buf + n, len - n, "UNKNOWN ARC Processor\n");
 
 	n += scnprintf(buf + n, len - n, "CPU speed\t: %u.%02u Mhz\n",
-		       (unsigned int)(CONFIG_ARC_PLAT_CLK / 1000000),
-		       (unsigned int)(CONFIG_ARC_PLAT_CLK / 10000) % 100);
+		       (unsigned int)(arc_get_core_freq() / 1000000),
+		       (unsigned int)(arc_get_core_freq() / 10000) % 100);
 
 	n += scnprintf(buf + n, len - n, "Timers\t\t: %s %s\n",
 		       (cpu->timers & 0x200) ? "TIMER1" : "",

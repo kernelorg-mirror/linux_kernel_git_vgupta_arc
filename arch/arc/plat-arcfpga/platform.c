@@ -16,6 +16,7 @@
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <plat/memmap.h>
+#include <asm/clk.h>
 
 /*-----------------------BVCI Latency Unit -----------------------------*/
 
@@ -77,7 +78,7 @@ static void __init setup_bvci_lat_unit(void)
 
 static unsigned long arc_uart_info[] = {
 	CONFIG_ARC_SERIAL_BAUD,	/* uart->baud */
-	CONFIG_ARC_PLAT_CLK,	/* uart->port.uartclk */
+	-1,			/* uart->port.uartclk */
 	-1,			/* uart->is_emulated (runtime @running_on_hw) */
 	0
 };
@@ -120,6 +121,8 @@ static struct platform_device *fpga_early_devs[] __initdata = {
 
 static void arc_fpga_serial_init(void)
 {
+	arc_uart_info[1] = arc_get_core_freq();
+
 	/* To let driver workaround ISS bug: baudh Reg can't be set to 0 */
 	arc_uart_info[2] = !running_on_hw;
 

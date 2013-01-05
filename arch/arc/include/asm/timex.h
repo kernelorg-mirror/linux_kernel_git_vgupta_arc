@@ -9,7 +9,7 @@
 #ifndef _ASM_ARC_TIMEX_H
 #define _ASM_ARC_TIMEX_H
 
-#define CLOCK_TICK_RATE	CONFIG_ARC_PLAT_CLK	/* Underlying HZ */
+#define CLOCK_TICK_RATE	80000000 /* slated to be removed */
 
 #include <asm-generic/timex.h>
 
