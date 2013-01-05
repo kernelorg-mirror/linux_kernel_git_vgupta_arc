@@ -22,6 +22,7 @@
 #include <asm/irq.h>
 #include <asm/arcregs.h>
 #include <asm/unwind.h>
+#include <asm/prom.h>
 
 #define FIX_PTR(x)  __asm__ __volatile__(";" : "+r"(x))
 
@@ -320,6 +321,8 @@ void __init __attribute__((weak)) arc_platform_early_init(void)
 
 void __init setup_arch(char **cmdline_p)
 {
+	int rc;
+
 #ifdef CONFIG_CMDLINE_UBOOT
 	/* Make sure that a whitespace is inserted before */
 	strlcat(command_line, " ", sizeof(command_line));
@@ -333,6 +336,8 @@ void __init setup_arch(char **cmdline_p)
 	/* Save unparsed command line copy for /proc/cmdline */
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
+
+	rc = setup_machine_fdt(__dtb_start);
 
 	/* To force early parsing of things like mem=xxx */
 	parse_early_param();

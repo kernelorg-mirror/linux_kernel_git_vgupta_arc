@@ -97,6 +97,9 @@ head-y		:= arch/arc/kernel/head.o
 # See arch/arc/Kbuild for content of core part of the kernel
 core-y		+= arch/arc/
 
+# w/o this dtb won't embed into kernel binary
+core-y		+= arch/arc/boot/dtb/
+
 # w/o this ifneq, make ARCH=arc clean was crapping out
 ifneq ($(platform-y),)
 core-y		+= arch/arc/plat-$(PLATFORM)/
@@ -116,6 +119,12 @@ bootpImage: vmlinux
 
 uImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+%.dtb %.dtb.S %.dtb.o:
+	$(Q)$(MAKE) $(build)=$(boot)/dtb $(boot)/dtb/$@
+
+dtbs:
+	$(Q)$(MAKE) $(build)=$(boot)/dtb $(boot)/dtb/$@
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
