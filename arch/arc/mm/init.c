@@ -24,19 +24,15 @@ char empty_zero_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(empty_zero_page);
 
 /* Default tot mem from .config */
-static unsigned long end_mem = CONFIG_ARC_PLAT_SDRAM_SIZE +
-				CONFIG_LINUX_LINK_BASE;
+static unsigned long arc_mem_sz = CONFIG_ARC_PLAT_SDRAM_SIZE;
 
 /* User can over-ride above with "mem=nnn[KkMm]" in cmdline */
 static int __init setup_mem_sz(char *str)
 {
-	unsigned long sz_bytes;
-
-	sz_bytes = memparse(str, NULL);
-	end_mem = CONFIG_LINUX_LINK_BASE + (sz_bytes & PAGE_MASK);
+	arc_mem_sz = memparse(str, NULL) & PAGE_MASK;
 
 	/* early console might not be setup yet - it will show up later */
-	pr_info("\"mem=%s\": End mem set to 0x%lx\n", str, end_mem);
+	pr_info("\"mem=%s\": mem sz set to %ldM\n", str, TO_MB(arc_mem_sz));
 
 	return 0;
 }
@@ -59,6 +55,7 @@ void __init setup_arch_memory(void)
 	unsigned int first_free_pfn;
 	unsigned long kernel_img_end, alloc_start;
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, 0 };
+	unsigned long end_mem = CONFIG_LINUX_LINK_BASE + arc_mem_sz;
 
 	init_mm.start_code = (unsigned long)_text;
 	init_mm.end_code = (unsigned long)_etext;
@@ -124,7 +121,7 @@ void __init mem_init(void)
 	int codesize, datasize, initsize, reserved_pages, free_pages;
 	int tmp;
 
-	high_memory = (void *)end_mem;
+	high_memory = (void *)(CONFIG_LINUX_LINK_BASE + arc_mem_sz);
 
 	totalram_pages = free_all_bootmem();
 
@@ -149,9 +146,9 @@ void __init mem_init(void)
 	datasize = _end - _etext;
 	initsize = __init_end - __init_begin;
 
-	pr_info("Memory Available: %dM / %uM (%dK code, %dK data, %dK init, %dK reserv)\n",
+	pr_info("Memory Available: %dM / %ldM (%dK code, %dK data, %dK init, %dK reserv)\n",
 		PAGES_TO_MB(free_pages),
-		TO_MB(CONFIG_ARC_PLAT_SDRAM_SIZE),
+		TO_MB(arc_mem_sz),
 		TO_KB(codesize), TO_KB(datasize), TO_KB(initsize),
 		PAGES_TO_KB(reserved_pages));
 }

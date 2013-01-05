@@ -240,7 +240,7 @@ void __init time_init(void)
  * ns = cycles * cyc2ns_scale >> SF
  */
 #define CYC2NS_SF	10  /* 2^10, carefully chosen */
-#define CYC2NS_SCALE	((1000000 << CYC2NS_SF) / (CONFIG_ARC_PLAT_CLK / 1000))
+#define CYC2NS_SCALE	((1000000 << CYC2NS_SF) / (arc_get_core_freq() / 1000))
 
 static unsigned long long cycles2ns(unsigned long long cyc)
 {
