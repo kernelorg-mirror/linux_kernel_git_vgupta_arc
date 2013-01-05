@@ -361,14 +361,6 @@ config LINUX_LINK_BASE
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
 
-config ARC_PLAT_SDRAM_SIZE
-	hex "SD RAM Size"
-	default "0x10000000"
-	help
-	  Implies the amount of SDRAM/DRAM Linux is going to claim/own.
-	  The actual memory itself could be larger than this number. But for
-	  all software purposes, this is the amt of memory.
-
 endmenu # "Platform Board Configuration"
 
 config ARC_CURR_IN_REG
