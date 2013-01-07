@@ -58,6 +58,7 @@
 #include <linux/interrupt.h>
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
+#include <asm/clk.h>
 #include <plat/memmap.h>
 
 #ifdef ARC_EMAC_COH_MEM
@@ -76,7 +77,7 @@
 #endif
 
 /* XXX: This needs to come from the resource framework */
-unsigned long clk_speed = CONFIG_ARC_PLAT_CLK;
+unsigned long clk_speed;
 struct sockaddr mac_addr = { 0, {0x64, 0x66, 0x46, 0x88, 0x63, 0x33} };
 
 
@@ -625,6 +626,8 @@ int arc_emac_open(struct net_device *dev)
 
 	/* Advertize capabilities */
 	temp = LXT971A_AUTONEG_ADV_10BT | AUTONEG_ADV_IEEE_8023;
+
+	clk_speed = arc_get_core_freq();
 
 	/* If the system clock is greater than 25Mhz then advertize 100 */
 	if (clk_speed > 25000000)
