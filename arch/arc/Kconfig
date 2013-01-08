@@ -454,6 +454,12 @@ config CMDLINE_UBOOT
 	  to it. kernel startup code will copy the string into cmdline buffer
 	  and also append CONFIG_CMDLINE.
 
+config ARC_BUILTIN_DTB_NAME
+	string "Built in DTB"
+	help
+	  Set the name of the DTB to embed in the vmlinux binary
+	  Leaving it blank selects the minimal "skeleton" dtb
+
 source "kernel/Kconfig.preempt"
 
 endmenu	 # "ARC Architecture Configuration"
