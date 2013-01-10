@@ -13,6 +13,7 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <linux/of_fdt.h>
 #include <asm/sections.h>
 #include <asm/arcregs.h>
 #include <asm/tlb.h>
@@ -353,6 +354,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	setup_arch_memory();
+
+	unflatten_device_tree();
 
 	/* Can be issue if someone passes cmd line arg "ro"
 	 * But that is unlikely so keeping it as it is
