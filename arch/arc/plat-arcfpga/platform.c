@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/console.h>
+#include <linux/of_platform.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <plat/memmap.h>
@@ -77,9 +78,9 @@ static void __init setup_bvci_lat_unit(void)
 #if defined(CONFIG_SERIAL_ARC) || defined(CONFIG_SERIAL_ARC_MODULE)
 
 static unsigned long arc_uart_info[] = {
-	CONFIG_ARC_SERIAL_BAUD,	/* uart->baud */
-	-1,			/* uart->port.uartclk */
 	-1,			/* uart->is_emulated (runtime @running_on_hw) */
+	-1,			/* uart->port.uartclk */
+	CONFIG_ARC_SERIAL_BAUD,	/* uart->baud */
 	0
 };
 
@@ -124,7 +125,7 @@ static void arc_fpga_serial_init(void)
 	arc_uart_info[1] = arc_get_core_freq();
 
 	/* To let driver workaround ISS bug: baudh Reg can't be set to 0 */
-	arc_uart_info[2] = !running_on_hw;
+	arc_uart_info[0] = !running_on_hw;
 
 	early_platform_add_devices(fpga_early_devs,
 				   ARRAY_SIZE(fpga_early_devs));
@@ -173,20 +174,17 @@ void __init arc_platform_early_init(void)
 	arc_fpga_serial_init();
 }
 
-static struct platform_device *fpga_devs[] __initdata = {
-#if defined(CONFIG_SERIAL_ARC) || defined(CONFIG_SERIAL_ARC_MODULE)
-	&arc_uart0_dev,
-#if CONFIG_SERIAL_ARC_NR_PORTS > 1
-	&arc_uart1_dev,
-#endif
-#endif
+static struct of_dev_auxdata arcuart_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("snps,arc-uart", UART0_BASE, "arc-uart", arc_uart_info),
+	{}
 };
 
 int __init fpga_plat_init(void)
 {
 	pr_info("[plat-arcfpga]: registering device resources\n");
 
-	platform_add_devices(fpga_devs, ARRAY_SIZE(fpga_devs));
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     arcuart_auxdata_lookup, NULL);
 
 	return 0;
 }
