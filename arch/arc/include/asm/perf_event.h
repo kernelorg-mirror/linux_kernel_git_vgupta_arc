@@ -10,10 +10,4 @@
 #ifndef __ASM_PERF_EVENT_H
 #define __ASM_PERF_EVENT_H
 
-#define PERF_EVENT_INDEX_OFFSET	0
-
-static inline void set_perf_event_pending(void)
-{
-}
-
 #endif /* __ASM_PERF_EVENT_H */
