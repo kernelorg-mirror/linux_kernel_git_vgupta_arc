@@ -57,16 +57,21 @@ void __cpuinit arc_counter_setup(void)
 
 static cycle_t arc_counter_read(struct clocksource *cs)
 {
+	unsigned long flags;
 	union {
 		struct { u32 low, high; };
 		cycle_t  full;
 	} stamp;
+
+	flags = arch_local_irq_save();
 
 	__asm__ __volatile(
 	"	.extCoreRegister tsch, 58,  r, cannot_shortcut	\n"
 	"	rtsc %0, 0	\n"
 	"	mov  %1, tsch	\n"	/* TSCH is extn core reg 58 */
 	: "=r" (stamp.low), "=r" (stamp.high));
+
+	arch_local_irq_restore(flags);
 
 	return stamp.full;
 }
