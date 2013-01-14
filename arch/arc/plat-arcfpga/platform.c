@@ -16,8 +16,10 @@
 #include <linux/of_platform.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
-#include <plat/memmap.h>
 #include <asm/clk.h>
+#include <asm/mach_desc.h>
+#include <plat/memmap.h>
+#include <plat/smp.h>
 
 /*-----------------------BVCI Latency Unit -----------------------------*/
 
@@ -162,10 +164,7 @@ static void arc_fpga_serial_init(void)
 
 #endif	/* CONFIG_SERIAL_ARC */
 
-/*
- * Early Platform Initialization called from setup_arch()
- */
-void __init arc_platform_early_init(void)
+static void __init plat_fpga_early_init(void)
 {
 	pr_info("[plat-arcfpga]: registering early dev resources\n");
 
@@ -179,13 +178,40 @@ static struct of_dev_auxdata arcuart_auxdata_lookup[] __initdata = {
 	{}
 };
 
-int __init fpga_plat_init(void)
+static void __init plat_fpga_populate_dev(void)
 {
 	pr_info("[plat-arcfpga]: registering device resources\n");
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     arcuart_auxdata_lookup, NULL);
-
-	return 0;
 }
-arch_initcall(fpga_plat_init);
+
+static const char *aa4_compat[] __initdata = {
+	"snps,arc-angel4",
+	NULL,
+};
+
+MACHINE_START(ANGEL4, "angel4")
+	.dt_compat	= aa4_compat,
+	.init_early	= plat_fpga_early_init,
+	.init_machine	= plat_fpga_populate_dev,
+	.init_irq	= plat_fpga_init_IRQ,
+#ifdef CONFIG_SMP
+	.init_smp	= iss_model_init_smp,
+#endif
+MACHINE_END
+
+static const char *ml509_compat[] __initdata = {
+	"snps,arc-ml509",
+	NULL,
+};
+
+MACHINE_START(ML509, "ml509")
+	.dt_compat	= ml509_compat,
+	.init_early	= plat_fpga_early_init,
+	.init_machine	= plat_fpga_populate_dev,
+	.init_irq	= plat_fpga_init_IRQ,
+#ifdef CONFIG_SMP
+	.init_smp	= iss_model_init_smp,
+#endif
+MACHINE_END
