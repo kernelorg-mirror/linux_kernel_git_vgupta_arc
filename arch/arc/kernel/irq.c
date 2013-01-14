@@ -126,7 +126,7 @@ void __init init_IRQ(void)
 	plat_init_IRQ();
 
 #ifdef CONFIG_SMP
-	/* Master CPU to initialize the IPI framework */
+	/* Master CPU can initialize it's side of IPI */
 	arc_platform_smp_init_cpu();
 #endif
 }

@@ -29,6 +29,7 @@
 #include <linux/percpu.h>
 #include <linux/cpumask.h>
 #include <linux/spinlock_types.h>
+#include <linux/reboot.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
 
@@ -71,6 +72,36 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 
+}
+
+/*
+ * After power-up, a non Master CPU needs to wait for Master to kick start it
+ *
+ * The default implementation halts
+ *
+ * This relies on platform specific support allowing Master to directly set
+ * this CPU's PC (to be @first_lines_of_secondary() and kick start it.
+ *
+ * In lack of such h/w assist, platforms can override this function
+ *   - make this function busy-spin on a token, eventually set by Master
+ *     (from arc_platform_smp_wakeup_cpu())
+ *   - Once token is available, jump to @first_lines_of_secondary
+ *     (using inline asm).
+ *
+ * Alert: can NOT use stack here as it has not been determined/setup for CPU.
+ *        If it turns out to be elaborate, it's better to code it in assembly
+ *
+ */
+void __attribute__((weak)) arc_platform_smp_wait_to_boot(int cpu)
+{
+	/*
+	 * As a hack for debugging - since debugger will single-step over the
+	 * FLAG insn - wrap the halt itself it in a self loop
+	 */
+	__asm__ __volatile__(
+	"1:		\n"
+	"	flag 1	\n"
+	"	b 1b	\n");
 }
 
 /*
@@ -136,6 +167,8 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 		pr_info("Timeout: CPU%u FAILED to comeup !!!\n", cpu);
 		return -1;
 	}
+
+	secondary_idle_tsk = NULL;
 
 	return 0;
 }
@@ -222,7 +255,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
  */
 static void ipi_cpu_stop(unsigned int cpu)
 {
-	__asm__("flag 1");
+	machine_halt();
 }
 
 static inline void __do_IPI(unsigned long *ops, struct ipi_data *ipi, int cpu)
