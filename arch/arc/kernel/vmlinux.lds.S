@@ -76,6 +76,12 @@ SECTIONS
 		SECURITY_INITCALL
 	}
 
+	.init.arch.info : {
+		__arch_info_begin = .;
+		*(.arch.info.init)
+		__arch_info_end = .;
+	}
+
 	PERCPU_SECTION(L1_CACHE_BYTES)
 
 	/*
