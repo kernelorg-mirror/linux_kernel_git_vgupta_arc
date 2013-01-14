@@ -96,9 +96,6 @@ void __cpuinit start_kernel_secondary(void)
 
 	arc_platform_smp_init_cpu();
 
-	/* the counter has to be cross-core coherent */
-	arc_counter_setup();
-
 	arc_local_timer_setup(cpu);
 
 	local_irq_enable();

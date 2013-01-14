@@ -50,9 +50,12 @@
 
 #ifdef CONFIG_ARC_HAS_RTSC
 
-void __cpuinit arc_counter_setup(void)
+int __cpuinit arc_counter_setup(void)
 {
 	/* RTSC insn taps into cpu clk, needs no setup */
+
+	/* For SMP, only allowed if cross-core-sync, hence usable as cs */
+	return 1;
 }
 
 static cycle_t arc_counter_read(struct clocksource *cs)
@@ -86,14 +89,25 @@ static struct clocksource arc_counter = {
 
 #else /* !CONFIG_ARC_HAS_RTSC */
 
+static bool is_usable_as_clocksource(void)
+{
+#ifdef CONFIG_SMP
+	return 0;
+#else
+	return 1;
+#endif
+}
+
 /*
  * set 32bit TIMER1 to keep counting monotonically and wraparound
  */
-void __cpuinit arc_counter_setup(void)
+int __cpuinit arc_counter_setup(void)
 {
 	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMER_MAX);
 	write_aux_reg(ARC_REG_TIMER1_CNT, 0);
 	write_aux_reg(ARC_REG_TIMER1_CTRL, TIMER_CTRL_NH);
+
+	return is_usable_as_clocksource();
 }
 
 static cycle_t arc_counter_read(struct clocksource *cs)
@@ -218,20 +232,21 @@ void __cpuinit arc_local_timer_setup(unsigned int cpu)
  * -Sets up h/w timers as applicable on boot cpu
  * -Also sets up any global state needed for timer subsystem:
  *    - for "counting" timer, registers a clocksource, usable across CPUs
- *      (assuming that underlying counter h/w is synchronized across cores)
+ *      (provided that underlying counter h/w is synchronized across cores)
  *    - for "event" timer, sets up TIMER0 IRQ (as that is platform agnostic)
  */
 void __init time_init(void)
 {
-	/* sets up the timekeeping free-flowing counter */
-	arc_counter_setup();
-
 	/*
-	 * register boot-local counter as clocksource
-	 * CLK upto 4.29 GHz can be safely represented in 32 bits because
-	 * Max 32 bit number is 4,294,967,295
+	 * sets up the timekeeping free-flowing counter which also returns
+	 * whether the counter is usable as clocksource
 	 */
-	clocksource_register_hz(&arc_counter, arc_get_core_freq());
+	if (arc_counter_setup())
+		/*
+		 * CLK upto 4.29 GHz can be safely represented in 32 bits
+		 * because Max 32 bit number is 4,294,967,295
+		 */
+		clocksource_register_hz(&arc_counter, arc_get_core_freq());
 
 	/* sets up the periodic event timer */
 	arc_local_timer_setup(smp_processor_id());
