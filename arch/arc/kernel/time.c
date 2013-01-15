@@ -204,7 +204,11 @@ static struct irqaction arc_timer_irq = {
 	.handler = timer_irq_handler,
 };
 
-void __cpuinit arc_local_timer_setup(unsigned int cpu)
+/*
+ * Setup the local event timer for @cpu
+ * N.B. weak so that some exotic ARC SoCs can completely override it
+ */
+void __attribute__((weak)) __cpuinit arc_local_timer_setup(unsigned int cpu)
 {
 	struct clock_event_device *clk = &per_cpu(arc_clockevent_device, cpu);
 
