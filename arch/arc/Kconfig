@@ -118,6 +118,10 @@ config CPU_BIG_ENDIAN
 	help
 	  Build kernel for Big Endian Mode of ARC CPU
 
+# If a platform can't work with 0x8000_0000 based dma_addr_t
+config ARC_PLAT_NEEDS_CPU_TO_DMA
+	bool
+
 # If a plat can do IPI, same core(s) can do minimal SMP
 config ARC_HAS_IPI
 	bool
