@@ -198,6 +198,7 @@ MACHINE_START(ANGEL4, "angel4")
 	.init_irq	= plat_fpga_init_IRQ,
 #ifdef CONFIG_SMP
 	.init_smp	= iss_model_init_smp,
+	.init_early_smp	= iss_model_init_early_smp,
 #endif
 MACHINE_END
 
@@ -213,5 +214,6 @@ MACHINE_START(ML509, "ml509")
 	.init_irq	= plat_fpga_init_IRQ,
 #ifdef CONFIG_SMP
 	.init_smp	= iss_model_init_smp,
+	.init_early_smp	= iss_model_init_early_smp,
 #endif
 MACHINE_END

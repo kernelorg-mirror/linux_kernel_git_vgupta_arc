@@ -348,6 +348,9 @@ void __init setup_arch(char **cmdline_p)
 	setup_processor();
 
 #ifdef CONFIG_SMP
+	if (machine_desc->init_early_smp)
+		machine_desc->init_early_smp();
+
 	smp_init_cpus();
 #endif
 
