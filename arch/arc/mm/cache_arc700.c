@@ -759,126 +759,13 @@ noinline void flush_cache_all(void)
 
 }
 
-/* Helper functions for sys_cacheflush */
-
-
-static void __arc_cf_all(uint32_t flags)
-{
-	unsigned long irq_flags;
-
-	local_irq_save(irq_flags);
-
-	switch (flags & CF_D_FLUSH_INV) {
-	case CF_D_FLUSH:
-		__dc_entire_op(OP_FLUSH);
-		break;
-	case CF_D_INV:
-		__dc_entire_op(OP_INV);
-		break;
-	case CF_D_FLUSH_INV:
-		__dc_entire_op(OP_FLUSH_N_INV);
-		break;
-	}
-
-	if (flags & CF_I_INV)
-		flush_icache_all();
-
-	local_irq_restore(irq_flags);
-}
-
-static void __arc_cf_lines(uint32_t phy, uint32_t sz, uint32_t flags)
-{
-	unsigned long irq_flags;
-
-	local_irq_save(irq_flags);
-
-	switch (flags & CF_D_FLUSH_INV) {
-	case CF_D_FLUSH:
-		__dc_line_op(phy, sz, OP_FLUSH);
-		break;
-	case CF_D_INV:
-		__dc_line_op(phy, sz, OP_INV);
-		break;
-	case CF_D_FLUSH_INV:
-		__dc_line_op(phy, sz, OP_FLUSH_N_INV);
-		break;
-	default:
-		break;
-	}
-
-	if (flags & CF_I_INV)
-		__ic_line_inv(phy, sz);
-
-	local_irq_restore(irq_flags);
-}
-
 /**********************************************************************
  * Explicit Cache flush request from user space via syscall
  * Needed for JITs which generate code on the fly
  */
 SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 {
-	struct vm_area_struct *vma;
-	uint32_t end = start + sz;
-
-	if (!flags)
-		flags = CF_DEFAULT;
-
-	/* make sure that the address is valid, in case of virtual address */
-	if ((!(flags & CF_PHY_ADDR)) && access_ok(VERIFY_READ, start, sz))
-		return -EFAULT;
-
-	/* optimization for large areas: flush/inv entire D$ instead */
-	if (sz > PAGE_SIZE) {
-		__arc_cf_all(flags);
-		return 0;
-	}
-
-	if (flags & CF_PHY_ADDR) {
-		__arc_cf_lines(start, sz, flags);
-		return 0;
-	}
-
-	vma = find_vma(current->mm, start);
-	while ((vma) && (vma->vm_start < end)) {
-		uint32_t lstart, lend, laddr;
-		lstart = (vma->vm_start < start) ? start : vma->vm_start;
-		lend = (vma->vm_end > end) ? end : vma->vm_end;
-		lstart &= PAGE_MASK;
-
-		for (laddr = lstart; laddr <= lend; laddr += PAGE_SIZE) {
-			uint32_t pfn, lsz, phy;
-			pte_t *page_table, pte;
-
-			pgd_t *pgd = pgd_offset(current->mm, laddr);
-			pud_t *pud = pud_offset(pgd, laddr);
-			pmd_t *pmd = pmd_offset(pud, laddr);
-
-			/*
-			 * FIXME: some times these values are 0, not sure why,
-			 * but at least this prevents a crash
-			 */
-			if (!pmd)
-				return -EINVAL;
-
-			page_table = pte_offset_kernel(pmd, laddr);
-			if (!page_table)
-				return -EINVAL;
-
-			pte = *page_table;
-			pfn = pte_pfn(pte);
-			phy = pfn << PAGE_SHIFT;
-			lsz = (lend < (laddr + PAGE_SIZE)) ?
-			    (lend - laddr) : PAGE_SIZE;
-			if (start > laddr) {
-				phy += start - laddr;
-				lsz -= start - laddr;
-			}
-			__arc_cf_lines(phy, lsz, flags);
-		}
-		start = vma->vm_end;
-		vma = find_vma(current->mm, start);
-	}
-
+	/* TBD: optimize this */
+	flush_cache_all();
 	return 0;
 }
