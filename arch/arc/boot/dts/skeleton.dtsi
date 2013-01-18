@@ -12,12 +12,24 @@
  */
 
 / {
-	compatible = "snps,arc";
+	compatible = "snps,arc-angel4", "snps,arc-ml509";
 	clock-frequency = <80000000>;	/* 80 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
 	chosen { };
 	aliases { };
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "snps,arc770d";
+			reg = <0>;
+		};
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x00000000 0x10000000>;	/* 256M */
