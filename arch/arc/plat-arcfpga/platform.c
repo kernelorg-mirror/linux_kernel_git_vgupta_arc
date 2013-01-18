@@ -177,8 +177,10 @@ static void __init plat_fpga_early_init(void)
 #endif
 }
 
-static struct of_dev_auxdata arcuart_auxdata_lookup[] __initdata = {
+static struct of_dev_auxdata plat_auxdata_lookup[] __initdata = {
+#if defined(CONFIG_SERIAL_ARC) || defined(CONFIG_SERIAL_ARC_MODULE)
 	OF_DEV_AUXDATA("snps,arc-uart", UART0_BASE, "arc-uart", arc_uart_info),
+#endif
 	{}
 };
 
@@ -187,7 +189,7 @@ static void __init plat_fpga_populate_dev(void)
 	pr_info("[plat-arcfpga]: registering device resources\n");
 
 	of_platform_populate(NULL, of_default_bus_match_table,
-			     arcuart_auxdata_lookup, NULL);
+			     plat_auxdata_lookup, NULL);
 }
 
 static const char *aa4_compat[] __initdata = {
