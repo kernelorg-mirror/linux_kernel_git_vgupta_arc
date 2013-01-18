@@ -43,6 +43,7 @@
 #include <asm/irq.h>
 #include <asm/arcregs.h>
 #include <asm/clk.h>
+#include <asm/mach_desc.h>
 
 #define ARC_TIMER_MAX	0xFFFFFFFF
 
@@ -189,7 +190,7 @@ static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
 	.set_mode	= arc_clkevent_set_mode,
 };
 
-irqreturn_t timer_irq_handler(int irq, void *dev_id)
+static irqreturn_t timer_irq_handler(int irq, void *dev_id)
 {
 	struct clock_event_device *clk = &__get_cpu_var(arc_clockevent_device);
 
@@ -254,6 +255,9 @@ void __init time_init(void)
 
 	/* sets up the periodic event timer */
 	arc_local_timer_setup(smp_processor_id());
+
+	if (machine_desc->init_time)
+		machine_desc->init_time();
 }
 
 #ifdef CONFIG_ARC_HAS_RTSC

@@ -33,6 +33,7 @@ struct machine_desc {
 
 	void			(*init_early)(void);
 	void			(*init_irq)(void);
+	void			(*init_time)(void);
 	void			(*init_machine)(void);
 	void			(*init_late)(void);
 
