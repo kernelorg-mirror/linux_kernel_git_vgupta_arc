@@ -12,20 +12,26 @@
 #define _ASM_ARC_MACH_DESC_H_
 
 /**
- * struct machine_desc - Describes a board controlled by an ARC CPU/SoC
+ * struct machine_desc - Board specific callbacks, called from ARC common code
+ *	Provided by each ARC board using MACHINE_START()/MACHINE_END(), so
+ *	a multi-platform kernel builds with array of such descriptors.
+ *	We extend the early DT scan to also match the DT's "compatible" string
+ *	against the @dt_compat of all such descriptors, and one with highest
+ *	"DT score" is selected as global @machine_desc.
+ *
  * @name:		Board/SoC name
  * @dt_compat:		Array of device tree 'compatible' strings
+ * 			(XXX: although only 1st entry is looked at)
+ * @init_early:		Very early callback [called from setup_arch()]
+ * @init_irq:		setup external IRQ controllers [called from init_IRQ()]
+ * @init_time:		platform specific clocksource/clockevent registration
+ * 			[called from time_init()]
+ * @init_machine:	arch initcall level callback (e.g. populate static
+ * 			platform devices or parse Devicetree)
+ * @init_late:		Late initcall level callback
+ * @init_smp:		for each CPU (e.g. setup IPI)
+ * 			[(M):init_IRQ(), (o):start_kernel_secondary()]
  *
- * @init_early:		Very early callback (called from setup_arch())
- * @init_irq:		IRQ init callback for setting up IRQ controllers
- * @init_machine:	arch initcall level callback (e.g. parse DT devices)
- * @init_late:		Late init callback
- * @init_smp:		Called for each CPU (e.g. setup IPI)
- *
- * This structure is provided by each board which can be controlled by an ARC.
- * It is chosen by matching the compatible strings in the device tree provided
- * by the bootloader with the strings in @dt_compat, and sets up any aspects of
- * the machine that aren't configured with device tree (yet).
  */
 struct machine_desc {
 	const char		*name;

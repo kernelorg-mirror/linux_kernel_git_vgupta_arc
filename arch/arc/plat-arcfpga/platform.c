@@ -188,9 +188,21 @@ static void __init plat_fpga_populate_dev(void)
 {
 	pr_info("[plat-arcfpga]: registering device resources\n");
 
+	/*
+	 * Traverses flattened DeviceTree - registering platform devices
+	 * complete with their resources
+	 */
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     plat_auxdata_lookup, NULL);
 }
+
+/*----------------------- Machine Descriptions ------------------------------
+ *
+ * Machine description is simply a set of platform/board specific callbacks
+ * This is not directly related to DeviceTree based dynamic device creation,
+ * however as part of early device tree scan, we also select the right
+ * callback set, by matching the DT compatible name.
+ */
 
 static const char *aa4_compat[] __initdata = {
 	"snps,arc-angel4",
