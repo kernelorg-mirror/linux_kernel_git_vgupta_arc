@@ -60,6 +60,7 @@
 #include <asm/irq.h>
 #include <asm/clk.h>
 #include <plat/memmap.h>
+#include <plat/irq.h>
 
 #ifdef ARC_EMAC_COH_MEM
 /* The BDs are allocated in cache coherent memory - thus normal "C" code

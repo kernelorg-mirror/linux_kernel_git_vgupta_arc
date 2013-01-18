@@ -29,7 +29,7 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <asm/irq.h>
+#include <plat/irq.h>
 #include <plat/memmap.h>
 
 /* drive's registers map in controller base address*/
