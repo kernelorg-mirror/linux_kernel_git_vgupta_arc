@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 #include <linux/console.h>
 #include <linux/of_platform.h>
 #include <asm/setup.h>
@@ -32,12 +33,11 @@ static void __init setup_bvci_lat_unit(void)
 {
 #define MAX_BVCI_UNITS 12
 
-	/* TBD: rewrite this using I/O macros */
-	volatile unsigned int *base = (unsigned int *)BVCI_LAT_UNIT_BASE;
-	volatile unsigned int *lat_unit = (unsigned int *)base + 21;
-	volatile unsigned int *lat_val = (unsigned int *)base + 22;
-	unsigned int unit;
+	unsigned int i;
+	unsigned int *base = (unsigned int *)BVCI_LAT_UNIT_BASE;
 	const unsigned long units_req = CONFIG_BVCI_LAT_UNITS;
+	const unsigned int REG_UNIT = 21;
+	const unsigned int REG_VAL = 22;
 
 	/*
 	 * There are multiple Latency Units corresponding to the many
@@ -56,16 +56,16 @@ static void __init setup_bvci_lat_unit(void)
 	 */
 
 	if (CONFIG_BVCI_LAT_UNITS == 0) {
-		*lat_unit = 0;
-		*lat_val = lat_cycles;
+		writel(0, base + REG_UNIT);
+		writel(lat_cycles, base + REG_VAL);
 		pr_info("BVCI Latency for all Memory Transactions %d cycles\n",
 			lat_cycles);
 	} else {
-		for_each_set_bit(unit, &units_req, MAX_BVCI_UNITS) {
-			*lat_unit = unit + 1;  /* above returns 0 based */
-			*lat_val = lat_cycles;
+		for_each_set_bit(i, &units_req, MAX_BVCI_UNITS) {
+			writel(i + 1, base + REG_UNIT); /* loop is 0 based */
+			writel(lat_cycles, base + REG_VAL);
 			pr_info("BVCI Latency for Unit[%d] = %d cycles\n",
-				(unit + 1), lat_cycles);
+				(i + 1), lat_cycles);
 		}
 	}
 }
