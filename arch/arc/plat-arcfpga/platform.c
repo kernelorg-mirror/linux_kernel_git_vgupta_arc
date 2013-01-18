@@ -171,6 +171,10 @@ static void __init plat_fpga_early_init(void)
 	setup_bvci_lat_unit();
 
 	arc_fpga_serial_init();
+
+#ifdef CONFIG_SMP
+	iss_model_init_early_smp();
+#endif
 }
 
 static struct of_dev_auxdata arcuart_auxdata_lookup[] __initdata = {
@@ -198,7 +202,6 @@ MACHINE_START(ANGEL4, "angel4")
 	.init_irq	= plat_fpga_init_IRQ,
 #ifdef CONFIG_SMP
 	.init_smp	= iss_model_init_smp,
-	.init_early_smp	= iss_model_init_early_smp,
 #endif
 MACHINE_END
 
@@ -214,6 +217,5 @@ MACHINE_START(ML509, "ml509")
 	.init_irq	= plat_fpga_init_IRQ,
 #ifdef CONFIG_SMP
 	.init_smp	= iss_model_init_smp,
-	.init_early_smp	= iss_model_init_early_smp,
 #endif
 MACHINE_END

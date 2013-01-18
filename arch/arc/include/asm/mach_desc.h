@@ -37,7 +37,6 @@ struct machine_desc {
 	void			(*init_late)(void);
 
 #ifdef CONFIG_SMP
-	void			(*init_early_smp)(void);
 	void			(*init_smp)(unsigned int);
 #endif
 };
