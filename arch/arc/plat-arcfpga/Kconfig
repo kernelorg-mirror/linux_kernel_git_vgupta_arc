@@ -8,6 +8,7 @@
 
 menuconfig ARC_PLAT_FPGA_LEGACY
 	bool "\"Legacy\" ARC FPGA dev Boards"
+	select ISS_SMP_EXTN if SMP
 	help
 	  Support for ARC development boards, provided by Synopsys.
 	  These are based on FPGA or ISS. e.g.
@@ -31,7 +32,7 @@ config ARC_BOARD_ML509
 config ISS_SMP_EXTN
 	bool "ARC SMP Extensions (ISS Models only)"
 	default n
-	select ARC_HAS_IPI
+	depends on SMP
 	select ARC_HAS_COH_RTSC
 	help
 	  SMP Extensions to ARC700, in a "simulation only" Model, supported in

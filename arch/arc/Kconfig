@@ -124,14 +124,9 @@ config CPU_BIG_ENDIAN
 config ARC_PLAT_NEEDS_CPU_TO_DMA
 	bool
 
-# If a plat can do IPI, same core(s) can do minimal SMP
-config ARC_HAS_IPI
-	bool
-
 config SMP
 	bool "Symmetric Multi-Processing (Incomplete)"
 	default y
-	depends on ARC_HAS_IPI
 	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
