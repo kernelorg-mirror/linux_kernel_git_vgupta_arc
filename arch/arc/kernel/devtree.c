@@ -14,7 +14,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/reboot.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
@@ -26,7 +26,7 @@
 /* called from unflatten_device_tree() to bootstrap devicetree itself */
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return alloc_bootmem_align(size, align);
+	return __va(memblock_alloc(size, align));
 }
 
 /**

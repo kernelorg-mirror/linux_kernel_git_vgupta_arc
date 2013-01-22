@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #ifdef CONFIG_BLOCK_DEV_RAM
 #include <linux/blk.h>
 #endif
@@ -52,9 +53,6 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
  */
 void __init setup_arch_memory(void)
 {
-	int bootmap_sz;
-	unsigned int first_free_pfn;
-	unsigned long kernel_img_end, alloc_start;
 	unsigned long zones_size[MAX_NR_ZONES] = { 0, 0 };
 	unsigned long end_mem = CONFIG_LINUX_LINK_BASE + arc_mem_sz;
 
@@ -63,39 +61,31 @@ void __init setup_arch_memory(void)
 	init_mm.end_data = (unsigned long)_edata;
 	init_mm.brk = (unsigned long)_end;
 
-	/* _end needs to be page aligned */
-	kernel_img_end = (unsigned long)_end;
-	BUG_ON(kernel_img_end & ~PAGE_MASK);
+	/*
+	 * We do it here, so that memory is correctly instantiated
+	 * even if "mem=xxx" cmline over-ride is given and/or
+	 * DT has memory node. Each causes an update to @arc_mem_sz
+	 * and we finally add memory one here
+	 */
+	memblock_add(CONFIG_LINUX_LINK_BASE, arc_mem_sz);
+
+	/*------------- externs in mm need setting up ---------------*/
 
 	/* first page of system - kernel .vector starts here */
 	min_low_pfn = PFN_DOWN(CONFIG_LINUX_LINK_BASE);
 
-	/* First free page beyond kernel image */
-	first_free_pfn = PFN_DOWN(kernel_img_end);
-
-	/*
-	 * Last usable page of low mem (no HIGHMEM yet for ARC port)
-	 * -must be BASE + SIZE
-	 */
+	/* Last usable page of low mem (no HIGHMEM yet for ARC port) */
 	max_low_pfn = max_pfn = PFN_DOWN(end_mem);
 
 	max_mapnr = num_physpages = max_low_pfn - min_low_pfn;
 
-	/* setup bootmem allocator */
-	bootmap_sz = init_bootmem_node(NODE_DATA(0),
-				       first_free_pfn,/* bitmap start */
-				       min_low_pfn,   /* First pg to track */
-				       max_low_pfn);  /* Last pg to track */
+	/*------------- reserve kernel image -----------------------*/
+	memblock_reserve(CONFIG_LINUX_LINK_BASE,
+			 __pa(_end) - CONFIG_LINUX_LINK_BASE);
 
-	/*
-	 * init_bootmem above marks all tracked Page-frames as inuse "allocated"
-	 * This includes pages occupied by kernel's elf segments.
-	 * Beyond that, excluding bootmem bitmap itself, mark the rest of
-	 * free-mem as "allocatable"
-	 */
-	alloc_start = kernel_img_end + bootmap_sz;
-	free_bootmem(alloc_start, end_mem - alloc_start);
+	memblock_dump_all();
 
+	/*-------------- node setup --------------------------------*/
 	memset(zones_size, 0, sizeof(zones_size));
 	zones_size[ZONE_NORMAL] = num_physpages;
 
