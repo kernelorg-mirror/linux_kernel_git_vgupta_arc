@@ -129,6 +129,7 @@ void __cpuinit start_kernel_secondary(void)
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
 
+	notify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
