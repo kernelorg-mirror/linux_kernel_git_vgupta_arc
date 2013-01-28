@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <asm/cache.h>
 
 void __iomem *ioremap(unsigned long paddr, unsigned long size)
@@ -48,6 +49,10 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, unsigned long size,
 	/* Don't allow wraparound, zero size */
 	last_addr = phys_addr + size - 1;
 	if ((!size) || (last_addr < phys_addr))
+		return NULL;
+
+	/* An early platform driver might end up here */
+	if (!slab_is_available())
 		return NULL;
 
 	/* force uncached */
