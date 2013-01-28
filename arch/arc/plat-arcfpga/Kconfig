@@ -45,7 +45,7 @@ config ISS_SMP_EXTN
 config ARC_SERIAL_BAUD
 	int "UART Baud rate"
 	default "115200"
-	depends on SERIAL_ARC
+	depends on SERIAL_ARC || SERIAL_ARC_CONSOLE
 	help
 	  Baud rate for the ARC UART
 

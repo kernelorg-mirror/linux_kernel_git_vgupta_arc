@@ -77,58 +77,56 @@ static void __init setup_bvci_lat_unit(void)
 
 /*----------------------- Platform Devices -----------------------------*/
 
-#if defined(CONFIG_SERIAL_ARC) || defined(CONFIG_SERIAL_ARC_MODULE)
-
 static unsigned long arc_uart_info[] = {
-	-1,			/* uart->is_emulated (runtime @running_on_hw) */
-	-1,			/* uart->port.uartclk */
-	CONFIG_ARC_SERIAL_BAUD,	/* uart->baud */
+	0,	/* uart->is_emulated (runtime @running_on_hw) */
+	0,	/* uart->port.uartclk */
+	0,	/* uart->baud */
 	0
 };
 
-#define ARC_UART_DEV(n)					\
-							\
-static struct resource arc_uart##n##_res[] = {		\
-	{						\
-		.start = UART##n##_BASE,			\
-		.end   = UART##n##_BASE + 0xFF,		\
-		.flags = IORESOURCE_MEM,		\
-	},						\
-	{						\
-		.start = UART##n##_IRQ,			\
-		.end   = UART##n##_IRQ,			\
-		.flags = IORESOURCE_IRQ,		\
-	},						\
-};							\
-							\
-static struct platform_device arc_uart##n##_dev = {	\
-	.name = "arc-uart",				\
-	.id = n,					\
-	.num_resources = ARRAY_SIZE(arc_uart##n##_res),	\
-	.resource = arc_uart##n##_res,			\
-	.dev = {					\
-		.platform_data = &arc_uart_info,	\
-	},						\
-}
+#if defined(CONFIG_SERIAL_ARC_CONSOLE)
+/*
+ * static platform data - but only for early serial
+ * TBD: derive this from a special DT node
+ */
+static struct resource arc_uart0_res[] = {
+	{
+		.start = UART0_BASE,
+		.end   = UART0_BASE + 0xFF,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = UART0_IRQ,
+		.end   = UART0_IRQ,
+		.flags = IORESOURCE_IRQ,
+	},
+};
 
-ARC_UART_DEV(0);
-#if CONFIG_SERIAL_ARC_NR_PORTS > 1
-ARC_UART_DEV(1);
-#endif
+static struct platform_device arc_uart0_dev = {
+	.name = "arc-uart",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(arc_uart0_res),
+	.resource = arc_uart0_res,
+	.dev = {
+		.platform_data = &arc_uart_info,
+	},
+};
 
 static struct platform_device *fpga_early_devs[] __initdata = {
-#if defined(CONFIG_SERIAL_ARC_CONSOLE)
 	&arc_uart0_dev,
-#endif
 };
+#endif
 
 static void arc_fpga_serial_init(void)
 {
-	arc_uart_info[1] = arc_get_core_freq();
-
 	/* To let driver workaround ISS bug: baudh Reg can't be set to 0 */
 	arc_uart_info[0] = !running_on_hw;
 
+	arc_uart_info[1] = arc_get_core_freq();
+
+	arc_uart_info[2] = CONFIG_ARC_SERIAL_BAUD;
+
+#if defined(CONFIG_SERIAL_ARC_CONSOLE)
 	early_platform_add_devices(fpga_early_devs,
 				   ARRAY_SIZE(fpga_early_devs));
 
@@ -154,15 +152,8 @@ static void arc_fpga_serial_init(void)
 	 * otherwise the early console never gets a chance to run.
 	 */
 	add_preferred_console("ttyARC", 0, "115200");
+#endif
 }
-
-#else
-
-static void arc_fpga_serial_init(void)
-{
-}
-
-#endif	/* CONFIG_SERIAL_ARC */
 
 static void __init plat_fpga_early_init(void)
 {
