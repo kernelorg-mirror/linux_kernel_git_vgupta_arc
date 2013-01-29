@@ -38,17 +38,17 @@ EXPORT_SYMBOL(ioremap);
  * ARC hardware uncached region, this one still goes thru the MMU as caller
  * might need finer access control (R/W/X)
  */
-void __iomem *ioremap_prot(phys_addr_t phys_addr, unsigned long size,
+void __iomem *ioremap_prot(phys_addr_t paddr, unsigned long size,
 			   unsigned long flags)
 {
-	void __iomem *addr;
+	void __iomem *vaddr;
 	struct vm_struct *area;
-	unsigned long offset, last_addr;
+	unsigned long off, end;
 	pgprot_t prot = __pgprot(flags);
 
 	/* Don't allow wraparound, zero size */
-	last_addr = phys_addr + size - 1;
-	if ((!size) || (last_addr < phys_addr))
+	end = paddr + size - 1;
+	if ((!size) || (end < paddr))
 		return NULL;
 
 	/* An early platform driver might end up here */
@@ -59,9 +59,9 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, unsigned long size,
 	prot = pgprot_noncached(prot);
 
 	/* Mappings have to be page-aligned */
-	offset = phys_addr & ~PAGE_MASK;
-	phys_addr &= PAGE_MASK;
-	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
+	off = paddr & ~PAGE_MASK;
+	paddr &= PAGE_MASK;
+	size = PAGE_ALIGN(end + 1) - paddr;
 
 	/*
 	 * Ok, go for it..
@@ -69,14 +69,14 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, unsigned long size,
 	area = get_vm_area(size, VM_IOREMAP);
 	if (!area)
 		return NULL;
-	area->phys_addr = phys_addr;
-	addr = (void __iomem *)area->addr;
-	if (ioremap_page_range((unsigned long)addr,
-			       (unsigned long)addr + size, phys_addr, prot)) {
-		vunmap((void __force *)addr);
+	area->phys_addr = paddr;
+	vaddr = (void __iomem *)area->addr;
+	if (ioremap_page_range((unsigned long)vaddr,
+			       (unsigned long)vaddr + size, paddr, prot)) {
+		vunmap((void __force *)vaddr);
 		return NULL;
 	}
-	return (void __iomem *)(offset + (char __iomem *)addr);
+	return (void __iomem *)(off + (char __iomem *)vaddr);
 }
 EXPORT_SYMBOL(ioremap_prot);
 
