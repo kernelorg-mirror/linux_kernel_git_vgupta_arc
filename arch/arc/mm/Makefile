@@ -6,5 +6,5 @@
 # published by the Free Software Foundation.
 #
 
-obj-y	:= extable.o ioremap.o dma.o fault.o init.o \
-	   tlb.o tlbex.o cache_arc700.o
+obj-y	:= extable.o ioremap.o dma.o fault.o init.o
+obj-y	+= tlb.o tlbex.o cache_arc700.o
