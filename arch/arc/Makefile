@@ -87,7 +87,7 @@ head-y		:= arch/arc/kernel/head.o
 core-y		+= arch/arc/
 
 # w/o this dtb won't embed into kernel binary
-core-y		+= arch/arc/boot/dtb/
+core-y		+= arch/arc/boot/dts/
 
 core-$(CONFIG_ARC_PLAT_FPGA_LEGACY)	+= arch/arc/plat-arcfpga/
 
@@ -107,10 +107,10 @@ uImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 %.dtb %.dtb.S %.dtb.o:
-	$(Q)$(MAKE) $(build)=$(boot)/dtb $(boot)/dtb/$@
+	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
 dtbs:
-	$(Q)$(MAKE) $(build)=$(boot)/dtb $(boot)/dtb/$@
+	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
