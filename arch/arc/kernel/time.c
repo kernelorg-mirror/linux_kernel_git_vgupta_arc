@@ -63,7 +63,11 @@ static cycle_t arc_counter_read(struct clocksource *cs)
 {
 	unsigned long flags;
 	union {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		struct { u32 high, low; };
+#else
 		struct { u32 low, high; };
+#endif
 		cycle_t  full;
 	} stamp;
 
