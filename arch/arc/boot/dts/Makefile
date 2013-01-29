@@ -4,10 +4,10 @@ ifeq ($(CONFIG_OF),y)
 builtindtb-y		:= angel4
 
 ifneq ($(CONFIG_ARC_BUILTIN_DTB_NAME),"")
-	builtindtb-y	:= $(CONFIG_ARC_BUILTIN_DTB_NAME)
+	builtindtb-y    := $(patsubst "%",%,$(CONFIG_ARC_BUILTIN_DTB_NAME))
 endif
 
-obj-y	+= $(patsubst "%",%,$(builtindtb-y)).dtb.o
+obj-y	+= $(builtindtb-y).dtb.o
 
 clean-files := *.dtb
 
