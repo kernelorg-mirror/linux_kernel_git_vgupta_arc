@@ -10,6 +10,7 @@ config ARC
 	def_bool y
 	select ARCH_NO_VIRT_TO_BUS
 	select ARCH_WANT_IPC_PARSE_VERSION
+	select CLONE_BACKWARDS
 	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
 	# DEVTMPS in turn needs HOTPLUG
 	select DEVTMPFS if !INITRAMFS_SOURCE=""

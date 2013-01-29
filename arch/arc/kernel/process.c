@@ -20,39 +20,6 @@
 #include <linux/elf.h>
 #include <linux/tick.h>
 
-asmlinkage int sys_fork(struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
-}
-
-asmlinkage int sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs, 0,
-		       NULL, NULL);
-}
-
-/* Per man, C-lib clone( ) is as follows
- *
- * int clone(int (*fn)(void *), void *child_stack,
- *           int flags, void *arg, ...
- *           pid_t *ptid, struct user_desc *tls, pid_t *ctid);
- *
- * @fn and @arg are of userland thread-hnalder and thus of no use
- * in sys-call, hence excluded in sys_clone arg list.
- * The only addition is ptregs, needed by fork core, although now-a-days
- * task_pt_regs() can be called anywhere to get that.
- */
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 int __user *parent_tidptr, void *tls,
-			 int __user *child_tidptr, struct pt_regs *regs)
-{
-	if (!newsp)
-		newsp = regs->sp;
-
-	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr,
-		       child_tidptr);
-}
-
 SYSCALL_DEFINE1(arc_settls, void *, user_tls_data_ptr)
 {
 	task_thread_info(current)->thr_ptr = (unsigned int)user_tls_data_ptr;
@@ -132,12 +99,13 @@ asmlinkage void ret_from_fork(void);
  */
 int copy_thread(unsigned long clone_flags,
 		unsigned long usp, unsigned long arg,
-		struct task_struct *p, struct pt_regs *regs)
+		struct task_struct *p)
 {
 	struct pt_regs *c_regs;        /* child's pt_regs */
 	unsigned long *childksp;       /* to unwind out of __switch_to() */
 	struct callee_regs *c_callee;  /* child's callee regs */
 	struct callee_regs *parent_callee;  /* paren't callee */
+	struct pt_regs *regs = current_pt_regs();
 
 	/* Mark the specific anchors to begin with (see pic above) */
 	c_regs = task_pt_regs(p);
@@ -176,7 +144,9 @@ int copy_thread(unsigned long clone_flags,
 	/* Copy parents pt regs on child's kernel mode stack */
 	*c_regs = *regs;
 
-	c_regs->sp = usp;
+	if (usp)
+		c_regs->sp = usp;
+
 	c_regs->r0 = 0;		/* fork returns 0 in child */
 
 	parent_callee = ((struct callee_regs *)regs) - 1;
