@@ -50,8 +50,14 @@ struct pt_regs {
 	long r0;
 	long sp;	/* user/kernel sp depending on where we came from  */
 	long orig_r0;
+
 	/*to distinguish bet excp, syscall, irq */
-	unsigned long event_type:16, orig_r8:16;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	/* so that assembly code is same for LE/BE */
+	unsigned long orig_r8:16, event:16;
+#else
+	unsigned long event:16, orig_r8:16;
+#endif
 };
 
 /* Callee saved registers - need to be saved only when you are scheduled out */

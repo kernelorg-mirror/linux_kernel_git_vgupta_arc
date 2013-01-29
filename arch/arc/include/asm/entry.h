@@ -458,19 +458,16 @@
  *-------------------------------------------------------------*/
 .macro SAVE_ALL_TRAP
 	/*
+	 * Setup pt_regs->orig_r8.
 	 * Encode syscall number (r8) in upper short word of event type (r9)
 	 * N.B. #1: This is already endian safe (see ptrace.h)
 	 *      #2: Only r9 can be used as scratch as it is already clobbered
 	 *          and it's contents are no longer needed by the latter part
 	 *          of exception prologue
 	 */
-#ifndef CONFIG_CPU_BIG_ENDIAN
 	lsl  r9, r8, 16
 	or   r9, r9, orig_r8_IS_SCALL
-#else
-	lsl  r9, orig_r8_IS_SCALL, 16
-	or   r9, r9, r8
-#endif
+
 	SAVE_ALL_EXCEPTION  r9
 .endm
 
