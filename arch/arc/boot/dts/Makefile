@@ -8,6 +8,7 @@ ifneq ($(CONFIG_ARC_BUILTIN_DTB_NAME),"")
 endif
 
 obj-y	+= $(builtindtb-y).dtb.o
+targets += $(builtindtb-y).dtb
 
 clean-files := *.dtb
 
