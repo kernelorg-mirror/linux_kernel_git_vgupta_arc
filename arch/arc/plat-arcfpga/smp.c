@@ -90,7 +90,7 @@ void iss_model_init_smp(unsigned int cpu)
 
 static void iss_model_ipi_send(void *arg)
 {
-	const struct cpumask *callmap = arg;
+	struct cpumask *callmap = arg;
 	unsigned int cpu;
 
 	for_each_cpu(cpu, callmap)

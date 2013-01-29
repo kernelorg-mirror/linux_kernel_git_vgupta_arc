@@ -629,7 +629,7 @@ resume_user_mode_begin:
 	b      @schedule 	; BTST+Bnz causes relo error in link
 
 .Lchk_pend_signals:
-	IRQ_ENABLE      r10
+	IRQ_ENABLE	r10
 
 	; --- (Slow Path #2) pending signal  ---
 	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
@@ -663,10 +663,9 @@ resume_user_mode_begin:
 	; --- (Slow Path #3) notify_resume ---
 .Lchk_notify_resume:
 	btst   r9, TIF_NOTIFY_RESUME
-	bz     restore_regs
-
 	blnz   @do_notify_resume
-	b      resume_user_mode_begin	; loop back to start of U mode ret
+	b      resume_user_mode_begin	; unconditionally back to U mode ret chks
+					; for single exit point from this block
 
 #ifdef CONFIG_PREEMPT
 

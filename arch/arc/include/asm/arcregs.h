@@ -66,6 +66,7 @@
 #define ECR_PARAM_MASK			0x0000ff
 
 /* Exception Cause Vector Values */
+#define ECR_V_INSN_ERR			0x02
 #define ECR_V_MACH_CHK			0x20
 #define ECR_V_ITLB_MISS			0x21
 #define ECR_V_DTLB_MISS			0x22

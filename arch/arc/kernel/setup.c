@@ -22,6 +22,7 @@
 #include <asm/page.h>
 #include <asm/irq.h>
 #include <asm/arcregs.h>
+#include <asm/prom.h>
 #include <asm/unwind.h>
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
@@ -252,12 +253,12 @@ void __init arc_chk_ccms(void)
 	if ((unsigned int)__arc_dccm_base != cpu->dccm.base_addr)
 		panic("Linux built with incorrect DCCM Base address\n");
 
-	if (DCCM_COMPILE_SZ != cpu->dccm.sz)
+	if (CONFIG_ARC_DCCM_SZ != cpu->dccm.sz)
 		panic("Linux built with incorrect DCCM Size\n");
 #endif
 
 #ifdef CONFIG_ARC_HAS_ICCM
-	if (ICCM_COMPILE_SZ != cpu->iccm.sz)
+	if (CONFIG_ARC_ICCM_SZ != cpu->iccm.sz)
 		panic("Linux built with incorrect ICCM Size\n");
 #endif
 #endif

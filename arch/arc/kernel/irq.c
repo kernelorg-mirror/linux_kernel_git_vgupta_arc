@@ -16,7 +16,7 @@
 #include <asm/mach_desc.h>
 
 /*
- * Early Interrupt sub-system setup
+ * Early Hardware specific Interrupt setup
  * -Called very early (start_kernel -> setup_arch -> setup_processor)
  * -Platform Independent (must for any ARC700)
  * -Needed for each CPU (hence not foldable into init_IRQ)
@@ -52,7 +52,7 @@ void __init arc_init_IRQ(void)
 	}
 }
 
- /*
+/*
  * ARC700 core includes a simple on-chip intc supporting
  * -per IRQ enable/disable
  * -2 levels of interrupts (high/low)
@@ -102,7 +102,8 @@ void __init init_onchip_IRQ(void)
 	struct device_node *intc = NULL;
 
 	intc = of_find_compatible_node(NULL, NULL, "snps,arc700-intc");
-	BUG_ON(!intc);
+	if(!intc)
+		panic("DeviceTree Missing incore intc\n");
 
 	root_domain = irq_domain_add_legacy(intc, NR_IRQS, 0, 0,
 					    &arc_intc_domain_ops, NULL);
@@ -113,7 +114,6 @@ void __init init_onchip_IRQ(void)
 	/* with this we don't need to export root_domain */
 	irq_set_default_host(root_domain);
 }
-
 
 /*
  * Late Interrupt system init called from start_kernel for Boot CPU only
@@ -138,6 +138,7 @@ void __init init_IRQ(void)
 
 /*
  * "C" Entry point for any ARC ISR, called from low level vector handler
+ * @irq is the vector number read from ICAUSE reg of on-chip intc
  */
 void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {

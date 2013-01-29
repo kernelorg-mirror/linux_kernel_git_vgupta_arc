@@ -142,6 +142,8 @@ static void show_ecr_verbose(struct pt_regs *regs)
 			pr_cont("Data exchange protection violation\n");
 		else if (cause_code == ECR_C_PROTV_MISALIG_DATA)
 			pr_cont("Misaligned r/w from 0x%08lx\n", address);
+	} else if (vec == ECR_V_INSN_ERR) {
+		pr_cont("Illegal Insn\n");
 	} else {
 		pr_cont("Check Programmer's Manual\n");
 	}

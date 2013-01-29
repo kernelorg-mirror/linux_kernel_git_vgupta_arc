@@ -87,6 +87,15 @@ struct user_regs_struct {
 /* return 1 if user mode or 0 if kernel mode */
 #define user_mode(regs) (regs->status32 & STATUS_U_MASK)
 
+#define user_stack_pointer(regs)\
+({  unsigned int sp;		\
+	if (user_mode(regs))	\
+		sp = (regs)->sp;\
+	else			\
+		sp = -1;	\
+	sp;			\
+})
+
 /* return 1 if PC in delay slot */
 #define delay_mode(regs) ((regs->status32 & STATUS_DE_MASK) == STATUS_DE_MASK)
 
