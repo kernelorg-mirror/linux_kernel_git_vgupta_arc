@@ -104,16 +104,10 @@ struct user_regs_struct {
 	(struct pt_regs *)(pg_start + THREAD_SIZE - 4) - 1;	\
 })
 
-
-#define user_stack_pointer(regs)\
-({  unsigned int sp;		\
-	if (user_mode(regs))	\
-		sp = (regs)->sp;\
-	else			\
-		sp = -1;	\
-	sp;			\
-})
-
+static inline long regs_return_value(struct pt_regs *regs)
+{
+	return regs->r0;
+}
 
 #endif /* !__ASSEMBLY__ */
 

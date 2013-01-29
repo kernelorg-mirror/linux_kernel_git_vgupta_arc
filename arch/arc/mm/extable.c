@@ -32,32 +32,32 @@ long arc_copy_from_user_noinline(void *to, const void __user * from,
 {
 	return __arc_copy_from_user(to, from, n);
 }
-EXPORT_SYMBOL(arc_copy_from_user_noinline)
+EXPORT_SYMBOL(arc_copy_from_user_noinline);
 
 long arc_copy_to_user_noinline(void __user *to, const void *from,
 		unsigned long n)
 {
 	return __arc_copy_to_user(to, from, n);
 }
-EXPORT_SYMBOL(arc_copy_to_user_noinline)
+EXPORT_SYMBOL(arc_copy_to_user_noinline);
 
 unsigned long arc_clear_user_noinline(void __user *to,
 		unsigned long n)
 {
 	return __arc_clear_user(to, n);
 }
-EXPORT_SYMBOL(arc_clear_user_noinline)
+EXPORT_SYMBOL(arc_clear_user_noinline);
 
 long arc_strncpy_from_user_noinline (char *dst, const char __user *src,
 		long count)
 {
 	return __arc_strncpy_from_user(dst, src, count);
 }
-EXPORT_SYMBOL(arc_strncpy_from_user_noinline)
+EXPORT_SYMBOL(arc_strncpy_from_user_noinline);
 
 long arc_strnlen_user_noinline(const char __user *src, long n)
 {
 	return __arc_strnlen_user(src, n);
 }
-EXPORT_SYMBOL(arc_strnlen_user_noinline)
+EXPORT_SYMBOL(arc_strnlen_user_noinline);
 #endif

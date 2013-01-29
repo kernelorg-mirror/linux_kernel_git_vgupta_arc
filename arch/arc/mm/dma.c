@@ -7,15 +7,15 @@
  */
 
 /*
- * Helpers for Coherent DMA API.
+ * DMA Coherent API Notes
  *
- * Allocate pages(s) but the CPU always accesses them using a V-P mapping
- * which has Cached Bit off
+ * I/O is inherently non-coherent on ARC. So a coherent DMA buffer is
+ * implemented by accessintg it using a kernel virtual address, with
+ * Cache bit off in the TLB entry.
  *
- * If NON_CONSISTENT request, then CPU accesses page with normal paddr
- *
- * For both the cases above, actual DMA handle gen by platform as some
- * platforms are OK with 0x8000_0000 baed addresses while some are NOT.
+ * The default DMA address == Phy address which is 0x8000_0000 based.
+ * A platform/device can make it zero based, by over-riding
+ * plat_{dma,kernel}_addr_to_{kernel,dma}
  */
 
 #include <linux/dma-mapping.h>
@@ -23,6 +23,9 @@
 #include <linux/export.h>
 #include <asm/cacheflush.h>
 
+/*
+ * Helpers for Coherent DMA API.
+ */
 void *dma_alloc_noncoherent(struct device *dev, size_t size,
 			    dma_addr_t *dma_handle, gfp_t gfp)
 {
