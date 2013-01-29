@@ -24,13 +24,13 @@
  * 			(XXX: although only 1st entry is looked at)
  * @init_early:		Very early callback [called from setup_arch()]
  * @init_irq:		setup external IRQ controllers [called from init_IRQ()]
+ * @init_smp:		for each CPU (e.g. setup IPI)
+ * 			[(M):init_IRQ(), (o):start_kernel_secondary()]
  * @init_time:		platform specific clocksource/clockevent registration
  * 			[called from time_init()]
  * @init_machine:	arch initcall level callback (e.g. populate static
  * 			platform devices or parse Devicetree)
  * @init_late:		Late initcall level callback
- * @init_smp:		for each CPU (e.g. setup IPI)
- * 			[(M):init_IRQ(), (o):start_kernel_secondary()]
  *
  */
 struct machine_desc {
@@ -39,13 +39,13 @@ struct machine_desc {
 
 	void			(*init_early)(void);
 	void			(*init_irq)(void);
+#ifdef CONFIG_SMP
+	void			(*init_smp)(unsigned int);
+#endif
 	void			(*init_time)(void);
 	void			(*init_machine)(void);
 	void			(*init_late)(void);
 
-#ifdef CONFIG_SMP
-	void			(*init_smp)(unsigned int);
-#endif
 };
 
 /*
