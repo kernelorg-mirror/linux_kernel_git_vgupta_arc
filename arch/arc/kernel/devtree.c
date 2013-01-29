@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2012 Synopsys, Inc. (www.synopsys.com)
  *
- * Based on highly stipped down version of METAG
+ * Based on reduced version of METAG
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -10,15 +10,10 @@
 
 
 #include <linux/init.h>
-#include <linux/export.h>
-#include <linux/errno.h>
-#include <linux/types.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <asm/prom.h>
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
