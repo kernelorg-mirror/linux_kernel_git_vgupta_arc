@@ -924,7 +924,7 @@ static const struct net_device_ops arc_emac_netdev_ops = {
 	.ndo_get_stats = arc_emac_stats,
 };
 
-static int __devinit arc_emac_probe(struct platform_device *pdev)
+static int arc_emac_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct arc_emac_priv *priv;
