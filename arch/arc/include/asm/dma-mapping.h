@@ -12,6 +12,7 @@
 #define ASM_ARC_DMA_MAPPING_H
 
 #include <asm-generic/dma-coherent.h>
+#include <asm/cacheflush.h>
 
 #ifndef CONFIG_ARC_PLAT_NEEDS_CPU_TO_DMA
 /*
@@ -41,6 +42,16 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 
 void dma_free_coherent(struct device *dev, size_t size, void *kvaddr,
 		       dma_addr_t dma_handle);
+
+/* drivers/base/dma-mapping.c */
+extern int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
+			   void *cpu_addr, dma_addr_t dma_addr, size_t size);
+extern int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
+				  void *cpu_addr, dma_addr_t dma_addr,
+				  size_t size);
+
+#define dma_mmap_coherent(d, v, c, h, s) dma_common_mmap(d, v, c, h, s)
+#define dma_get_sgtable(d, t, v, h, s) dma_common_get_sgtable(d, t, v, h, s)
 
 /*
  * streaming DMA Mapping API...
