@@ -12,7 +12,7 @@
  */
 
 / {
-	compatible = "snps,arc-angel4", "snps,arc-ml509";
+	compatible = "snps,arc";
 	clock-frequency = <80000000>;	/* 80 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
