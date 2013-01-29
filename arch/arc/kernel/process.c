@@ -43,7 +43,8 @@ SYSCALL_DEFINE0(arc_gettls)
 
 static inline void arch_idle(void)
 {
-	__asm__("sleep");
+	/* sleep, but enable all interrupts before committing */
+	__asm__("sleep 0x3");
 }
 
 void cpu_idle(void)
@@ -55,8 +56,14 @@ void cpu_idle(void)
 		tick_nohz_idle_enter();
 		rcu_idle_enter();
 
-		while (!need_resched())
+doze:
+		local_irq_disable();
+		if (!need_resched()) {
 			arch_idle();
+			goto doze;
+		} else {
+			local_irq_enable();
+		}
 
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
