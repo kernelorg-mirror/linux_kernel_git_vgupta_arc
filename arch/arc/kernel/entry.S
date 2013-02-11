@@ -510,7 +510,7 @@ tracesys_exit:
 trap_with_param:
 
 	; stop_pc info by gdb needs this info
-	st  orig_r8_IS_BRKPT, [sp, PT_orig_r8]
+	stw orig_r8_IS_BRKPT, [sp, PT_orig_r8]
 
 	mov r0, r12
 	lr  r1, [efa]
@@ -737,7 +737,7 @@ not_exception:
 	; things to what they were, before returning from L2 context
 	;----------------------------------------------------------------
 
-	ld r9, [sp, PT_orig_r8]        ; get orig_r8 to make sure it is
+	ldw  r9, [sp, PT_orig_r8]      ; get orig_r8 to make sure it is
 	brne r9, orig_r8_IS_IRQ2, 149f ; infact a L2 ISR ret path
 
 	ld r9, [sp, PT_status32]       ; get statu32_l2 (saved in pt_regs)
@@ -784,9 +784,9 @@ not_level1_interrupt:
 	;this case is for syscalls or Exceptions (with fake rtie)
 
 #ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
-	ld r8, [sp, PT_orig_r8]
-	cmp r8, NR_syscalls+1
-	jeq  149f
+	ldw r8, [sp, PT_orig_r8]
+	cmp r8, orig_r8_IS_SCALL_RESTARTED
+	jhi  149f
 	TAKE_SNAP_ASM r9, r10, SNAP_TRAP_OUT
 	j 150f
 
