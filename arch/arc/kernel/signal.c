@@ -56,8 +56,6 @@
 #include <asm/ucontext.h>
 #include <asm/event-log.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 struct rt_sigframe {
 	struct siginfo info;
 	struct ucontext uc;
@@ -82,10 +80,8 @@ static int restore_usr_regs(struct pt_regs *regs, struct rt_sigframe __user *sf)
 	int err;
 
 	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
-	if (err == 0) {
-		sigdelsetmask(&set, ~_BLOCKABLE);
+	if (!err)
 		set_current_blocked(&set);
-	}
 
 	err |= __copy_from_user(regs, &(sf->uc.uc_mcontext.regs),
 				sizeof(*regs));
