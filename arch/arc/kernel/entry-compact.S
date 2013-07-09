@@ -62,6 +62,7 @@
 #include <linux/linkage.h>	/* {ENTRY,EXIT} */
 #include <asm/entry.h>
 #include <asm/irqflags.h>
+#include <asm/event-log-asm.h>
 
 	.cpu A7
 
@@ -239,6 +240,8 @@ ENTRY(handle_interrupt_level1)
 	TRACE_ASM_IRQ_DISABLE
 	pop  r0
 #endif
+
+	; Early RTIE here
 
 	bl.d  @arch_do_IRQ
 	mov r1, sp

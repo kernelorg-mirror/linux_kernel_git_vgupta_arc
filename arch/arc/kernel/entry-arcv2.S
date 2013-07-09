@@ -13,6 +13,7 @@
 #include <asm/errno.h>
 #include <asm/arcregs.h>
 #include <asm/irqflags.h>
+#include <asm/event-log-asm.h>
 
 ; A maximum number of supported interrupts in the core interrupt controller.
 ; This number is not equal to the maximum interrupt number (256) because
@@ -86,6 +87,8 @@ ENTRY(handle_interrupt)
 	# unless this one returns (or higher prio becomes pending in 2-prio scheme)
 
 	IRQ_DISABLE
+
+	TAKE_SNAP_C_FROM_ASM  SNAP_INTR_IN
 
 	; icause is banked: one per priority level
 	; so a higher prio interrupt taken here won't clobber prev prio icause
@@ -165,6 +168,16 @@ ENTRY(EV_TLBProtV)
 
 	EXCEPTION_PROLOGUE
 
+#ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
+	; Slow path DTLB Miss handlers also jump here from tlbex.S
+	; only take snapshot of ProtV Exception: vector number 0x06
+	lr	r2, [ecr]
+	lsr	r2, 16
+	brne	r6, 0x06, 1f
+	TAKE_SNAP_EXCP_TLB r0, r1, SNAP_PROTV
+1:
+#endif
+
 	lr  r0, [efa]	; Faulting Data address
 	mov r1, sp	; pt_regs
 
@@ -208,6 +221,16 @@ restore_regs:
 
 ;####### Return from Intr #######
 
+	; As of now this is dead code as AUX_IRQ_ACT.ACTIVE is always clear
+	TAKE_SNAP_C_FROM_ASM SNAP_INTR_OUT
+	; Need to reload r0, r11
+#ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
+	; reload r0, r11
+	ld	r0, [sp, PT_status32]	; U/K mode at time of entry
+	lr	r10, [AUX_IRQ_ACT]
+	bmsk	r11, r10, 15	; AUX_IRQ_ACT.ACTIVE
+#endif
+
 debug_marker_l1:
 	; bbit1.nt r0, STATUS_DE_BIT, .Lintr_ret_to_delay_slot
 	btst	r0, STATUS_DE_BIT		; Z flag set if bit clear
@@ -234,6 +257,11 @@ debug_marker_l1:
 .Lexcept_ret:	; Expects r0 has PT_status32
 
 debug_marker_syscall:
+	TAKE_SNAP_C_FROM_ASM SNAP_EXCP_OUT
+
+#ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
+	ld	r0, [sp, PT_status32]
+#endif
 	EXCEPTION_EPILOGUE
 	rtie
 

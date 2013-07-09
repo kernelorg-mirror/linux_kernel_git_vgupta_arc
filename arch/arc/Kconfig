@@ -520,6 +520,14 @@ config ARC_DW2_UNWIND
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
 
+config ARC_DBG_EVENT_TIMELINE
+	bool "Low level event capture"
+	depends on ARC_DBG && !SMP
+	select DEBUG_INFO
+	default n
+	help
+	  Capture low level events: IRQ/Trap/Exception
+
 endif
 
 config ARC_BUILTIN_DTB_NAME

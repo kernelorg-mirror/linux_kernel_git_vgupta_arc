@@ -47,4 +47,28 @@ do {					\
 
 #endif
 
+/* Hook into Schedular to be invoked prior to Context Switch
+ *  -If ARC H/W profiling enabled it does some stuff
+ *  -If event logging enabled it takes a event snapshot
+ *
+ *  Having a funtion would have been cleaner but to get the correct caller
+ *  (from __builtin_return_address) it needs to be inline
+ */
+
+/* Things to do for event logging prior to Context switch */
+#ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
+#include <asm/event-log.h>
+
+#define prepare_arch_switch(next)              				\
+do {									\
+	if (next->mm)							\
+		take_snap(SNAP_PRE_CTXSW_2_U,				\
+			 (unsigned int) __builtin_return_address(0));	\
+	else								\
+		take_snap(SNAP_PRE_CTXSW_2_K,				\
+			 (unsigned int) __builtin_return_address(0));	\
+}									\
+while (0)
+#endif
+
 #endif

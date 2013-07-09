@@ -234,6 +234,8 @@ ENTRY(EV_Trap)
 
 	EXCEPTION_PROLOGUE
 
+	TAKE_SNAP_SYSCALL r10, r11
+
 	;============ TRAP 1   :breakpoints
 	; Check ECR for trap with arg (PROLOGUE ensures r9 has ECR)
 	bmsk.f 0, r9, 7

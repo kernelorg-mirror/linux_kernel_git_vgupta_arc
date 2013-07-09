@@ -43,6 +43,7 @@
 #include <asm/cache.h>
 #include <asm/processor.h>
 #include <asm/tlb-mmu1.h>
+#include <asm/event-log-asm.h>
 
 #ifdef CONFIG_ISA_ARCOMPACT
 ;-----------------------------------------------------------------
@@ -309,6 +310,8 @@ ENTRY(EV_TLBMissI)
 
 	TLBMISS_FREEUP_REGS
 
+	TAKE_SNAP_EXCP_TLB r0, r1, SNAP_ITLB
+
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed, r2 is setup with EFA
 	LOAD_FAULT_PTE
@@ -342,6 +345,8 @@ END(EV_TLBMissI)
 ENTRY(EV_TLBMissD)
 
 	TLBMISS_FREEUP_REGS
+
+	TAKE_SNAP_EXCP_TLB r0, r1, SNAP_DTLB_ST
 
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed
