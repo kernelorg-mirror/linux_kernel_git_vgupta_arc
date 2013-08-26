@@ -276,14 +276,15 @@ noinline void local_flush_tlb_all(void)
  */
 noinline void local_flush_tlb_mm(struct mm_struct *mm)
 {
+
 	/*
-	 * Small optimisation courtesy IA64
-	 * flush_mm called during fork,exit,munmap etc, multiple times as well.
-	 * Only for fork( ) do we need to move parent to a new MMU ctxt,
-	 * all other cases are NOPs, hence this check.
+	 * TBD: remove later
+	 * This used to return for mm->mm_users == 0, which I don't think is
+	 * needed anymore, specially after commit 8d56bec2f294.
+	 * However we need to keep a safety net just in case, so add a
+	 * BUG_ON for scenario which we now allow.
 	 */
-	if (atomic_read(&mm->mm_users) == 0)
-		return;
+	BUG_ON((atomic_read(&mm->mm_users) == 0) && (current->mm == mm));
 
 	/*
 	 * - Move to a new ASID, but only if the mm is still wired in
