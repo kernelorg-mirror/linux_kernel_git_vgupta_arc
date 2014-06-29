@@ -481,14 +481,14 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
  */
 static inline void __before_dc_op(const int op)
 {
-	if (op == OP_FLUSH_N_INV) {
+	if (op == OP_FLUSH) {
 		/* Dcache provides 2 cmd: FLUSH or INV
-		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
-		 * flush-n-inv is achieved by INV cmd but with IM=1
-		 * So toggle INV sub-mode depending on op request and default
+		 * INV has sub-modes: DISCARD or FLUSH-N-INV (linux default)
+		 * FLUSH-N-INV is achieved by INV cmd but with IM=1
+		 * So vanilla INV needs clearing IM
 		 */
 		const unsigned int ctl = ARC_REG_DC_CTRL;
-		write_aux_reg(ctl, read_aux_reg(ctl) | DC_CTRL_INV_MODE_FLUSH);
+		write_aux_reg(ctl, read_aux_reg(ctl) & ~DC_CTRL_INV_MODE_FLUSH);
 	}
 }
 
@@ -529,8 +529,8 @@ static inline void __after_dc_op(const int op)
 			;
 
 		/* Switch back to default Invalidate mode */
-		if (op == OP_FLUSH_N_INV)
-			write_aux_reg(ctl, reg & ~DC_CTRL_INV_MODE_FLUSH);
+		if (op == OP_FLUSH)
+			write_aux_reg(ctl, reg | DC_CTRL_INV_MODE_FLUSH);
 	}
 }
 
