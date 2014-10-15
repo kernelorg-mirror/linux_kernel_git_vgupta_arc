@@ -57,8 +57,12 @@
 #define current (current_thread_info()->task)
 #endif
 
-timeline_log_t timeline_log[MAX_SNAPS];
-int timeline_ctr;
+/* des, src are NOT addr */
+#define STR(dest, val)	arc_write_uncached_32(&(dest), val)
+#define LDR(src)	arc_read_uncached_32(&(src))
+
+timeline_log_t timeline_log[MAX_SNAPS] __attribute__((aligned(128)));
+int timeline_ctr __attribute__((aligned(128)));
 
 void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, unsigned int extra2)
 {
@@ -68,30 +72,30 @@ void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, u
 
 	local_irq_save(flags);
 
-	c = timeline_ctr;
+	c = LDR(timeline_ctr);
 	entry = &timeline_log[c];
 
-	entry->time = read_aux_reg(0x100); //ARC_REG_TIMER1_CNT);
-	entry->task = current->pid;
-	entry->event = event;
-	entry->sp = regs->sp;
-	entry->pc = regs->ret;
+	STR(entry->time, read_aux_reg(0x100)); //ARC_REG_TIMER1_CNT);
+	STR(entry->task, current->pid);
+	STR(entry->event, event);
+	STR(entry->sp, regs->sp);
+	STR(entry->pc, regs->ret);
 
-	entry->efa = 0;
-	entry->extra = 0;
+	STR(entry->efa, 0);
+	STR(entry->extra, 0);
 
 	if ((event == SNAP_INTR_IN) || (event == SNAP_INTR_OUT)) {
-		entry->cause = read_aux_reg(0x40a);
-		entry->stat32 = regs->status32;
+		STR(entry->cause, read_aux_reg(0x40a));
+		STR(entry->stat32, regs->status32);
 	} else {
-		entry->cause = extra;
-		entry->stat32 = extra2;
+		STR(entry->cause, extra);
+		STR(entry->stat32, extra2);
 	}
 
 	/* next empty entry (not last valid entry) */
 	c = (c + 1) & (MAX_SNAPS - 1);
 
-	timeline_ctr = c;
+	STR(timeline_ctr, c);
 
 	local_irq_restore(flags);
 }

@@ -33,6 +33,13 @@
 
 #include <asm/asm-offsets.h>
 
+/*
+ * Log buffer and iterator are uncached so when we retrieve them form mdb,
+ * nothing is left in cache
+ */
+#define LD_DI	ld.di
+#define ST_DI	st.di
+
 #ifdef CONFIG_ISA_ARCV2
 
 .macro IRQ_SAVE r0, r1
@@ -74,51 +81,54 @@
 
 	SNAP_LOCK	\r0, \r1
 
-	ld	\r1, [timeline_ctr]
+	mov	\r0, @timeline_log
+	mov	\r1, @timeline_ctr
+
+	LD_DI	\r1, [\r1]
 	mpyu	\r1, \r1, EVLOG_RECORD_SZ
-	add	\r1, timeline_log, \r1
+	add	\r1, \r0, \r1
 
 	/*############ Common data ########## */
 
 	/* TIMER1 count in timeline_log[timeline_ctr].time */
 	lr	\r0, [0x100]
-	st	\r0, [\r1, EVLOG_FIELD_TIME]
+	ST_DI	\r0, [\r1, EVLOG_FIELD_TIME]
 
 	/* current task ptr in timeline_log[timeline_ctr].task */
 	ld	\r0, [_current_task]
 	ld	\r0, [\r0, TASK_PID]
-	st	\r0, [\r1, EVLOG_FIELD_TASK]
+	ST_DI	\r0, [\r1, EVLOG_FIELD_TASK]
 
 	/* Type of event (Intr/Excp/Trap etc) */
 	mov	\r0, \event_id
-	st	\r0, [\r1, EVLOG_FIELD_EVENT_ID]
+	ST_DI	\r0, [\r1, EVLOG_FIELD_EVENT_ID]
 
-	st	sp, [\r1, EVLOG_FIELD_SP]
+	ST_DI	sp, [\r1, EVLOG_FIELD_SP]
 
 	lr	\r0, [eret]
-	st	\r0, [\r1, EVLOG_FIELD_PC]
+	ST_DI	\r0, [\r1, EVLOG_FIELD_PC]
 
 	lr	\r0, [efa]    ; EFA
-	st	\r0, [\r1, EVLOG_FIELD_EFA]
+	ST_DI	\r0, [\r1, EVLOG_FIELD_EFA]
 
 	lr	\r0, [0x403]	; ECR
-	st	\r0, [\r1, EVLOG_FIELD_CAUSE]
+	ST_DI	\r0, [\r1, EVLOG_FIELD_CAUSE]
 
 	lr	\r0, [erstatus]
-	st	\r0, [\r1, EVLOG_FIELD_STATUS]
+	ST_DI	\r0, [\r1, EVLOG_FIELD_STATUS]
 
-	lr	\r0, [0xd]    ; AUX_SP
-	st	\r0, [\r1, EVLOG_FIELD_EXTRA]
+	mov	\r0, 0    ; AUX_SP
+	ST_DI	\r0, [\r1, EVLOG_FIELD_EXTRA]
 .endm
 
 
 .macro SNAP_EPILOGUE r0, r1
 
 	/* increment timeline_ctr  with mode on max */
-	ld	\r0, [timeline_ctr]
+	LD_DI	\r0, [timeline_ctr]
 	add	\r0, \r0, 1
 	and	\r0, \r0, MAX_SNAPS_MASK
-	st	\r0, [timeline_ctr]
+	ST_DI	\r0, [timeline_ctr]
 
 	SNAP_UNLOCK	\r0
 
@@ -135,7 +145,7 @@
 .macro TAKE_SNAP_SYSCALL r0, r1
 	SNAP_PROLOGUE \r0, \r1, SNAP_TRAP_IN
 
-	st	r8, [\r1, EVLOG_FIELD_CAUSE]	; syscall num
+	ST_DI	r8, [\r1, EVLOG_FIELD_CAUSE]	; syscall num
 
 	SNAP_EPILOGUE \r0, \r1
 .endm
