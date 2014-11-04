@@ -53,6 +53,21 @@
 	seti \r0
 .endm
 
+.macro  SMP_BARRIER
+	dmb 3
+.endm
+
+.macro GET_CPU_TS	r0
+#ifdef CONFIG_SMP
+	mov	\r0, 0x42	/* MCIP GFRC counter */
+	sr	\r0, [0x600]
+	lr	\r0, [0x602]
+	;ld	\r0, [@jiffies]
+#else
+	lr	\r0, [0x100]	; TIMER1
+#endif
+.endm
+
 #else	/* ISA_ARCOMPACT */
 
 .macro IRQ_SAVE r0, r1
@@ -65,20 +80,38 @@
 	flag	\r0
 .endm
 
+.macro GET_CPU_TS	r0
+	lr	\r0, [0x100]	; TIMER1
+.endm
 #endif
 
 .macro  SNAP_LOCK r0, r1
 	IRQ_SAVE	\r0, \r1
 	PUSH		\r0	; save flags on stack
+
+#if defined(CONFIG_SMP)
+1:
+	mov		\r0, 1
+	ex		\r0, [@timeline_lock]
+	breq		\r0, 1, 1b
+
+	SMP_BARRIER
+#endif
 .endm
 
 .macro	SNAP_UNLOCK r0
+#if defined(CONFIG_SMP)
+	SMP_BARRIER
+
+	mov		\r0, 0
+	st		\r0, [@timeline_lock]
+#endif
+
 	POP		\r0
 	IRQ_RESTORE	\r0
 .endm
 
 .macro SNAP_PROLOGUE r0, r1, event_id
-
 	PUSH	\r0
 	PUSH	\r1
 
@@ -93,12 +126,15 @@
 
 	/*############ Common data ########## */
 
-	/* TIMER1 count in timeline_log[timeline_ctr].time */
-	lr	\r0, [0x100]
+	GET_CPU_TS	\r0
 	ST_DI	\r0, [\r1, EVLOG_FIELD_TIME]
 
-	/* current task ptr in timeline_log[timeline_ctr].task */
+#ifdef CONFIG_SMP
+	bic	\r0, sp, THREAD_SIZE-1	; sp & ~(THREAD_SIZE - 1)
+	ld	\r0, [\r0, THREAD_INFO_TSK]	; thread_info->tsk
+#else
 	ld	\r0, [_current_task]
+#endif
 	ld	\r0, [\r0, TASK_PID]
 	ST_DI	\r0, [\r1, EVLOG_FIELD_TASK]
 
@@ -120,8 +156,14 @@
 	lr	\r0, [erstatus]
 	ST_DI	\r0, [\r1, EVLOG_FIELD_STATUS]
 
-	mov	\r0, 0    ; AUX_SP
+	;mov	\r0, 0    ; AUX_SP
+	lr \r0, [0x468]    ; MMU_PID
 	ST_DI	\r0, [\r1, EVLOG_FIELD_EXTRA]
+
+#ifdef CONFIG_SMP
+	GET_CPU_ID	\r0
+	ST_DI		\r0, [\r1, EVLOG_FIELD_CPU]
+#endif
 .endm
 
 .macro SNAP_EPILOGUE r0, r1

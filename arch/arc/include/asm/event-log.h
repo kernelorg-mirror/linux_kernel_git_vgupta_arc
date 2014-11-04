@@ -94,6 +94,7 @@ enum arc_event {
 };
 
 typedef struct {
+	int cpu;
 	unsigned long time;
 	enum arc_event event;
 	unsigned int cause;

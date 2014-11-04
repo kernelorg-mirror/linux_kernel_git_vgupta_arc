@@ -2,7 +2,6 @@
  * event-log.c : Poorman's version of LTT for low level event capturing
  *
  * captures IRQ/Exceptions/Sys-Calls/arbitrary function call
- * XXX: Not SMP Safe
  *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
@@ -64,18 +63,48 @@
 timeline_log_t timeline_log[MAX_SNAPS] __attribute__((aligned(128)));
 int timeline_ctr __attribute__((aligned(128)));
 
+#ifdef CONFIG_SMP
+int timeline_lock __attribute__((aligned(128)));
+#endif
+
 void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, unsigned int extra2)
 {
 	int c;
 	timeline_log_t *entry;
 	unsigned long flags;
+	int cpu = IS_ENABLED(CONFIG_SMP) ? ((read_aux_reg(AUX_IDENTITY) >> 8 ) & 0xFF) : 0;
 
 	local_irq_save(flags);
+
+#ifdef CONFIG_SMP
+	{
+	int lock = 1;
+
+	asm volatile(
+	"1:	ex  %0, [@timeline_lock]	\n"
+	"	breq  %0, 1, 1b			\n"
+	:"+r" (lock) ::"memory");
+
+	smp_mb();
+	}
+#endif
 
 	c = LDR(timeline_ctr);
 	entry = &timeline_log[c];
 
+	STR(entry->cpu, cpu);
+
+#ifdef CONFIG_SMP
+#ifdef CONFIG_ISA_ARCV2
+	write_aux_reg(0x600, 0x42);		// ARC_REG_MCIP_CMD
+	STR(entry->time, read_aux_reg(0x602));	// ARC_REG_MCIP_READBACK
+#else
+	STR(entry->time, jiffies);
+#endif
+#else
 	STR(entry->time, read_aux_reg(0x100)); //ARC_REG_TIMER1_CNT);
+#endif
+
 	STR(entry->task, current->pid);
 	STR(entry->event, event);
 	STR(entry->sp, regs->sp);
@@ -97,6 +126,10 @@ void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, u
 
 	STR(timeline_ctr, c);
 
+#ifdef CONFIG_SMP
+	smp_mb();
+	timeline_lock = 0;
+#endif
 	local_irq_restore(flags);
 }
 

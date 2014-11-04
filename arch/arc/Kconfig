@@ -522,7 +522,7 @@ config ARC_DBG_TLB_PARANOIA
 
 config ARC_DBG_EVENT_TIMELINE
 	bool "Low level event capture"
-	depends on ARC_DBG && !SMP
+	depends on ARC_DBG
 	select DEBUG_INFO
 	default n
 	help

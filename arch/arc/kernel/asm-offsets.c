@@ -30,6 +30,7 @@ int main(void)
 
 	BLANK();
 
+	DEFINE(THREAD_INFO_TSK, offsetof(struct thread_info, task));
 	DEFINE(THREAD_INFO_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(THREAD_INFO_PREEMPT_COUNT,
 	       offsetof(struct thread_info, preempt_count));
@@ -67,6 +68,7 @@ int main(void)
 
 #ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
 	BLANK();
+	DEFINE(EVLOG_FIELD_CPU, offsetof(timeline_log_t, cpu));
 	DEFINE(EVLOG_FIELD_STATUS, offsetof(timeline_log_t, stat32));
 	DEFINE(EVLOG_FIELD_PC, offsetof(timeline_log_t, pc));
 	DEFINE(EVLOG_FIELD_CAUSE, offsetof(timeline_log_t, cause));
