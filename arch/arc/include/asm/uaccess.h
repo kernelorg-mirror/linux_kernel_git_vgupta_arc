@@ -220,8 +220,8 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 			orig_n = orig_n % 16;
 
 			__asm__ __volatile__(
-			"	lsr   lp_count, %7,4		\n"
-			"	lp    3f			\n"
+			"	mov.f   lp_count, %7		\n"
+			"	lpnz    3f			\n"
 			"1:	ld.ab   %3, [%2, 4]		\n"
 			"11:	ld.ab   %4, [%2, 4]		\n"
 			"12:	ld.ab   %5, [%2, 4]		\n"
@@ -245,7 +245,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 			"	.previous			\n"
 			: "+r" (res), "+r"(to), "+r"(from),
 			  "=r"(tmp1), "=r"(tmp2), "=r"(tmp3), "=r"(tmp4)
-			: "ir"(n)
+			: "ir"(n/16)
 			: "lp_count", "memory");
 		}
 		if (orig_n / 8) {
@@ -442,8 +442,8 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 			orig_n = orig_n % 16;
 
 			__asm__ __volatile__(
-			"	lsr lp_count, %7,4		\n"
-			"	lp  3f				\n"
+			"	mov.f lp_count, %7		\n"
+			"	lpnz  3f			\n"
 			"	ld.ab %3, [%2, 4]		\n"
 			"	ld.ab %4, [%2, 4]		\n"
 			"	ld.ab %5, [%2, 4]		\n"
@@ -467,7 +467,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 			"	.previous			\n"
 			: "+r" (res), "+r"(to), "+r"(from),
 			  "=r"(tmp1), "=r"(tmp2), "=r"(tmp3), "=r"(tmp4)
-			: "ir"(n)
+			: "ir"(n/16)
 			: "lp_count", "memory");
 		}
 		if (orig_n / 8) {
