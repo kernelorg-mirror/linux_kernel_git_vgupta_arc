@@ -23,8 +23,10 @@ struct arc_pmu {
 	struct pmu	pmu;
 	unsigned int	irq;
 	int		n_counters;
+	int		n_events;
 	u64		max_period;
 	int		ev_hw_idx[PERF_COUNT_ARC_HW_MAX];
+	u64             raw_events[ARC_PERF_MAX_EVENTS];
 };
 
 struct arc_pmu_cpu {
@@ -148,6 +150,18 @@ static int arc_pmu_cache_event(u64 config)
 	return ret;
 }
 
+static int arc_pmu_raw_event(u64 config)
+{
+	int i;
+
+	for (i = 0; i < arc_pmu->n_events; i++) {
+		if (config == arc_pmu->raw_events[i])
+			return i;
+	}
+
+	return -ENOENT;
+}
+
 /* initializes hw_perf_event structure if event is supported */
 static int arc_pmu_event_init(struct perf_event *event)
 {
@@ -190,6 +204,14 @@ static int arc_pmu_event_init(struct perf_event *event)
 			return ret;
 		hwc->config |= arc_pmu->ev_hw_idx[ret];
 		return 0;
+
+	case PERF_TYPE_RAW:
+		ret = arc_pmu_raw_event(event->attr.config);
+		if (ret < 0)
+			return ret;
+		hwc->config |= ret;
+		return 0;
+
 	default:
 		return -ENOENT;
 	}
@@ -446,12 +468,13 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 	int i, j, has_interrupts;
 	int counter_size;	/* in bits */
 
-	union cc_name {
-		struct {
-			uint32_t word0, word1;
-			char sentinel;
-		} indiv;
-		char str[9];
+	struct cc_name {
+		union {
+			uint32_t word[2];
+			u64	 dword;
+			char	 str[8];
+		} u;
+		char sentinel[8];
 	} cc_name;
 
 
@@ -464,6 +487,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 
 	READ_BCR(ARC_REG_CC_BUILD, cc_bcr);
 	BUG_ON(!cc_bcr.v); /* Counters exist but No countable conditions ? */
+	BUG_ON(cc_bcr.c > ARC_PERF_MAX_EVENTS);
 
 	arc_pmu = devm_kzalloc(&pdev->dev, sizeof(struct arc_pmu), GFP_KERNEL);
 	if (!arc_pmu)
@@ -480,23 +504,55 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		arc_pmu->n_counters, counter_size, cc_bcr.c,
 		has_interrupts ? ", [overflow IRQ support]":"");
 
-	cc_name.str[8] = 0;
+	arc_pmu->n_events = cc_bcr.c;
+
 	for (i = 0; i < PERF_COUNT_ARC_HW_MAX; i++)
 		arc_pmu->ev_hw_idx[i] = -1;
 
+	cc_name.sentinel[0] = '\0';
+
 	/* loop thru all available h/w condition indexes */
 	for (j = 0; j < cc_bcr.c; j++) {
+		u64 name;
+
 		write_aux_reg(ARC_REG_CC_INDEX, j);
-		cc_name.indiv.word0 = read_aux_reg(ARC_REG_CC_NAME0);
-		cc_name.indiv.word1 = read_aux_reg(ARC_REG_CC_NAME1);
+		cc_name.u.word[0] = read_aux_reg(ARC_REG_CC_NAME0);
+		cc_name.u.word[1] = read_aux_reg(ARC_REG_CC_NAME1);
+
+
+		/*
+		 * condition name caching for raw events
+		 *
+		 * In PCT register CC_NAME{0,1} event name string[] is saved
+		 * from LSB side:
+		 * e.g. cycles corresponds to "crun" and is saved as 0x6e757263
+		 *						       n u r c
+		 * However in perf cmdline they are specified in human order as
+		 * r6372756e
+		 *
+		 * Thus save a 64bit swapped value for quick cross check at the
+		 * time of raw event request, which will give in example above:
+		 * __swab64(0x000000006e757263) = 0x6372756e00000000.
+		 * And then to finally have 0x6372756e, trim the trailing zeroes
+		 */
+		name = __swab64(cc_name.u.dword);
+
+		/* Trim leading zeroes */
+		for (i = 0; i < sizeof(u64); i++)
+			if (!(name & 0xFF))
+				name = name >> 8;
+			else
+				break;
+
+		arc_pmu->raw_events[j] = name;
 
 		/* See if it has been mapped to a perf event_id */
 		for (i = 0; i < ARRAY_SIZE(arc_pmu_ev_hw_map); i++) {
 			if (arc_pmu_ev_hw_map[i] &&
-			    !strcmp(arc_pmu_ev_hw_map[i], cc_name.str) &&
+			    !strcmp(arc_pmu_ev_hw_map[i], cc_name.u.str) &&
 			    strlen(arc_pmu_ev_hw_map[i])) {
 				pr_debug("mapping perf event %2d to h/w event \'%8s\' (idx %d)\n",
-					 i, cc_name.str, j);
+					 i, cc_name.u.str, j);
 				arc_pmu->ev_hw_idx[i] = j;
 			}
 		}

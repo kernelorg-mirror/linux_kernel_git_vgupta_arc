@@ -16,6 +16,9 @@
 /* Max number of counters that PCT block may ever have */
 #define ARC_PERF_MAX_COUNTERS	32
 
+/* Max number of countable events that CPU may have */
+#define ARC_PERF_MAX_EVENTS	256
+
 #define ARC_REG_CC_BUILD	0xF6
 #define ARC_REG_CC_INDEX	0x240
 #define ARC_REG_CC_NAME0	0x241
