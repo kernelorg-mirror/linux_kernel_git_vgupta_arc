@@ -310,8 +310,6 @@ ENTRY(EV_TLBMissI)
 
 	TLBMISS_FREEUP_REGS
 
-	TAKE_SNAP_EXCP_TLB r0, r1, SNAP_ITLB
-
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed, r2 is setup with EFA
 	LOAD_FAULT_PTE
@@ -332,6 +330,7 @@ ENTRY(EV_TLBMissI)
 
 	CONV_PTE_TO_TLB
 	COMMIT_ENTRY_TO_MMU
+	TAKE_SNAP_TLB_REFILL	r0, r1
 	TLBMISS_RESTORE_REGS
 EV_TLBMissI_fast_ret:	; additional label for VDK OS-kit instrumentation
 	rtie
@@ -345,8 +344,6 @@ END(EV_TLBMissI)
 ENTRY(EV_TLBMissD)
 
 	TLBMISS_FREEUP_REGS
-
-	TAKE_SNAP_EXCP_TLB r0, r1, SNAP_DTLB_ST
 
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed
@@ -374,7 +371,12 @@ ENTRY(EV_TLBMissD)
 
 	; By now, r2 setup with all the Flags we need to check in PTE
 	and     r3, r0, r2              ; Mask out NON Flag bits from PTE
+#ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
+	cmp	r3, r2
+	bne.d   do_slow_path_pf ; is ((pte & flags_test) == flags_test)
+#else
 	brne.d  r3, r2, do_slow_path_pf ; is ((pte & flags_test) == flags_test)
+#endif
 
 	;----------------------------------------------------------------
 	; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
@@ -394,6 +396,7 @@ ENTRY(EV_TLBMissD)
 #endif
 
 	COMMIT_ENTRY_TO_MMU
+	TAKE_SNAP_TLB_REFILL	r0, r1
 	TLBMISS_RESTORE_REGS
 EV_TLBMissD_fast_ret:	; additional label for VDK OS-kit instrumentation
 	rtie

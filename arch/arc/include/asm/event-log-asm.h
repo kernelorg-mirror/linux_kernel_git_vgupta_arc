@@ -20,7 +20,10 @@
 
 #ifndef CONFIG_ARC_DBG_EVENT_TIMELINE
 
-.macro TAKE_SNAP_EXCP_TLB r0, r1, miss_type
+.macro TAKE_SNAP_EXCP_TLB r0, r1
+.endm
+
+.macro TAKE_SNAP_TLB_REFILL r0, r1
 .endm
 
 .macro TAKE_SNAP_SYSCALL r0, r1
@@ -121,7 +124,6 @@
 	ST_DI	\r0, [\r1, EVLOG_FIELD_EXTRA]
 .endm
 
-
 .macro SNAP_EPILOGUE r0, r1
 
 	/* increment timeline_ctr  with mode on max */
@@ -137,8 +139,18 @@
 	POP	\r0
 .endm
 
-.macro TAKE_SNAP_EXCP_TLB r0, r1, miss_type
-	SNAP_PROLOGUE \r0, \r1, \miss_type
+.macro TAKE_SNAP_EXCP_TLB r0, r1
+	SNAP_PROLOGUE \r0, \r1, SNAP_TLB
+	SNAP_EPILOGUE \r0, \r1
+.endm
+
+.macro TAKE_SNAP_TLB_REFILL r0, r1
+	SNAP_PROLOGUE \r0, \r1, SNAP_TLB_FAST
+
+	; OK to clobber r3 in Fast Path handler
+	lr	r3, [ARC_REG_TLBPD1]
+	ST_DI	r3, [\r1, EVLOG_FIELD_EXTRA]
+
 	SNAP_EPILOGUE \r0, \r1
 .endm
 

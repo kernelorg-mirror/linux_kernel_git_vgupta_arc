@@ -56,6 +56,7 @@
 #include <linux/mm_types.h>
 
 #include <asm/arcregs.h>
+#include <asm/event-log.h>
 #include <asm/setup.h>
 #include <asm/mmu_context.h>
 #include <asm/mmu.h>
@@ -583,6 +584,8 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 	pd1 = rwx | (pte_val(*ptep) & PTE_BITS_NON_RWX_IN_PD1);
 
 	tlb_entry_insert(pd0, pd1);
+
+	take_snap2(SNAP_UMC, pd0, pd1);
 
 	local_irq_restore(flags);
 }

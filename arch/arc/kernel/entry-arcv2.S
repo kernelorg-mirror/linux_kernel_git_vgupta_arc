@@ -168,15 +168,8 @@ ENTRY(EV_TLBProtV)
 
 	EXCEPTION_PROLOGUE
 
-#ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
-	; Slow path DTLB Miss handlers also jump here from tlbex.S
-	; only take snapshot of ProtV Exception: vector number 0x06
-	lr	r2, [ecr]
-	lsr	r2, 16
-	brne	r6, 0x06, 1f
-	TAKE_SNAP_EXCP_TLB r0, r1, SNAP_PROTV
-1:
-#endif
+	; use ECR to distinguish ITL, DTLB (ld/st), ProtV
+	TAKE_SNAP_EXCP_TLB r0, r1
 
 	lr  r0, [efa]	; Faulting Data address
 	mov r1, sp	; pt_regs
