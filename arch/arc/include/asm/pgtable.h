@@ -53,41 +53,38 @@
 
 #if (CONFIG_ARC_MMU_VER <= 2)
 
-#define _PAGE_ACCESSED      (1<<1)	/* Page is accessed (S) */
-#define _PAGE_CACHEABLE     (1<<2)	/* Page is cached (H) */
-#define _PAGE_EXECUTE       (1<<3)	/* Page has user execute perm (H) */
-#define _PAGE_WRITE         (1<<4)	/* Page has user write perm (H) */
-#define _PAGE_READ          (1<<5)	/* Page has user read perm (H) */
-#define _PAGE_DIRTY         (1<<6)	/* Page modified (dirty) (S) */
-#define _PAGE_SPECIAL       (1<<7)
-#define _PAGE_GLOBAL        (1<<8)	/* Page is global (H) */
-#define _PAGE_PRESENT       (1<<10)	/* TLB entry is valid (H) */
+#define PAGE_ACCESSED	(1<<1)	/* Page is accessed (S) */
+#define PAGE_CACHEABL	(1<<2)	/* Page is cached (H) */
+#define PAGE_EXECUTE	(1<<3)	/* Page has user execute perm (H) */
+#define PAGE_WRITE	(1<<4)	/* Page has user write perm (H) */
+#define PAGE_READ	(1<<5)	/* Page has user read perm (H) */
+#define PAGE_DIRTY	(1<<6)	/* Page modified (dirty) (S) */
+#define PAGE_GLOBAL	(1<<8)	/* Page is global (H) */
+#define PAGE_PRESENT	(1<<10)	/* TLB entry is valid (H) */
 
 #else	/* MMU v3 onwards */
 
-#define _PAGE_CACHEABLE     (1<<0)	/* Page is cached (H) */
-#define _PAGE_EXECUTE       (1<<1)	/* Page has user execute perm (H) */
-#define _PAGE_WRITE         (1<<2)	/* Page has user write perm (H) */
-#define _PAGE_READ          (1<<3)	/* Page has user read perm (H) */
-#define _PAGE_ACCESSED      (1<<4)	/* Page is accessed (S) */
-#define _PAGE_DIRTY         (1<<5)	/* Page modified (dirty) (S) */
-#define _PAGE_SPECIAL       (1<<6)
+#define PAGE_CACHEABLE	(1<<0)	/* Page is cached (H) */
+#define PAGE_EXECUTE	(1<<1)	/* Page has user execute perm (H) */
+#define PAGE_WRITE	(1<<2)	/* Page has user write perm (H) */
+#define PAGE_READ	(1<<3)	/* Page has user read perm (H) */
+#define PAGE_ACCESSED	(1<<4)	/* Page is accessed (S) */
+#define PAGE_DIRTY	(1<<5)	/* Page modified (dirty) (S) */
 
 #if (CONFIG_ARC_MMU_VER >= 4)
-#define _PAGE_WTHRU         (1<<7)	/* Page cache mode write-thru (H) */
+#define PAGE_WTHRU	(1<<7)	/* Page cache mode write-thru (H) */
 #endif
 
-#define _PAGE_GLOBAL        (1<<8)	/* Page is global (H) */
-#define _PAGE_PRESENT       (1<<9)	/* TLB entry is valid (H) */
+#define PAGE_GLOBAL	(1<<8)	/* Page is global (H) */
+#define PAGE_PRESENT	(1<<9)	/* TLB entry is valid (H) */
 
 #if (CONFIG_ARC_MMU_VER >= 4)
-#define _PAGE_HW_SZ         (1<<10)	/* Page Size indicator (H): 0 normal, 1 super */
+#define PAGE_SZ		(1<<10)	/* Page Size indicator (H) */
 #endif
 
-#define _PAGE_SHARED_CODE   (1<<11)	/* Shared Code page with cmn vaddr
+#define PAGE_SHARED_CODE (1<<11)	/* Shared Code page with cmn vaddr
 					   usable for shared TLB entries (H) */
-
-#define _PAGE_UNUSED_BIT    (1<<12)
+#define PAGE_UNUSED_BIT	(1<<12)
 #endif
 
 /* vmalloc permissions */
