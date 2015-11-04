@@ -64,11 +64,11 @@
 			interrupt-names = "arc_ps2_irq";
 		};
 
-		eth0: ethernet@f0003000 {
-			compatible = "snps,oscilan";
+		ethernet@f0003000 {
+			compatible = "ezchip,nps-mgt-enet";
 			reg = <0xf0003000 0x44>;
-			interrupts = <25>, <26>;
-			interrupt-names = "rx", "tx";
+			interrupts = <25>;
+			mac-address = [ 04 11 22 33 44 88 ];
 		};
 
 		arcpct0: pct {
