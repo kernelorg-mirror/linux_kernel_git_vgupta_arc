@@ -72,6 +72,15 @@ struct unwind_frame_info {
 
 #define STACK_LIMIT(ptr)	(((ptr) - 1) & ~(THREAD_SIZE - 1))
 
+#define EXTRA_INFO(f) { \
+		BUILD_BUG_ON_ZERO(offsetof(struct unwind_frame_info, f) \
+				% FIELD_SIZEOF(struct unwind_frame_info, f)) \
+				+ offsetof(struct unwind_frame_info, f) \
+				/ FIELD_SIZEOF(struct unwind_frame_info, f), \
+				FIELD_SIZEOF(struct unwind_frame_info, f) \
+	}
+#define PTREGS_INFO(f) EXTRA_INFO(regs.f)
+
 #define UNW_REGISTER_INFO \
 	PTREGS_INFO(r0), \
 	PTREGS_INFO(r1), \
@@ -116,31 +125,6 @@ extern void arc_unwind_setup(void);
 extern void *unwind_add_table(struct module *module, const void *table_start,
 			      unsigned long table_size);
 extern void unwind_remove_table(void *handle, int init_only);
-
-static inline int
-arch_unwind_init_running(struct unwind_frame_info *info,
-			 int (*callback) (struct unwind_frame_info *info,
-					  void *arg),
-			 void *arg)
-{
-	return 0;
-}
-
-static inline int arch_unw_user_mode(const struct unwind_frame_info *info)
-{
-	return 0;
-}
-
-static inline void arch_unw_init_blocked(struct unwind_frame_info *info)
-{
-	return;
-}
-
-static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
-					    struct pt_regs *regs)
-{
-	return;
-}
 
 #else
 

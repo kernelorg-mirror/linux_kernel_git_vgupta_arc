@@ -43,23 +43,10 @@ do {						\
 
 #define MAX_STACK_DEPTH 8
 
-#define EXTRA_INFO(f) { \
-		BUILD_BUG_ON_ZERO(offsetof(struct unwind_frame_info, f) \
-				% FIELD_SIZEOF(struct unwind_frame_info, f)) \
-				+ offsetof(struct unwind_frame_info, f) \
-				/ FIELD_SIZEOF(struct unwind_frame_info, f), \
-				FIELD_SIZEOF(struct unwind_frame_info, f) \
-	}
-#define PTREGS_INFO(f) EXTRA_INFO(regs.f)
-
 static const struct {
 	unsigned offs:BITS_PER_LONG / 2;
 	unsigned width:BITS_PER_LONG / 2;
-} reg_info[] = {
-UNW_REGISTER_INFO};
-
-#undef PTREGS_INFO
-#undef EXTRA_INFO
+} reg_info[] = { UNW_REGISTER_INFO };
 
 #ifndef REG_INVALID
 #define REG_INVALID(r) (reg_info[r].width == 0)
