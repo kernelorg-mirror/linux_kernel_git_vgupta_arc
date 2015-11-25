@@ -234,3 +234,6 @@ ENTRY(memcpy)
 	j	[blink]
 
 END(memcpy)
+
+DW2_CIE()
+DW2_FDE(memcpy)

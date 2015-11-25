@@ -120,3 +120,6 @@ ENTRY(memzero)
     b.d  memset    ;tail call so need to tinker with blink
     mov r1, 0
 END(memzero)
+
+DW2_CIE()
+DW2_FDE(memset)
