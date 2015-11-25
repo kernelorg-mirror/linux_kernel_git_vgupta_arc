@@ -13,7 +13,7 @@
 
 #define ASM_NL		 `	/* use '`' to mark new line in macro */
 
-/* annotation for data we want in DCCM - if enabled in .config */
+/* annotation for data/code we want in DCCM/ICCM - if enabled in .config */
 .macro ARCFP_DATA nm
 #ifdef CONFIG_ARC_HAS_DCCM
 	.section .data.arcfp
@@ -23,7 +23,6 @@
 	.global \nm
 .endm
 
-/* annotation for data we want in DCCM - if enabled in .config */
 .macro ARCFP_CODE
 #ifdef CONFIG_ARC_HAS_ICCM
 	.section .text.arcfp, "ax",@progbits
