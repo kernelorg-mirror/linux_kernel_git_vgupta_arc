@@ -13,6 +13,37 @@
 
 #define ASM_NL		 `	/* use '`' to mark new line in macro */
 
+#define END(name) 			\
+	.LFE##name:		ASM_NL	\
+	.size name, .-name
+
+
+#define DW2_CIE()				ASM_NL \
+	.section .debug_frame,"",@progbits	ASM_NL \
+.Lframe0:					ASM_NL \
+	.4byte	@.LECIE0-@.LSCIE0		ASM_NL \
+.LSCIE0:					ASM_NL \
+	.4byte	0xffffffff			ASM_NL \
+	.byte	0x1				ASM_NL \
+	.string	""				ASM_NL \
+	.uleb128 0x1				ASM_NL \
+	.sleb128 -4				ASM_NL \
+	.byte	0x1f				ASM_NL \
+	.byte	0xc				ASM_NL \
+	.uleb128 0x1c				ASM_NL \
+	.uleb128 0				ASM_NL \
+	.align 4				ASM_NL \
+.LECIE0:
+
+#define DW2_FDE(sym)				ASM_NL \
+	.4byte	@.LEFDE0##sym-@.LASFDE0##sym	ASM_NL \
+.LASFDE0##sym:					ASM_NL \
+	.4byte	@.Lframe0			ASM_NL \
+	.4byte	@##sym				ASM_NL \
+	.4byte	@.LFE##sym - @sym		ASM_NL \
+	.align 4				ASM_NL \
+.LEFDE0##sym:
+
 /* annotation for data/code we want in DCCM/ICCM - if enabled in .config */
 .macro ARCFP_DATA nm
 #ifdef CONFIG_ARC_HAS_DCCM
