@@ -900,35 +900,16 @@ int arc_unwind(struct unwind_frame_info *frame)
 		return -EINVAL;
 
 	hdr = table->header;
+	if (hdr == NULL)
+		return -EINVAL;
 
-	smp_rmb();
-	if (hdr && hdr->version == 1) {
-		switch (hdr->table_enc & DW_EH_PE_FORM) {
-		case DW_EH_PE_native:
-			hdrEntrySz = sizeof(unsigned long);
-			break;
-		case DW_EH_PE_data2:
-			hdrEntrySz = 2;
-			break;
-		case DW_EH_PE_data4:
-			hdrEntrySz = 4;
-			break;
-		case DW_EH_PE_data8:
-			hdrEntrySz = 8;
-			break;
-		default:
-			hdrEntrySz = 0;
-			break;
-		}
+	hdrEntrySz = sizeof(unsigned long);
+	BUILD_BUG_ON(hdrEntrySz != sizeof(hdr->table[0].start));
 
-		ptr = (const u8*)(hdr->eh_frame_ptr);
-		end = (const u8*)(hdr) + table->hdrsz;
-		if (hdrEntrySz
-		    && read_pointer(&ptr, end, hdr->eh_frame_ptr_enc) /* eh_frame_ptr */
-		    == (unsigned long)table->address
-		    && (i = read_pointer(&ptr, end, hdr->fde_count_enc)) > 0 /* fde_count */
-		    && i == (end - ptr) / (2 * hdrEntrySz)
-		    && !((end - ptr) % (2 * hdrEntrySz))) {
+	ptr = (const u8*)(hdr->table);
+	end = (const u8*)(hdr) + table->hdrsz;
+	i = hdr->fde_count;
+
 			do {
 				const u8 *cur = ptr + (i / 2) * (2 * hdrEntrySz);
 
@@ -944,8 +925,6 @@ int arc_unwind(struct unwind_frame_info *frame)
 			    && (startLoc = read_pointer(&ptr, ptr + hdrEntrySz, hdr->table_enc)) != 0
 			    && pc >= startLoc)
 				fde = (void *)read_pointer(&ptr, ptr + hdrEntrySz, hdr->table_enc);
-		}
-	}
 
 	if (fde != NULL) {
 		cie = cie_for_fde(fde, table);
