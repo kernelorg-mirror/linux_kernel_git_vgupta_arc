@@ -892,8 +892,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 #endif
 
 	table = find_table(pc);
-	if (table != NULL
-	    && !(table->size & (sizeof(*fde) - 1))) {
+	if (table != NULL) {
 		const u8 *hdr = table->header;
 		unsigned long tableSize;
 
