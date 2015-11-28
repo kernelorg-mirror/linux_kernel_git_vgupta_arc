@@ -866,7 +866,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 	const u8 *ptr = NULL, *end = NULL;
 	unsigned long pc = UNW_PC(frame);
 	unsigned long startLoc = 0, endLoc = 0, cfa;
-	unsigned i;
+	unsigned i, s, e;
 	signed ptrType = -1;
 	uleb128_t retAddrReg = 0;
 	const struct unwind_table *table;
@@ -874,7 +874,6 @@ int arc_unwind(struct unwind_frame_info *frame)
 	unsigned long *fptr;
 	unsigned long addr;
 	struct eh_frame_header *hdr;
-	unsigned long hdrEntrySz;
 
 	unw_debug("\nUNWIND FRAME: -------------------------------------\n");
 	unw_debug("PC\t\t: 0x%lx %pS\nr31 [BLINK]\t: 0x%lx %pS\nr28 [SP]\t: 0x%lx\nr27 [FP]\t: 0x%lx\n",
@@ -903,28 +902,23 @@ int arc_unwind(struct unwind_frame_info *frame)
 	if (hdr == NULL)
 		return -EINVAL;
 
-	hdrEntrySz = sizeof(unsigned long);
-	BUILD_BUG_ON(hdrEntrySz != sizeof(hdr->table[0].start));
+	s = i = 0;
+	e = hdr->fde_count - 1;
 
-	ptr = (const u8*)(hdr->table);
-	end = (const u8*)(hdr) + table->hdrsz;
-	i = hdr->fde_count;
+	do {
+		if (pc < startLoc)
+			e = i;
+		else
+			s = i;
+		i = s + (e - s) / 2;
+		startLoc = hdr->table[i].start;
+		unw_debug("s %d e %d i %d startLoc %lx\n", s, e, i, startLoc)
+	} while ((e - s) > 1);
 
-			do {
-				const u8 *cur = ptr + (i / 2) * (2 * hdrEntrySz);
-
-				startLoc = read_pointer(&cur, cur + hdrEntrySz, hdr->table_enc);
-				if (pc < startLoc)
-					i /= 2;
-				else {
-					ptr = cur - hdrEntrySz;
-					i = (i + 1) / 2;
-				}
-			} while (startLoc && i > 1);
-			if (i == 1
-			    && (startLoc = read_pointer(&ptr, ptr + hdrEntrySz, hdr->table_enc)) != 0
-			    && pc >= startLoc)
-				fde = (void *)read_pointer(&ptr, ptr + hdrEntrySz, hdr->table_enc);
+	if (pc >= startLoc)
+		fde = (u32 *)hdr->table[i].fde;
+	else
+		return -EINVAL;
 
 	if (fde != NULL) {
 		cie = cie_for_fde(fde, table);
