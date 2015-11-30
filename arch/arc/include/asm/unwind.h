@@ -116,9 +116,6 @@ struct unwind_frame_info {
 	PTREGS_INFO(r31), \
 	PTREGS_INFO(r63)
 
-#define UNW_DEFAULT_RA(raItem, dataAlign) \
-	((raItem).where == Memory && !((raItem).value * (dataAlign) + 4))
-
 extern int arc_unwind(struct unwind_frame_info *frame);
 extern void arc_unwind_init(void);
 extern void arc_unwind_setup(void);

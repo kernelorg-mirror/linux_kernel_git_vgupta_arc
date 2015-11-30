@@ -869,7 +869,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 #define FRAME_REG(r, t) (((t *)frame)[reg_info[r].offs])
 	const u32 *fde = NULL, *cie = NULL;
 	const u8 *ptr = NULL, *end = NULL;
-	unsigned long pc = UNW_PC(frame) - frame->call_frame;
+	unsigned long pc = UNW_PC(frame);
 	unsigned long startLoc = 0, endLoc = 0, cfa;
 	unsigned i;
 	signed ptrType = -1;
@@ -988,7 +988,6 @@ int arc_unwind(struct unwind_frame_info *frame)
 		state.cieEnd = ptr;	/* keep here temporarily */
 		ptr = (const u8 *)(cie + 2);
 		end = (const u8 *)(cie + 1) + *cie;
-		frame->call_frame = 1;
 		if ((state.version = *ptr) != 1)
 			cie = NULL;	/* unsupported version */
 		else if (*++ptr) {
@@ -1003,7 +1002,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 					case 'R':
 						continue;
 					case 'S':
-						frame->call_frame = 0;
+						/* signal frame not handled */
 						continue;
 					default:
 						break;
@@ -1147,12 +1146,6 @@ int arc_unwind(struct unwind_frame_info *frame)
 	unw_debug("\n");
 #endif
 
-	/* update frame */
-#ifndef CONFIG_AS_CFI_SIGNAL_FRAME
-	if (frame->call_frame
-	    && !UNW_DEFAULT_RA(state.regs[retAddrReg], state.dataAlign))
-		frame->call_frame = 0;
-#endif
 	cfa = FRAME_REG(state.cfa.reg, unsigned long) + state.cfa.offs;
 	startLoc = min_t(unsigned long, UNW_SP(frame), cfa);
 	endLoc = max_t(unsigned long, UNW_SP(frame), cfa);
