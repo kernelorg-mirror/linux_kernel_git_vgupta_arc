@@ -58,17 +58,7 @@ struct unwind_frame_info {
 #define UNW_PC(frame)		((frame)->regs.r63)
 #define UNW_SP(frame)		((frame)->regs.r28)
 #define UNW_BLINK(frame)	((frame)->regs.r31)
-
-/* Rajesh FIXME */
-#ifdef CONFIG_FRAME_POINTER
 #define UNW_FP(frame)		((frame)->regs.r27)
-#define FRAME_RETADDR_OFFSET	4
-#define FRAME_LINK_OFFSET	0
-#define STACK_BOTTOM_UNW(tsk)	STACK_LIMIT((tsk)->thread.ksp)
-#define STACK_TOP_UNW(tsk)	((tsk)->thread.ksp)
-#else
-#define UNW_FP(frame)		((void)(frame), 0)
-#endif
 
 #define STACK_LIMIT(ptr)	(((ptr) - 1) & ~(THREAD_SIZE - 1))
 
@@ -127,6 +117,7 @@ extern void unwind_remove_table(void *handle, int init_only);
 
 #define UNW_PC(frame) ((void)(frame), 0)
 #define UNW_SP(frame) ((void)(frame), 0)
+#define UNW_FP(frame) ((void)(frame), 0)
 #define UNW_FP(frame) ((void)(frame), 0)
 
 static inline void arc_unwind_init(void)
