@@ -1056,7 +1056,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 			    || addr + sizeof(unsigned long) > endLoc)
 					return -EIO;
 
-			__get_user(FRAME_REG(i, unsigned long), (unsigned long __user *)addr);
+			FRAME_REG(i, unsigned long) = *(unsigned long *)addr;
 			break;
 		}
 		unw_debug("r%d: 0x%lx\n", i, *fptr);
