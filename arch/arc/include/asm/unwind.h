@@ -66,8 +66,7 @@ struct unwind_frame_info {
 		BUILD_BUG_ON_ZERO(offsetof(struct unwind_frame_info, f) \
 				% FIELD_SIZEOF(struct unwind_frame_info, f)) \
 				+ offsetof(struct unwind_frame_info, f) \
-				/ FIELD_SIZEOF(struct unwind_frame_info, f), \
-				FIELD_SIZEOF(struct unwind_frame_info, f) \
+				/ FIELD_SIZEOF(struct unwind_frame_info, f) \
 	}
 #define PTREGS_INFO(f) EXTRA_INFO(regs.f)
 
