@@ -45,14 +45,6 @@
 
 #ifdef CONFIG_ISA_ARCV2
 
-.macro IRQ_SAVE r0, r1
-	clri \r0
-.endm
-
-.macro IRQ_RESTORE r0
-	seti \r0
-.endm
-
 .macro  SMP_BARRIER
 	dmb 3
 .endm
@@ -70,46 +62,35 @@
 
 #else	/* ISA_ARCOMPACT */
 
-.macro IRQ_SAVE r0, r1
-	lr	\r0, [status32]
-	bic	\r1, \r0, (STATUS_E1_MASK | STATUS_E2_MASK)
-	flag	\r1
-.endm
-
-.macro IRQ_RESTORE r0
-	flag	\r0
-.endm
-
 .macro GET_CPU_TS	r0
 	lr	\r0, [0x100]	; TIMER1
 .endm
 #endif
 
-.macro  SNAP_LOCK r0, r1
-	IRQ_SAVE	\r0, \r1
-	PUSH		\r0	; save flags on stack
-
 #if defined(CONFIG_SMP)
+.macro  SNAP_LOCK r0, r1
 1:
 	mov		\r0, 1
 	ex		\r0, [@timeline_lock]
 	breq		\r0, 1, 1b
 
 	SMP_BARRIER
-#endif
 .endm
 
 .macro	SNAP_UNLOCK r0
-#if defined(CONFIG_SMP)
 	SMP_BARRIER
 
 	mov		\r0, 0
 	st		\r0, [@timeline_lock]
-#endif
-
-	POP		\r0
-	IRQ_RESTORE	\r0
 .endm
+#else
+
+.macro  SNAP_LOCK r0, r1
+.endm
+
+.macro	SNAP_UNLOCK r0
+.endm
+#endif
 
 .macro SNAP_PROLOGUE r0, r1, event_id
 	SNAP_LOCK	\r0, \r1
