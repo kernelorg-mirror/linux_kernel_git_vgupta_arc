@@ -112,9 +112,6 @@
 .endm
 
 .macro SNAP_PROLOGUE r0, r1, event_id
-	PUSH	\r0
-	PUSH	\r1
-
 	SNAP_LOCK	\r0, \r1
 
 	mov	\r0, @timeline_log
@@ -175,10 +172,6 @@
 	ST_DI	\r0, [timeline_ctr]
 
 	SNAP_UNLOCK	\r0
-
-	/* Restore back orig scratch reg */
-	POP	\r1
-	POP	\r0
 .endm
 
 .macro TAKE_SNAP_EXCP_TLB r0, r1
