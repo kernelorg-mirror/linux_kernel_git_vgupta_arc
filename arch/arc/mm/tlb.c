@@ -258,6 +258,8 @@ noinline void local_flush_tlb_all(void)
 	unsigned int entry;
 	int num_tlb = mmu->sets * mmu->ways;
 
+	take_snap2(SNAP_TLB_FLUSH, -1, -1);
+
 	local_irq_save(flags);
 
 	/* Load PD0 and PD1 with template for a Blank Entry */
@@ -296,6 +298,8 @@ noinline void local_flush_tlb_all(void)
  */
 noinline void local_flush_tlb_mm(struct mm_struct *mm)
 {
+	take_snap2(SNAP_TLB_FLUSH, 0, -1);
+
 	/*
 	 * Small optimisation courtesy IA64
 	 * flush_mm called during fork,exit,munmap etc, multiple times as well.
@@ -330,6 +334,8 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 {
 	const unsigned int cpu = smp_processor_id();
 	unsigned long flags;
+
+	take_snap2(SNAP_TLB_FLUSH, start, end);
 
 	/* If range @start to @end is more than 32 TLB entries deep,
 	 * its better to move to a new ASID rather than searching for
@@ -374,6 +380,8 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	unsigned long flags;
 
+	take_snap2(SNAP_TLB_FLUSH, start, end);
+
 	/* exactly same as above, except for TLB entry not taking ASID */
 
 	if (unlikely((end - start) >= PAGE_SIZE * 32)) {
@@ -408,6 +416,8 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	 * checking the ASID and using it flush the TLB entry
 	 */
 	local_irq_save(flags);
+
+	take_snap2(SNAP_TLB_FLUSH, page, 0);
 
 	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID) {
 		tlb_entry_erase((page & PAGE_MASK) | hw_pid(vma->vm_mm, cpu));
