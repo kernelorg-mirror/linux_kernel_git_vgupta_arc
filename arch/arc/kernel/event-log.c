@@ -64,7 +64,7 @@ timeline_log_t timeline_log[MAX_SNAPS] __attribute__((aligned(128)));
 int timeline_ctr __attribute__((aligned(128)));
 
 #ifdef CONFIG_SMP
-int timeline_lock __attribute__((aligned(128)));
+DEFINE_RAW_SPINLOCK(timeline_lock);
 #endif
 
 void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, unsigned int extra2)
@@ -77,16 +77,7 @@ void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, u
 	local_irq_save(flags);
 
 #ifdef CONFIG_SMP
-	{
-	int lock = 1;
-
-	asm volatile(
-	"1:	ex  %0, [@timeline_lock]	\n"
-	"	breq  %0, 1, 1b			\n"
-	:"+r" (lock) ::"memory");
-
-	smp_mb();
-	}
+	arch_spin_lock(&timeline_lock.raw_lock);
 #endif
 
 	c = LDR(timeline_ctr);
@@ -127,8 +118,7 @@ void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, u
 	STR(timeline_ctr, c);
 
 #ifdef CONFIG_SMP
-	smp_mb();
-	timeline_lock = 0;
+	arch_spin_unlock(&timeline_lock.raw_lock);
 #endif
 	local_irq_restore(flags);
 }
