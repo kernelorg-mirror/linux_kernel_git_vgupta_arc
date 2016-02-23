@@ -23,6 +23,7 @@ obj-$(CONFIG_KGDB)			+= kgdb.o
 obj-$(CONFIG_ARC_METAWARE_HLINK)	+= arc_hostlink.o
 obj-$(CONFIG_PERF_EVENTS)		+= perf_event.o
 obj-$(CONFIG_ARC_DBG_EVENT_TIMELINE)	+= event-log.o
+CFLAGS_event-log.o   += -gdwarf-2
 
 obj-$(CONFIG_ARC_FPU_SAVE_RESTORE)	+= fpu.o
 CFLAGS_fpu.o   += -mdpfp
