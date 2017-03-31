@@ -23,6 +23,8 @@
 #define __HAVE_ARCH_STRLEN
 
 extern void *memset(void *ptr, int, __kernel_size_t);
+#define memset(p, c, sz)	__builtin_memset(p, c, sz)
+
 extern void *memcpy(void *, const void *, __kernel_size_t);
 extern void memzero(void *ptr, __kernel_size_t n);
 extern int memcmp(const void *, const void *, __kernel_size_t);
