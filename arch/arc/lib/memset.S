@@ -10,7 +10,7 @@
 
 #define SMALL	7 /* Must be at least 6 to deal with alignment/loop issues.  */
 
-ENTRY_CFI(memset)
+ENTRY_CFI(__memset_stock)
 	mov_s	r4,r0
 	or	r12,r0,r2
 	bmsk.f	r12,r12,1
@@ -46,4 +46,5 @@ ENTRY_CFI(memset)
 	stb.ab	r1,[r4,1]
 .Ltiny_end:
 	j_s	[blink]
-END_CFI(memset)
+
+END_CFI(__memset_stock)

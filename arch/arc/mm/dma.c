@@ -9,6 +9,7 @@
 #include <linux/dma-noncoherent.h>
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
+#include <asm/event-log.h>
 
 /*
  * ARCH specific callbacks for generic noncoherent DMA ops (dma/noncoherent.c)
@@ -56,6 +57,8 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		kvaddr = (void *)(u32)paddr;
 	}
 
+	take_snap4(SNAP_DMA_ALLOC, (unsigned long)kvaddr, paddr, size, need_coh);
+
 	/*
 	 * Evict any existing L1 and/or L2 lines for the backing page
 	 * in case it was used earlier as a normal "cached" page.
@@ -77,6 +80,8 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 {
 	phys_addr_t paddr = dma_handle;
 	struct page *page = virt_to_page(paddr);
+
+	take_snap2(SNAP_DMA_FREE, (unsigned long)vaddr, attrs & DMA_ATTR_NON_CONSISTENT);
 
 	if (!(attrs & DMA_ATTR_NON_CONSISTENT))
 		iounmap((void __force __iomem *)vaddr);

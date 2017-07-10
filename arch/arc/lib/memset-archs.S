@@ -38,7 +38,7 @@
 
 #endif
 
-ENTRY_CFI(memset)
+ENTRY_CFI(__memset_stock)
 	PREFETCHW_INSTR	r0, 0	; Prefetch the first write location
 	mov.f	0, r2
 ;;; if size is zero
@@ -136,4 +136,4 @@ ENTRY_CFI(memset)
 
 	j	[blink]
 
-END_CFI(memset)
+END_CFI(__memset_stock)

@@ -20,6 +20,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cachectl.h>
 #include <asm/setup.h>
+#include <asm/event-log.h>
 
 #ifdef CONFIG_ISA_ARCV2
 #define USE_RGN_FLSH	1
@@ -861,16 +862,19 @@ EXPORT_SYMBOL(flush_dcache_page);
  */
 static void __dma_cache_wback_inv_l1(phys_addr_t start, unsigned long sz)
 {
+	take_snap2(SNAP_CACHE_OP_WB_INV, start, sz);
 	__dc_line_op_k(start, sz, OP_FLUSH_N_INV);
 }
 
 static void __dma_cache_inv_l1(phys_addr_t start, unsigned long sz)
 {
+	take_snap2(SNAP_CACHE_OP_INV, start, sz);
 	__dc_line_op_k(start, sz, OP_INV);
 }
 
 static void __dma_cache_wback_l1(phys_addr_t start, unsigned long sz)
 {
+	take_snap2(SNAP_CACHE_OP_WB, start, sz);
 	__dc_line_op_k(start, sz, OP_FLUSH);
 }
 
@@ -880,18 +884,21 @@ static void __dma_cache_wback_l1(phys_addr_t start, unsigned long sz)
  */
 static void __dma_cache_wback_inv_slc(phys_addr_t start, unsigned long sz)
 {
+	take_snap2(SNAP_CACHE_OP_WB_INV, start, sz);
 	__dc_line_op_k(start, sz, OP_FLUSH_N_INV);
 	slc_op(start, sz, OP_FLUSH_N_INV);
 }
 
 static void __dma_cache_inv_slc(phys_addr_t start, unsigned long sz)
 {
+	take_snap2(SNAP_CACHE_OP_INV, start, sz);
 	__dc_line_op_k(start, sz, OP_INV);
 	slc_op(start, sz, OP_INV);
 }
 
 static void __dma_cache_wback_slc(phys_addr_t start, unsigned long sz)
 {
+	take_snap2(SNAP_CACHE_OP_WB, start, sz);
 	__dc_line_op_k(start, sz, OP_FLUSH);
 	slc_op(start, sz, OP_FLUSH);
 }
@@ -916,6 +923,14 @@ void dma_cache_wback(phys_addr_t start, unsigned long sz)
 	__dma_cache_wback(start, sz);
 }
 EXPORT_SYMBOL(dma_cache_wback);
+
+extern void *__memset_stock(void *ptr, int ch, __kernel_size_t sz);
+void *memset(void *ptr, int ch, __kernel_size_t sz)
+{
+	take_snap4(SNAP_MEMSET, (unsigned long)ptr, sz, ch, (unsigned int) __builtin_return_address(0));
+	return __memset_stock(ptr, ch, sz);
+}
+
 
 /*
  * This is API for making I/D Caches consistent when modifying
