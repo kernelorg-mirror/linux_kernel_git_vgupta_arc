@@ -442,7 +442,7 @@ EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
 #define RCU_STALL_DELAY_DELTA	       0
 #endif
 
-int rcu_cpu_stall_suppress __read_mostly; /* 1 = suppress stall warnings. */
+int rcu_cpu_stall_suppress __read_mostly = 1; /* 1 = suppress stall warnings. */
 EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress);
 static int rcu_cpu_stall_timeout __read_mostly = CONFIG_RCU_CPU_STALL_TIMEOUT;
 
