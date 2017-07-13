@@ -62,11 +62,11 @@ do {					\
 #define prepare_arch_switch(next)              				\
 do {									\
 	if (next->mm)							\
-		take_snap(SNAP_PRE_CTXSW_2_U,				\
-			 (unsigned int) __builtin_return_address(0));	\
+		take_snap2(SNAP_PRE_CTXSW_2_U,				\
+			(unsigned int) __builtin_return_address(0), 0);	\
 	else								\
-		take_snap(SNAP_PRE_CTXSW_2_K,				\
-			 (unsigned int) __builtin_return_address(0));	\
+		take_snap2(SNAP_PRE_CTXSW_2_K,				\
+		        (unsigned int) __builtin_return_address(0), 0);	\
 }									\
 while (0)
 #endif

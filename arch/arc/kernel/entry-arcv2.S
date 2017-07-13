@@ -88,7 +88,7 @@ ENTRY(handle_interrupt)
 
 	IRQ_DISABLE
 
-	TAKE_SNAP_C_FROM_ASM  SNAP_INTR_IN
+	TAKE_SNAP_IRQ  SNAP_INTR_IN
 
 	; icause is banked: one per priority level
 	; so a higher prio interrupt taken here won't clobber prev prio icause
@@ -215,9 +215,10 @@ restore_regs:
 ;####### Return from Intr #######
 
 	; As of now this is dead code as AUX_IRQ_ACT.ACTIVE is always clear
-	TAKE_SNAP_C_FROM_ASM SNAP_INTR_OUT
-	; Need to reload r0, r11
+
 #ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
+	TAKE_SNAP_IRQ   SNAP_INTR_OUT
+
 	; reload r0, r11
 	ld	r0, [sp, PT_status32]	; U/K mode at time of entry
 	lr	r10, [AUX_IRQ_ACT]
@@ -250,7 +251,7 @@ debug_marker_l1:
 .Lexcept_ret:	; Expects r0 has PT_status32
 
 debug_marker_syscall:
-	TAKE_SNAP_C_FROM_ASM SNAP_EXCP_OUT
+	TAKE_SNAP_C_FROM_ASM    SNAP_EXCP_OUT
 
 #ifdef CONFIG_ARC_DBG_EVENT_TIMELINE
 	ld	r0, [sp, PT_status32]

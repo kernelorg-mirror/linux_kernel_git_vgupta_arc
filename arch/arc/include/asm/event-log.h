@@ -71,8 +71,8 @@
 #define SNAP_SENTINEL		CUSTOM_EVENT(1 << 23)
 
 #ifndef CONFIG_ARC_DBG_EVENT_TIMELINE
-#define take_snap(event, extra)
-#define take_snap2(event, extra, extra2)
+#define take_snap2(event, a1, a2)
+#define take_snap4(event, a1, a2, a3, a4)
 #define take_snap_regs(event, regs)
 
 #else
@@ -111,8 +111,8 @@ typedef struct {
 	unsigned int sp;
 } timeline_log_t;
 
-void take_snap(int event, unsigned int extra);
-void take_snap2(int event, unsigned int extra, unsigned int extra2);
+void take_snap2(int event, unsigned int a1, unsigned int a2);
+void take_snap4(int event, unsigned int a1, unsigned int a2, unsigned int a3,  unsigned int a4);
 void take_snap_regs(int event, struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */

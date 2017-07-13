@@ -67,7 +67,8 @@ int timeline_ctr __attribute__((aligned(128)));
 DEFINE_RAW_SPINLOCK(timeline_lock);
 #endif
 
-void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, unsigned int extra2)
+static void inline __take_snap_lowest(int event, unsigned int sp, unsigned int pc,
+	unsigned int a1, unsigned int a2, unsigned int a3,  unsigned int a4)
 {
 	int c;
 	timeline_log_t *entry;
@@ -98,19 +99,13 @@ void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, u
 
 	STR(entry->task, current->pid);
 	STR(entry->event, event);
-	STR(entry->sp, regs->sp);
-	STR(entry->pc, regs->ret);
+	STR(entry->sp, sp);
+	STR(entry->pc, pc);
 
-	STR(entry->efa, 0);
-	STR(entry->extra, 0);
-
-	if ((event == SNAP_INTR_IN) || (event == SNAP_INTR_OUT)) {
-		STR(entry->cause, read_aux_reg(0x40a));
-		STR(entry->stat32, regs->status32);
-	} else {
-		STR(entry->cause, extra);
-		STR(entry->stat32, extra2);
-	}
+	STR(entry->cause, a1);
+	STR(entry->stat32, a2);
+	STR(entry->efa, a3);
+	STR(entry->extra, a4);
 
 	/* next empty entry (not last valid entry) */
 	c = (c + 1) & (MAX_SNAPS - 1);
@@ -125,18 +120,25 @@ void noinline __take_snap(int event, struct pt_regs *regs, unsigned int extra, u
 
 void take_snap_regs(int event, struct pt_regs *regs)
 {
-	if (!regs)
-		regs = task_pt_regs(current);
-
-	__take_snap(event, regs, 0, 0);
+	__take_snap_lowest(event, regs->sp, regs->ret, 0, 0, 0, 0);
 }
 
-void take_snap(int event, unsigned int extra)
+void take_snap_irq(int event, struct pt_regs *regs)
 {
-	__take_snap(event, task_pt_regs(current), extra, 0);
+	__take_snap_lowest(event, regs->sp, regs->ret, read_aux_reg(0x40a), regs->status32, 0, 0);
 }
 
-void take_snap2(int event, unsigned int extra, unsigned int extra2)
+void take_snap4(int event, unsigned int a1, unsigned int a2, unsigned int a3,  unsigned int a4)
 {
-	__take_snap(event, task_pt_regs(current), extra, extra2);
+	unsigned long caller_pc = (unsigned long)__builtin_return_address(0);
+	unsigned long sp;
+
+	asm volatile("mov %0, sp\n":"=r" (sp));
+
+	__take_snap_lowest(event, sp, caller_pc, a1, a2, a3, a4);
+}
+
+void take_snap2(int event, unsigned int a1, unsigned int a2)
+{
+	take_snap4(event, a1, a2, 0, 0);
 }

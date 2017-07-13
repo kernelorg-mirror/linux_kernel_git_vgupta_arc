@@ -29,6 +29,9 @@
 .macro TAKE_SNAP_SYSCALL r0, r1
 .endm
 
+.macro TAKE_SNAP_IRQ event
+.endm
+
 .macro TAKE_SNAP_C_FROM_ASM type
 .endm
 
@@ -178,8 +181,16 @@
 	SNAP_EPILOGUE \r0, \r1
 .endm
 
+.macro TAKE_SNAP_IRQ event
+	mov r0, \event
+	mov r1, sp
+	bl take_snap_irq
+.endm
+
 .macro TAKE_SNAP_C_FROM_ASM event
 	mov r0, \event
+
+        ; Note SP here needs to point to pt_regs
 	mov r1, sp
 	bl take_snap_regs
 .endm
