@@ -23,7 +23,7 @@
  *#####################################################################*/
 
 /* Size of the log buffer */
-#define MAX_SNAPS	8192
+#define MAX_SNAPS	(8192 * 2)
 #define MAX_SNAPS_MASK	(MAX_SNAPS-1)
 
 /* Helpers to setup Event IDs:
