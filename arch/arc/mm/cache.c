@@ -395,6 +395,10 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	 *   - (and needs to be written before the lower 32 bits)
 	 */
 	if (is_pae40_enabled()) {
+
+		/* check if crossing 4TB boundary */
+		BUG_ON((u32)paddr > (u32)(paddr + sz));
+
 		if (op == OP_INV_IC)
 			/*
 			 * Non aliasing I-cache in HS38,
@@ -444,7 +448,9 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	}
 
 	if (is_pae40_enabled()) {
-		/* TBD: check if crossing 4TB boundary */
+		/* check if crossing 4TB boundary */
+		BUG_ON((u32)paddr > (u32)(paddr + sz));
+
 		if (op == OP_INV_IC)
 			write_aux_reg(ARC_REG_IC_PTAG_HI, (u64)paddr >> 32);
 		else
