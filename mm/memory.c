@@ -111,9 +111,9 @@ EXPORT_SYMBOL(high_memory);
  */
 int randomize_va_space __read_mostly =
 #ifdef CONFIG_COMPAT_BRK
-					1;
+					0;
 #else
-					2;
+					0;
 #endif
 
 static int __init disable_randmaps(char *s)
