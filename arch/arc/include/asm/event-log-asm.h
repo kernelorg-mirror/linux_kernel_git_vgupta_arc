@@ -15,6 +15,7 @@
 #define __ASM_ARC_EVENT_LOG_ASM_H
 
 #include <asm/event-log.h>
+#include <asm/mmu.h>
 
 #ifdef __ASSEMBLY__
 
@@ -138,7 +139,7 @@
 	ST_DI	\r0, [\r1, EVLOG_FIELD_STATUS]
 
 	;mov	\r0, 0    ; AUX_SP
-	lr \r0, [0x468]    ; MMU_PID
+	lr \r0, [ARC_REG_PID]    ; MMU_PID
 	ST_DI	\r0, [\r1, EVLOG_FIELD_EXTRA]
 
 #ifdef CONFIG_SMP
