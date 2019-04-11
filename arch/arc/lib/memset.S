@@ -44,13 +44,3 @@ ENTRY_CFI(memset)
 .Ltiny_end:
 	j_s	[blink]
 END_CFI(memset)
-
-; memzero: @r0 = mem, @r1 = size_t
-; memset:  @r0 = mem, @r1 = char, @r2 = size_t
-
-ENTRY_CFI(memzero)
-    ; adjust bzero args to memset args
-    mov r2, r1
-    mov r1, 0
-    b  memset    ;tail call so need to tinker with blink
-END_CFI(memzero)

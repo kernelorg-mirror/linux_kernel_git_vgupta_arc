@@ -134,10 +134,3 @@ ENTRY_CFI(memset)
 	j	[blink]
 
 END_CFI(memset)
-
-ENTRY_CFI(memzero)
-    ; adjust bzero args to memset args
-    mov r2, r1
-    b.d  memset    ;tail call so need to tinker with blink
-    mov r1, 0
-END_CFI(memzero)
