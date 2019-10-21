@@ -624,14 +624,9 @@ __ic_line_inv_vaddr_local(phys_addr_t paddr, unsigned long vaddr,
 	local_irq_restore(flags);
 }
 
-#ifndef CONFIG_SMP
-
-#define __ic_line_inv_vaddr(p, v, s)	__ic_line_inv_vaddr_local(p, v, s)
-
-#else
-
 struct ic_inv_args {
-	phys_addr_t paddr, vaddr;
+	phys_addr_t paddr
+        unsigned long vaddr;
 	int sz;
 };
 
@@ -653,8 +648,6 @@ static void __ic_line_inv_vaddr(phys_addr_t paddr, unsigned long vaddr,
 
 	on_each_cpu(__ic_line_inv_vaddr_helper, &ic_inv, 1);
 }
-
-#endif	/* CONFIG_SMP */
 
 #else	/* !CONFIG_ARC_HAS_ICACHE */
 
