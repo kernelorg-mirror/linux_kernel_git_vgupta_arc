@@ -39,6 +39,7 @@ cflags-y	+= -ffixed-gp
 endif
 
 cflags-y				+= -fsection-anchors
+cflags-y				+= -Wa,-I$(srctree)/arch/arc/include
 
 cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
 cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
