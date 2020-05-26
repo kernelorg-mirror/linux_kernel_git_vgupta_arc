@@ -564,8 +564,8 @@ late_initcall(init_late_machine);
  *  Get CPU information for use by the procfs.
  */
 
-#define cpu_to_ptr(c)	((void *)(0xFFFF0000 | (unsigned int)(c)))
-#define ptr_to_cpu(p)	(~0xFFFF0000UL & (unsigned int)(p))
+#define cpu_to_ptr(c)	((void *)(~0xFFFF | (unsigned long)(c)))
+#define ptr_to_cpu(p)	(0xFFFFU & (unsigned long)(p))
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {

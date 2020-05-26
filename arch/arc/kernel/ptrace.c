@@ -9,6 +9,7 @@
 #include <linux/regset.h>
 #include <linux/unistd.h>
 #include <linux/elf.h>
+#include <asm/asm-offsets.h>
 
 static struct callee_regs *task_callee_regs(struct task_struct *tsk)
 {
@@ -24,14 +25,14 @@ static int genregs_get(struct task_struct *target,
 	const struct callee_regs *cregs = task_callee_regs(target);
 	unsigned int stop_pc_val;
 
-	membuf_zero(&to, 4);	// pad
+	membuf_zero(&to, REGSZ);	// pad
 	membuf_store(&to, ptregs->bta);
 #ifndef CONFIG_ARC_LACKS_ZOL
 	membuf_store(&to, ptregs->lp_start);
 	membuf_store(&to, ptregs->lp_end);
 	membuf_store(&to, ptregs->lp_count);
 #else
-	membuf_zero(&to, 12);	// TODO arcv3
+	membuf_zero(&to, (REGSZ*3));
 #endif
 	membuf_store(&to, ptregs->status32);
 	membuf_store(&to, ptregs->ret);
@@ -52,7 +53,7 @@ static int genregs_get(struct task_struct *target,
 	membuf_store(&to, ptregs->r1);
 	membuf_store(&to, ptregs->r0);
 	membuf_store(&to, ptregs->sp);
-	membuf_zero(&to, 4);	// pad2
+	membuf_zero(&to, REGSZ);	// pad2
 	membuf_store(&to, cregs->r25);
 	membuf_store(&to, cregs->r24);
 	membuf_store(&to, cregs->r23);
@@ -104,13 +105,13 @@ static int genregs_set(struct task_struct *target,
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, \
 			(void *)(PTR), \
 			offsetof(struct user_regs_struct, LOC), \
-			offsetof(struct user_regs_struct, LOC) + 4);
+			offsetof(struct user_regs_struct, LOC) + REGSZ);
 
 #define REG_IGNORE_ONE(LOC)		\
 	if (!ret)			\
 		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, \
 			offsetof(struct user_regs_struct, LOC), \
-			offsetof(struct user_regs_struct, LOC) + 4);
+			offsetof(struct user_regs_struct, LOC) + REGSZ);
 
 	REG_IGNORE_ONE(pad);
 
@@ -187,9 +188,8 @@ static int arcv2regs_get(struct task_struct *target,
 		 */
 		return membuf_write(&to, &regs->r30, sizeof(struct user_regs_arcv2));
 
-
-	membuf_write(&to, &regs->r30, 4); /* r30 only */
-	return membuf_zero(&to, sizeof(struct user_regs_arcv2) - 4);
+	membuf_write(&to, &regs->r30, REGSZ); /* r30 only */
+	return membuf_zero(&to, sizeof(struct user_regs_arcv2) - REGSZ);
 }
 
 static int arcv2regs_set(struct task_struct *target,
@@ -203,7 +203,7 @@ static int arcv2regs_set(struct task_struct *target,
 	if (IS_ENABLED(CONFIG_ARC_HAS_ACCL_REGS))
 		copy_sz = sizeof(struct user_regs_arcv2);
 	else
-		copy_sz = 4;	/* r30 only */
+		copy_sz = REGSZ;	/* r30 only */
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, (void *)&regs->r30,
 				  0, copy_sz);
@@ -278,7 +278,7 @@ long arch_ptrace(struct task_struct *child, long request,
 asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
 	if (tracehook_report_syscall_entry(regs))
-		return ULONG_MAX;
+		return -1;
 
 	return regs->r8;
 }
