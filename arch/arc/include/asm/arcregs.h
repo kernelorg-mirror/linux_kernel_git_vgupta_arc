@@ -355,6 +355,11 @@ struct bcr_generic {
 #endif
 };
 
+static inline int is_isa_arcv3(void)
+{
+	return IS_ENABLED(CONFIG_ISA_ARCV3);
+}
+
 static inline int is_isa_arcv2(void)
 {
 	return IS_ENABLED(CONFIG_ISA_ARCV2);
