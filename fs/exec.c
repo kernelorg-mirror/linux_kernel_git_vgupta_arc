@@ -1791,6 +1791,8 @@ static int exec_binprm(struct linux_binprm *bprm)
 	return 0;
 }
 
+extern int arc_debug;
+
 /*
  * sys_execve() executes a new program.
  */
@@ -1803,6 +1805,10 @@ static int bprm_execve(struct linux_binprm *bprm,
 	retval = prepare_bprm_creds(bprm);
 	if (retval)
 		return retval;
+
+	if (arc_debug)
+		printk("\n(%d) EXECVE: %p %s\n",
+			current->pid, current, filename->name);
 
 	check_unsafe_exec(bprm);
 	current->in_execve = 1;
