@@ -209,6 +209,10 @@
 #define pmd_leaf(x)		(pmd_val(x) & _PAGE_HW_SZ)
 #endif
 
+#ifdef CONFIG_ISA_ARCV2
+#define pmd_leaf(x)		(pmd_val(x) & _PAGE_HW_SZ)
+#endif
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif
