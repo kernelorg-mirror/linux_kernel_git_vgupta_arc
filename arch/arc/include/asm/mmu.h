@@ -16,6 +16,10 @@ typedef struct {
 
 #endif
 
+#ifdef CONFIG_ARC_MMU_V4
 #include <asm/mmu-arcv2.h>
+#else
+#error "ARCv3 MMU not implemented"
+#endif
 
 #endif
