@@ -36,6 +36,7 @@
 #include <linux/pgtable.h>
 #include <asm/entry.h>
 #include <asm/mmu.h>
+#include <asm/pgtable.h>
 #include <asm/arcregs.h>
 #include <asm/cache.h>
 #include <asm/processor.h>
