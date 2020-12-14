@@ -96,7 +96,7 @@ static void free_work(struct work_struct *w)
 }
 
 /*** Page table manipulation functions ***/
-static int vmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+static noinline int vmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 			phys_addr_t phys_addr, pgprot_t prot,
 			unsigned int max_page_shift, pgtbl_mod_mask *mask)
 {
@@ -484,7 +484,7 @@ static int vmap_pages_pte_range(pmd_t *pmd, unsigned long addr,
 	return 0;
 }
 
-static int vmap_pages_pmd_range(pud_t *pud, unsigned long addr,
+static noinline int vmap_pages_pmd_range(pud_t *pud, unsigned long addr,
 		unsigned long end, pgprot_t prot, struct page **pages, int *nr,
 		pgtbl_mod_mask *mask)
 {
@@ -520,7 +520,7 @@ static int vmap_pages_pud_range(p4d_t *p4d, unsigned long addr,
 	return 0;
 }
 
-static int vmap_pages_p4d_range(pgd_t *pgd, unsigned long addr,
+static noinline int vmap_pages_p4d_range(pgd_t *pgd, unsigned long addr,
 		unsigned long end, pgprot_t prot, struct page **pages, int *nr,
 		pgtbl_mod_mask *mask)
 {
