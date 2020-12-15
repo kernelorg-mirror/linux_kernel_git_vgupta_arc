@@ -158,6 +158,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	mmu_setup_pgd(next, next->pgd);
 }
 
+#ifdef CONFIG_ARC_MMU_V6
 /*
  * activate_mm defaults (in asm-generic) to switch_mm and is called at the
  * time of execve() to get a new ASID Note the subtlety here:
@@ -166,6 +167,9 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  * value, while in latter, it moves to a new ASID, only if it was
  * unallocated
  */
+extern void activate_mm(struct mm_struct *prev, struct mm_struct *next);
+#define activate_mm		activate_mm
+#endif
 
 /* it seemed that deactivate_mm( ) is a reasonable place to do book-keeping
  * for retiring-mm. However destroy_context( ) still needs to do that because
