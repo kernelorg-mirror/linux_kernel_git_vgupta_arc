@@ -168,7 +168,6 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  */
 extern void activate_mm(struct mm_struct *prev, struct mm_struct *next);
 #define activate_mm		activate_mm
-#endif
 
 /* it seemed that deactivate_mm( ) is a reasonable place to do book-keeping
  * for retiring-mm. However destroy_context( ) still needs to do that because
@@ -177,6 +176,11 @@ extern void activate_mm(struct mm_struct *prev, struct mm_struct *next);
  * there is a good chance that task gets sched-out/in, making it's ASID valid
  * again (this teased me for a whole day).
  */
+
+extern void deactivate_mm(struct task_struct *tsk, struct mm_struct *mm);
+#define deactivate_mm		deactivate_mm
+
+#endif
 
 #include <asm-generic/mmu_context.h>
 
