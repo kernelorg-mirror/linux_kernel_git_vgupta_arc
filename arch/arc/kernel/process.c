@@ -281,8 +281,7 @@ int elf_check_arch(const struct elfhdr *x)
 	unsigned int eflags;
 
 	if (x->e_machine != ELF_ARCH) {
-		pr_err("ELF not built for %s ISA\n",
-			is_isa_arcompact() ? "ARCompact":"ARCv2");
+		pr_err("ELF is not built for %s ISA\n", ISA_NAME);
 		return 0;
 	}
 
