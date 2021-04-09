@@ -36,6 +36,7 @@ ifndef CONFIG_ISA_ARCV3
 cflags-y	+= -fsection-anchors -mno-sdata -mmedium-calls
 else
 cflags-y	+= -mcmodel=medium
+cflags-$(CONFIG_ARC_HAS_LL128)	+= 	-m128
 endif
 cflags-y	+= -Wa,-I$(srctree)/arch/arc/include
 
