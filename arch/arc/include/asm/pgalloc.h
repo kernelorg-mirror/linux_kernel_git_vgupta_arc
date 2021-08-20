@@ -31,6 +31,8 @@
 
 #include <linux/mm.h>
 #include <linux/log2.h>
+
+#define __HAVE_ARCH_PUD_ALLOC_ONE
 #include <asm-generic/pgalloc.h>
 
 static inline void
@@ -75,6 +77,27 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
 {
 	set_p4d(p4dp, __p4d((unsigned long)pudp | _PAGE_TABLE));
+}
+
+
+static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+{
+	pud_t *pud;
+
+	BUILD_BUG_ON((PTRS_PER_PUD * sizeof(pud_t)) > PAGE_SIZE);
+
+	/*
+	 * For kernel in high address, there will be a dedicated swapper_pud
+	 * and its base pointet needs to be set in user pgd
+	 */
+	BUILD_BUG_ON(PAGE_OFFSET != 0x80000000);
+
+	pud = (pud_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+
+	pud[2] = swapper_pud[2];
+	pud[3] = swapper_pud[3];
+
+	return pud;
 }
 
 #define __pud_free_tlb(tlb, pmd, addr)  pud_free((tlb)->mm, pmd)
