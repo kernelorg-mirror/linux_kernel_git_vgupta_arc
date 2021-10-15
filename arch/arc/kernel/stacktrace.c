@@ -117,7 +117,7 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 		long (*consumer_fn) (unsigned long, void *), void *arg)
 {
 #ifdef CONFIG_ARC_DW2_UNWIND
-	int ret = 0, cnt = 0;
+	int cnt = 0;
 	unsigned long address;
 	struct unwind_frame_info frame_info;
 
@@ -170,7 +170,7 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 /* Call-back which plugs into unwinding core to dump the stack in
  * case of panic/OOPs/BUG etc
  */
-static long __print_sym(unsigned int address, void *arg)
+static long __print_sym(unsigned long address, void *arg)
 {
 	const char *loglvl = arg;
 
